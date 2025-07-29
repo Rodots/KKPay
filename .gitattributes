@@ -1,0 +1,59 @@
+# ──────────────────────────────────────────────
+# 所有文件使用 LF 行结束符
+# ──────────────────────────────────────────────
+* text=auto eol=lf
+
+# ──────────────────────────────────────────────
+# PHP & Web 专用
+# ──────────────────────────────────────────────
+*.php           text diff=php
+*.phtml         text diff=php
+*.phpt          text diff=php
+*.twig          text
+*.html          text diff=html
+*.css           text diff=css
+*.scss          text diff=css
+*.js            text
+*.json          text
+*.xml           text
+*.yml           text
+*.yaml          text
+*.md            text diff=markdown
+
+# ──────────────────────────────────────────────
+# 二进制文件（禁止 diff）
+# ──────────────────────────────────────────────
+*.png           binary
+*.jpg           binary
+*.jpeg          binary
+*.gif           binary
+*.ico           binary
+*.ttf           binary
+*.woff          binary
+*.woff2         binary
+*.eot           binary
+*.pdf           binary
+*.zip           binary
+*.tar.gz        binary
+*.phar          binary
+
+# ──────────────────────────────────────────────
+# 不打包到发行版的文件（生产归档时自动忽略）
+#   例： composer archive --format=zip 会跳过
+# ──────────────────────────────────────────────
+/.github        export-ignore
+/.gitattributes export-ignore
+/.gitignore     export-ignore
+/phpunit.xml*   export-ignore
+/tests          export-ignore
+/.env.example   export-ignore
+/docker         export-ignore
+/Makefile       export-ignore
+
+# ──────────────────────────────────────────────
+# 让 GitHub 语言统计更精确
+#   把 *.phpt 视为 PHP，而非文本
+# ──────────────────────────────────────────────
+*.js linguist-language=PHP
+*.css linguist-language=PHP
+*.html linguist-language=PHP

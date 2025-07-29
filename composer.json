@@ -1,0 +1,44 @@
+{
+  "require": {
+    "php": ">=8.4",
+    "workerman/webman-framework": "^2.1",
+    "webman/database": "^2.1",
+    "webman/redis": "^2.1",
+    "webman/cache": "^2.1",
+    "firebase/php-jwt": "^6.11",
+    "illuminate/events": "^12.21",
+    "topthink/think-validate": "^3.0",
+    "monolog/monolog": "^3.9",
+    "vectorface/googleauthenticator": "^3.4",
+    "ext-bcmath": "*",
+    "ext-event": "*",
+    "ext-openssl": "*",
+    "ext-pdo": "*",
+    "ext-redis": "*",
+    "ext-sodium": "*"
+  },
+  "require-dev": {
+    "webman/log": "^2.1",
+    "symfony/var-dumper": "^7.3"
+  },
+  "autoload": {
+    "psr-4": {
+      "": "./",
+      "app\\": "./app",
+      "App\\": "./app"
+    }
+  },
+  "scripts": {
+    "post-package-install": [
+      "support\\Plugin::install"
+    ],
+    "post-package-update": [
+      "support\\Plugin::install"
+    ],
+    "pre-package-uninstall": [
+      "support\\Plugin::uninstall"
+    ]
+  },
+  "minimum-stability": "dev",
+  "prefer-stable": true
+}

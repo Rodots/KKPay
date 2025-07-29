@@ -1,0 +1,46 @@
+<?php
+
+declare(strict_types = 1);
+
+namespace app\model;
+
+use support\Model;
+
+/**
+ * 订单买家信息表
+ */
+class OrderNotification extends Model
+{
+    /**
+     * 与模型关联的表
+     *
+     * @var string
+     */
+    protected $table = 'order_notification';
+
+    /**
+     * 指示模型的 ID 是否是自动递增的。
+     *
+     * @var bool
+     */
+    public $incrementing = false;
+
+    /**
+     * 主键 ID 的数据类型。
+     *
+     * @var string
+     */
+    protected $keyType = 'string';
+
+    /**
+     * 获取应转换的属性。
+     *
+     * @return array
+     */
+    protected function casts(): array
+    {
+        return [
+            'status' => 'boolean'
+        ];
+    }
+}

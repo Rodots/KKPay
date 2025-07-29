@@ -1,0 +1,29 @@
+<?php
+
+declare(strict_types = 1);
+
+return [
+    'default' => [
+        'handlers'   => [
+            [
+                'class'       => Monolog\Handler\RotatingFileHandler::class,
+                'constructor' => [
+                    runtime_path() . '/logs/kkpay.log',
+                ],
+                'formatter'   => [
+                    'class'       => Monolog\Formatter\LineFormatter::class,
+                    'constructor' => [null, 'Y-m-d H:i:s', true, true],
+                ],
+            ]
+        ],
+        'processors' => [
+            function (Monolog\LogRecord $record): Monolog\LogRecord {
+                $traceId = core\utils\TraceIDUtil::getTraceID();
+                if ($traceId !== null) {
+                    $record->offsetSet('extra', ['trace_id' => $traceId]);
+                }
+                return $record;
+            }
+        ],
+    ],
+];
