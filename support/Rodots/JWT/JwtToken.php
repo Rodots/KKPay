@@ -81,12 +81,12 @@ class JwtToken
 
     /**
      * 设置过期时间
-     * @param int $expireTime
+     * @param int $seconds
      * @return JwtToken
      */
-    public function expire(int $expireTime): JwtToken
+    public function expire(int $seconds): JwtToken
     {
-        $this->expireTime = $expireTime;
+        $this->expireTime = $seconds;
         return $this;
     }
 
@@ -189,14 +189,13 @@ class JwtToken
     /**
      * 验证Token是否有效
      * @param string $token JWT Token
-     * @return bool
+     * @return array|false
      * @throws JwtTokenException
      */
-    public function validate(string $token): bool
+    public function validate(string $token): array|false
     {
         try {
-            $this->parse($token);
-            return true;
+            return $this->parse($token);
         } catch (Throwable) {
             return false;
         }
@@ -372,7 +371,7 @@ class JwtToken
         $ttl = $expireTime - time();
 
         if ($ttl > 0) {
-            Redis::setex($this->blacklistPrefix . hash('sha256', $token), $ttl, 1);
+            Redis::setex($this->blacklistPrefix . hash('sha256', $token), $ttl, 0);
         }
     }
 
@@ -402,43 +401,14 @@ class JwtToken
 
         // 对称加密算法(HMAC)只需要一个密钥
         if (self::$supportedAlgorithms[$algo]['type'] === 'hmac') {
-            if (Redis::exists("$redisPrefix:key")) {
-                return ['key' => Redis::get("$redisPrefix:key")];
-            }
-
-            $keyPath = config_path() . "/cert/jwt/$algo/key.secret";
-            if (file_exists($keyPath)) {
-                $key = file_get_contents($keyPath);
-                Redis::set("$redisPrefix:key", $key);
-                return ['key' => $key];
-            }
-
-            return $this->generateKeyPair($algo);
+            return ['key' => Redis::get("$redisPrefix:key")];
         }
 
         // 非对称加密算法需要公钥和私钥
-        if (Redis::exists("$redisPrefix:privateKey") && Redis::exists("$redisPrefix:publicKey")) {
-            return [
-                'privateKey' => Redis::get("$redisPrefix:privateKey"),
-                'publicKey'  => Redis::get("$redisPrefix:publicKey"),
-            ];
-        }
-
-        $privateKeyPath = config_path() . "/cert/jwt/$algo/private.key";
-        $publicKeyPath  = config_path() . "/cert/jwt/$algo/public.key";
-
-        if (file_exists($privateKeyPath) && file_exists($publicKeyPath)) {
-            $privateKey = file_get_contents($privateKeyPath);
-            $publicKey  = file_get_contents($publicKeyPath);
-            Redis::set("$redisPrefix:privateKey", $privateKey);
-            Redis::set("$redisPrefix:publicKey", $publicKey);
-            return [
-                'privateKey' => $privateKey,
-                'publicKey'  => $publicKey,
-            ];
-        }
-
-        return $this->generateKeyPair($algo);
+        return [
+            'privateKey' => Redis::get("$redisPrefix:privateKey"),
+            'publicKey'  => Redis::get("$redisPrefix:publicKey"),
+        ];
     }
 
     /**

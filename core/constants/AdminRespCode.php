@@ -14,11 +14,7 @@ enum AdminRespCode: int
     case ERROR = 50000;
 
     // 业务相关响应码
-    case NOT_LOGIN      = 40001; // 未登录
-    case NO_PERMISSION  = 40002; // 无权限
-    case INVALID_PARAM  = 40003; // 无效参数
-    case INVALID_TOKEN  = 40004; // 无效Token
-    case TOKEN_EXPIRED  = 40005; // Token已过期
-    case NOT_FOUND      = 40006; // 未找到
-    case ALREADY_EXISTS = 40007; // 已存在
+    case INVALID_TOKEN  = 40001; // 无效Token
+    case NOT_FOUND      = 40002; // 未找到
+    case ALREADY_EXISTS = 40003; // 已存在
 }

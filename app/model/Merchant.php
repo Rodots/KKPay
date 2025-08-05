@@ -74,7 +74,7 @@ class Merchant extends Model
             $merchant->phone    = empty($data['phone']) ? null : trim($data['phone']);
             $merchant->qq       = empty($data['qq']) ? null : trim($data['qq']);
             $merchant->salt     = random(4);
-            $merchant->password = password_hash(hash('SHA3-256', $merchant->salt . $data['password'] . 'kkpay'), PASSWORD_DEFAULT);
+            $merchant->password = password_hash(hash('SHA3-256', $merchant->salt . $data['password'] . 'kkpay'), PASSWORD_BCRYPT);
             $merchant->save();
 
             // 创建商户安全信息

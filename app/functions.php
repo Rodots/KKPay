@@ -24,38 +24,6 @@ function random(int $length = 8, string $mode = 'all'): string
     return new Random\Randomizer()->getBytesFromString($chars, $length);
 }
 
-/**
- * 生成UUIDv4（通用唯一标识符，版本4）
- * UUIDv4是随机生成的UUID，其中版本4表示通过随机数生成
- * 此函数通过生成随机字节并按照UUIDv4的规范进行格式化，来生成一个UUIDv4
- *
- * @return string 生成的UUIDv4字符串
- * @throws Random\RandomException
- */
-function generateUuidV4(): string
-{
-    // 生成16字节的随机字节
-    $bytes = random_bytes(16);
-
-    // 设置UUID版本（第7字节的高4位设置为0100）
-    $bytes[6] = chr(ord($bytes[6]) & 0x0F | 0x40);
-
-    // 设置UUID变体（第9字节的高4位设置为10）
-    $bytes[8] = chr(ord($bytes[8]) & 0x3F | 0x80);
-
-    // 将字节转换为十六进制字符串
-    $hex = bin2hex($bytes);
-
-    // 格式化为UUID格式
-    return sprintf('%s-%s-%s-%s-%s',
-        substr($hex, 0, 8),
-        substr($hex, 8, 4),
-        substr($hex, 12, 4),
-        substr($hex, 16, 4),
-        substr($hex, 20, 12)
-    );
-}
-
 function filter(?string $string = null): string
 {
     if ($string === null) {
