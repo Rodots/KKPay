@@ -21,35 +21,24 @@ trait AdminRole
         self::SUPER_ADMIN => [
             'name' => '超级管理员',
             'permissions' => [
-                'permission.browse',
-                'permission.create',
-                'permission.edit',
-                'permission.remove',
-                'user.manage',
-                'system.config'
+                'super_admin'
             ]
         ],
         self::NORMAL_ADMIN => [
             'name' => '普通管理员',
             'permissions' => [
-                'permission.browse',
-                'permission.create',
-                'permission.edit',
-                'permission.remove',
+                'admin'
             ]
         ],
         self::SERVICE => [
             'name' => '客服',
             'permissions' => [
-                'permission.browse',
-                'user.query'
+                'service'
             ]
         ],
         self::DEFAULT => [
             'name' => '牛马',
-            'permissions' => [
-                'permission.browse'
-            ]
+            'permissions' => []
         ]
     ];
 

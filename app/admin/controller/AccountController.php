@@ -140,7 +140,7 @@ class AccountController extends AdminBase
 
         $newPassword = trim($params['newPassword']);
         if (strlen($newPassword) < 5) {
-            return $this->fail('新密码长度必须5个字符以上');
+            return $this->fail('密码长度不能小于5位');
         }
 
         // 5. 获取用户信息
