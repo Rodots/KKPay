@@ -63,6 +63,9 @@ class Handler extends ExceptionHandler
         $code = $exception->getCode() ?: 50000;
 
         if ($request->expectsJson()) {
+            if (!is_int($code)) {
+                $code = 50000;
+            }
             return $this->jsonResponse($code, $exception);
         }
 
