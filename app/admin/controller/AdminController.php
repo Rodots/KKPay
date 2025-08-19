@@ -1,0 +1,351 @@
+<?php
+
+declare(strict_types = 1);
+
+namespace app\admin\controller;
+
+use app\model\Admin;
+use app\model\AdminLog;
+use core\baseController\AdminBase;
+use SodiumException;
+use support\Request;
+use support\Response;
+use support\Rodots\Crypto\XChaCha20;
+use Throwable;
+
+class AdminController extends AdminBase
+{
+    /**
+     * 管理员列表
+     */
+    public function index(Request $request): Response
+    {
+        $from   = $request->get('from', 0);
+        $limit  = $request->get('limit', 10);
+        $sort   = $request->get('sort', 'id');
+        $order  = $request->get('order', 'desc');
+        $params = $request->only(['role', 'account', 'nickname', 'email', 'status', 'created_at']);
+
+        try {
+            validate([
+                'account'    => 'max:32',
+                'nickname'   => 'max:16',
+                'email'      => 'max:64',
+                'created_at' => 'array'
+            ], [
+                'account.max'      => '账号长度不能超过32位',
+                'nickname.max'     => '昵称长度不能超过16位',
+                'email.max'        => '邮箱长度不能超过64位',
+                'created_at.array' => '请重新选择选择时间范围'
+            ])->check($params);
+        } catch (Throwable $e) {
+            return $this->fail($e->getMessage());
+        }
+
+        // 检测要排序的字段是否在允许的字段列表中并检测排序顺序是否正确
+        if (!in_array($sort, ['id', 'role']) || !in_array($order, ['asc', 'desc'])) {
+            return $this->fail('排序失败，请刷新后重试');
+        }
+
+        // 构建查询
+        $query = Admin::select(['id', 'role', 'account', 'nickname', 'email', 'status', 'totp_secret', 'created_at', 'updated_at'])->where('role', '>', $this->getRole())->when($params, function ($q) use ($params) {
+            foreach ($params as $key => $value) {
+                if ($value === '' || $value === null) {
+                    continue;
+                }
+                switch ($key) {
+                    case 'role':
+                        $q->where('role', (int)$value);
+                        break;
+                    case 'account':
+                        $q->where('account', $value);
+                        break;
+                    case 'email':
+                        $q->where('email', 'like', "%$value%");
+                        break;
+                    case 'status':
+                        $q->where('status', (int)$value);
+                        break;
+                    case 'created_at':
+                        $q->whereBetween('created_at', [$value[0], $value[1]]);
+                        break;
+                }
+            }
+            return $q;
+        });
+
+        // 获取总数和数据
+        $total = $query->count();
+        $list  = $query->skip($from)->take($limit)->orderBy($sort, $order)->get()->append(['role_name', 'totp_state']);
+
+        return $this->success(data: [
+            'list'  => $list,
+            'total' => $total,
+        ]);
+    }
+
+    /**
+     * 管理员详情
+     */
+    public function detail(Request $request): Response
+    {
+        $id = $request->get('id');
+
+        $query = Admin::find($id, ['id', 'role', 'account', 'nickname', 'email', 'status']);
+        return $this->success(data: $query->toArray());
+    }
+
+    /**
+     * 创建管理员
+     *
+     * @param Request $request
+     * @return Response
+     * @throws SodiumException
+     */
+    public function create(Request $request): Response
+    {
+        $payload = $request->post('payload');
+        if (empty($payload)) {
+            return $this->fail('非法请求');
+        }
+
+        $params = new XChaCha20(config('kkpay.api_crypto_key', ''))->get($payload);
+
+        try {
+            validate([
+                'role'     => 'require|gt:' . $this->getRole(),
+                'account'  => 'require|max:32',
+                'nickname' => 'require|max:16',
+                'email'    => 'email',
+                'password' => 'require|min:5'
+            ], [
+                'role.require'     => '角色为必选项',
+                'role.gt'          => '只能创建比自己权限低的角色',
+                'account.require'  => '账号不能为空',
+                'account.max'      => '账号长度不能超过32位',
+                'nickname.require' => '昵称不能为空',
+                'nickname.max'     => '昵称长度不能超过16位',
+                'email.email'      => '邮箱格式不正确',
+                'password.require' => '密码不能为空',
+                'password.min'     => '密码长度不能小于5位'
+            ])->check($params);
+
+            // 调用模型方法创建管理员
+            Admin::createAdmin($params);
+        } catch (Throwable $e) {
+            return $this->fail($e->getMessage());
+        }
+
+        return $this->success('创建成功');
+    }
+
+    /**
+     * 编辑管理员
+     *
+     * @param Request $request
+     * @return Response
+     * @throws SodiumException
+     */
+    public function edit(Request $request): Response
+    {
+        $payload = $request->post('payload');
+        if (empty($payload)) {
+            return $this->fail('非法请求');
+        }
+
+        $params = new XChaCha20(config('kkpay.api_crypto_key', ''))->get($payload);
+
+        if (empty($params['id'])) {
+            return $this->fail('请求参数缺失');
+        }
+
+        if (!$user = Admin::find($params['id'])) {
+            return $this->fail('该管理员不存在');
+        }
+
+        try {
+            validate([
+                'role'         => 'require|gt:' . $this->getRole(),
+                'account'      => 'require|max:32',
+                'nickname'     => 'require|max:16',
+                'email'        => 'email',
+                'new_password' => 'min:5'
+            ], [
+                'role.require'     => '角色为必选项',
+                'role.gt'          => '只能创建比自己权限低的角色',
+                'account.require'  => '账号不能为空',
+                'account.max'      => '账号长度不能超过32位',
+                'nickname.require' => '昵称不能为空',
+                'nickname.max'     => '昵称长度不能超过16位',
+                'email.email'      => '邮箱格式不正确',
+                'new_password.min' => '密码长度不能小于5位'
+            ])->check($params);
+
+            // 调用模型方法更新管理员
+            Admin::updateAdmin($user->id, $params);
+        } catch (Throwable $e) {
+            return $this->fail($e->getMessage());
+        }
+
+        return $this->success('编辑成功');
+    }
+
+    /**
+     * 快捷修改管理员状态
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function changeStatus(Request $request): Response
+    {
+        $id     = $request->post('id');
+        $status = $request->post('status');
+        if (empty($id) || !in_array($status, [0, 1])) {
+            return $this->fail('必要参数缺失');
+        }
+        if (!$user = Admin::find($id)) {
+            return $this->fail('该管理员不存在');
+        }
+        $user->status = (int)$status;
+        if (!$user->save()) {
+            return $this->fail('修改失败');
+        }
+        return $this->success('修改成功');
+    }
+
+    /**
+     * 重置管理员密码为123456
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function resetPassword(Request $request): Response
+    {
+        $id = $request->post('id');
+        if (empty($id)) {
+            return $this->fail('必要参数缺失');
+        }
+
+        try {
+            if (Admin::resetPassword($id)) {
+                return $this->success('重置成功');
+            }
+        } catch (Throwable $e) {
+            return $this->fail($e->getMessage());
+        }
+
+        return $this->fail('重置失败');
+    }
+
+    /**
+     * 重置管理员TOTP密钥
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function resetTotp(Request $request): Response
+    {
+        $id = $request->post('id');
+        if (empty($id)) {
+            return $this->fail('必要参数缺失');
+        }
+
+        try {
+            if (Admin::resetTotp($id)) {
+                return $this->success('重置成功');
+            }
+        } catch (Throwable $e) {
+            return $this->fail($e->getMessage());
+        }
+
+        return $this->fail('重置失败');
+    }
+
+    /**
+     * 批量修改管理员状态
+     * @param Request $request
+     * @return Response
+     */
+    public function batchChangeStatus(Request $request): Response
+    {
+        $ids    = $request->post('ids');
+        $status = (int)$request->post('status');
+
+        if (empty($ids) || !is_array($ids) || !in_array($status, [0, 1])) {
+            return $this->fail('必要参数缺失');
+        }
+
+        try {
+            Admin::whereIn('id', $ids)->update(['status' => $status]);
+        } catch (Throwable $e) {
+            return $this->fail($e->getMessage());
+        }
+        return $this->success('修改成功');
+    }
+
+    /**
+     * 管理员操作日志
+     */
+    public function log(Request $request): Response
+    {
+        $from   = $request->get('from', 0);
+        $limit  = $request->get('limit', 10);
+        $sort   = $request->get('sort', 'id');
+        $order  = $request->get('order', 'desc');
+        $params = $request->only(['account', 'content', 'ip', 'created_at']);
+
+        try {
+            validate([
+                'account'    => 'max:32',
+                'content'    => 'max:1024',
+                'ip'         => 'max:45',
+                'created_at' => 'array'
+            ], [
+                'account.max'      => '账号长度不能超过32位',
+                'content.max'      => '操作内容不能超过1024个字符',
+                'ip.max'           => '操作IP长度不能超过45位',
+                'created_at.array' => '请重新选择选择时间范围'
+            ])->check($params);
+        } catch (Throwable $e) {
+            return $this->fail($e->getMessage());
+        }
+
+        // 检测要排序的字段是否在允许的字段列表中并检测排序顺序是否正确
+        if (!in_array($sort, ['id', 'admin_id', 'ip']) || !in_array($order, ['asc', 'desc'])) {
+            return $this->fail('排序失败，请刷新后重试');
+        }
+
+        // 构建查询
+        $query = AdminLog::with(['admin:id,account'])->when($params, function ($q) use ($params) {
+            foreach ($params as $key => $value) {
+                if ($value === '' || $value === null) {
+                    continue;
+                }
+                switch ($key) {
+                    case 'account':
+                        $q->where('admin_id', Admin::where('account', $value)->value('id'));
+                        break;
+                    case 'content':
+                        $q->where('content', 'like', '%' . $value . '%');
+                        break;
+                    case 'ip':
+                        $q->where('ip', $value);
+                        break;
+                    case 'created_at':
+                        $q->whereBetween('created_at', [$value[0], $value[1]]);
+                        break;
+                }
+            }
+            return $q;
+        });
+
+        // 获取总数和数据
+        $total = $query->count();
+        $list  = $query->skip($from)->take($limit)->orderBy($sort, $order)->get();
+
+        return $this->success(data: [
+            'list'  => $list,
+            'total' => $total,
+        ]);
+    }
+}

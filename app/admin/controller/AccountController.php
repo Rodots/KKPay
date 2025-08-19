@@ -33,11 +33,6 @@ class AccountController extends AdminBase
      */
     public function login(Request $request): Response
     {
-        // 检查是否为POST请求
-        if (!$request->isPost()) {
-            return $this->fail('非法请求');
-        }
-
         // 获取请求参数
         $payload = $request->post('payload');
         if (empty($payload)) {
@@ -95,12 +90,12 @@ class AccountController extends AdminBase
 
         // 返回登录成功响应
         return $this->success('登录成功', [
-            'account'  => $row->account,
-            'nickname' => $row->nickname,
-            'token'    => $token,
-            'avatar'   => 'https://weavatar.com/avatar/' . hash('sha256', $row->email ?: '2854203763@qq.com') . '?d=mp',
-            'email'    => $row->email,
-            'rolename' => $this->getRoleName($row->role)
+            'account'   => $row->account,
+            'nickname'  => $row->nickname,
+            'token'     => $token,
+            'avatar'    => 'https://weavatar.com/avatar/' . hash('sha256', $row->email ?: '2854203763@qq.com') . '?d=mp',
+            'email'     => $row->email,
+            'role_name' => $row->role_name
         ]);
     }
 
@@ -138,11 +133,6 @@ class AccountController extends AdminBase
      */
     public function passwordEdit(Request $request): Response
     {
-        // 检查是否为POST请求
-        if (!$request->isPost()) {
-            return $this->fail('非法请求');
-        }
-
         // 获取请求参数
         $payload = $request->post('payload');
         if (empty($payload)) {
@@ -199,11 +189,6 @@ class AccountController extends AdminBase
      */
     public function basicEdit(Request $request): Response
     {
-        // 检查是否为POST请求
-        if (!$request->isPost()) {
-            return $this->fail('非法请求');
-        }
-
         // 获取请求参数
         $payload = $request->post('payload');
         if (empty($payload)) {

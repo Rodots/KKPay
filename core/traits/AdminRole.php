@@ -15,29 +15,29 @@ trait AdminRole
     // 客服
     const int SERVICE = 2;
     // 默认角色（牛马）
-    const int DEFAULT = 999;
+    const int DEFAULT = 255;
 
     private array $roleHierarchy = [
-        self::SUPER_ADMIN => [
-            'name' => '超级管理员',
+        self::SUPER_ADMIN  => [
+            'name'        => '超级管理员',
             'permissions' => [
                 'super_admin'
             ]
         ],
         self::NORMAL_ADMIN => [
-            'name' => '普通管理员',
+            'name'        => '普通管理员',
             'permissions' => [
                 'admin'
             ]
         ],
-        self::SERVICE => [
-            'name' => '客服',
+        self::SERVICE      => [
+            'name'        => '客服',
             'permissions' => [
                 'service'
             ]
         ],
-        self::DEFAULT => [
-            'name' => '牛马',
+        self::DEFAULT      => [
+            'name'        => '牛马',
             'permissions' => []
         ]
     ];
@@ -79,7 +79,6 @@ trait AdminRole
         return $this->roleHierarchy[$roleId]['name'] ?? $this->roleHierarchy[self::DEFAULT]['name'];
     }
 
-
     /**
      * 获取角色对应拥有的权限节点
      *
@@ -93,7 +92,6 @@ trait AdminRole
         // 根据角色返回对应的权限列表
         return $this->roleHierarchy[$role]['permissions'] ?? $this->roleHierarchy[self::DEFAULT]['permissions'];
     }
-
 
     /**
      * 判断是否为超级管理员
