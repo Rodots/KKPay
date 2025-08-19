@@ -265,7 +265,7 @@ CREATE TABLE `kkpay_merchant_withdrawal_record`  (
 -- ----------------------------
 DROP TABLE IF EXISTS `kkpay_order`;
 CREATE TABLE `kkpay_order`  (
-  `trade_no` char(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '平台订单号',
+  `trade_no` char(28) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '平台订单号',
   `out_trade_no` varchar(128) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '商户订单号',
   `api_trade_no` varchar(256) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '上游订单号',
   `bill_trade_no` varchar(256) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '商户交易单号',
@@ -339,7 +339,7 @@ CREATE TABLE `kkpay_order_notification`  (
 -- ----------------------------
 DROP TABLE IF EXISTS `kkpay_order_refund`;
 CREATE TABLE `kkpay_order_refund`  (
-  `id` int UNSIGNED NOT NULL AUTO_INCREMENT COMMENT '退款流水号',
+  `id` char(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '退款流水号',
   `merchant_id` int UNSIGNED NOT NULL COMMENT '商户ID',
   `initiate_type` enum('admin','api','merchant','system') CHARACTER SET ascii COLLATE ascii_bin NOT NULL DEFAULT 'system' COMMENT '发起类型',
   `trade_no` char(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '平台订单号',
