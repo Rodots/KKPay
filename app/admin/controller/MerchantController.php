@@ -5,101 +5,173 @@ declare(strict_types = 1);
 namespace app\admin\controller;
 
 use app\model\Merchant;
-use app\model\MerchantGroup;
 use core\baseController\AdminBase;
+use SodiumException;
 use support\Request;
 use support\Response;
+use support\Rodots\Crypto\XChaCha20;
+use support\Rodots\JWT\JwtToken;
+use Throwable;
 
 class MerchantController extends AdminBase
 {
-    public function index(): string
+    /**
+     * 商户列表
+     */
+    public function index(Request $request): Response
     {
-        return 'MerchantController/index';
+        $from   = $request->get('from', 0);
+        $limit  = $request->get('limit', 10);
+        $params = $request->only(['merchant_number', 'email', 'phone', 'remark', 'status', 'risk_status']);
+
+        try {
+            validate([
+                'merchant_number' => 'alphaNum|startWith:M|length:24',
+                'email'           => 'max:64',
+                'phone'           => 'number|max:11',
+                'created_at'      => 'array'
+            ], [
+                'merchant_number.alphaNum'  => '商户编号是以M开头的24位英文+数字',
+                'merchant_number.startWith' => '商户编号是以M开头的24位英文+数字',
+                'merchant_number.length'    => '商户编号是以M开头的24位英文+数字',
+                'email.max'                 => '邮箱长度不能超过64位',
+                'phone.number'              => '手机号码只能是纯数字',
+                'phone.max'                 => '手机号码长度不能超过11位',
+                'created_at.array'          => '请重新选择选择时间范围'
+            ])->check($params);
+        } catch (Throwable $e) {
+            return $this->fail($e->getMessage());
+        }
+
+        // 构建查询
+        $query = Merchant::select(['id', 'merchant_number', 'email', 'phone', 'remark', 'status', 'risk_status', 'created_at', 'updated_at'])->when($params, function ($q) use ($params) {
+            foreach ($params as $key => $value) {
+                if ($value === '' || $value === null) {
+                    continue;
+                }
+                switch ($key) {
+                    case 'merchant_number':
+                        $q->where('merchant_number', trim($value));
+                        break;
+                    case 'email':
+                        $q->where('email', 'like', "%$value%");
+                        break;
+                    case 'phone':
+                        $q->where('phone', 'like', "%$value%");
+                        break;
+                    case 'remark':
+                        $q->where('remark', 'like', "%$value%");
+                        break;
+                    case 'status':
+                        $q->where('status', (int)$value);
+                        break;
+                    case 'risk_status':
+                        $q->where('risk_status', (int)$value);
+                        break;
+                }
+            }
+            return $q;
+        });
+
+        // 获取总数和数据
+        $total = $query->count();
+        $list  = $query->skip($from)->take($limit)->orderByDesc('id')->get();
+
+        return $this->success(data: [
+            'list'  => $list,
+            'total' => $total,
+        ]);
     }
 
     /**
-     * 添加商户
+     * 商户详情
+     */
+    public function detail(Request $request): Response
+    {
+        $id = $request->get('id');
+
+        $query = Merchant::find($id, ['id', 'merchant_number', 'email', 'phone', 'remark', 'diy_order_subject', 'status', 'risk_status', 'competence']);
+        return $this->success(data: $query->toArray());
+    }
+
+    /**
+     * 创建商户
      *
      * @param Request $request
      * @return Response
+     * @throws SodiumException
      */
     public function create(Request $request): Response
     {
-        $param = $request->only(['group_id', 'email', 'phone', 'qq', 'password']);
-        $param['group_id'] = $param['group_id'] ?? 1;
-
-        if (!MerchantGroup::find($param['group_id'])) {
-            return $this->fail('该商户组不存在');
+        $payload = $request->post('payload');
+        if (empty($payload)) {
+            return $this->fail('非法请求');
         }
+
+        $params = new XChaCha20(config('kkpay.api_crypto_key', ''))->get($payload);
 
         try {
             validate([
-                'email|邮箱'     => 'email',
-                'phone|手机号码' => 'mobile',
-                'qq|QQ号码'      => 'number|length:5,10',
-                'password|密码'  => 'require|min:6'
+                'email'    => 'email',
+                'phone'    => 'mobile',
+                'password' => 'require|min:6'
             ], [
                 'email.email'      => '邮箱格式不正确',
                 'phone.mobile'     => '手机号码格式不正确',
-                'qq.number'        => 'QQ号码格式不正确',
-                'qq.length'        => 'QQ号码长度不正确',
                 'password.require' => '密码不能为空',
                 'password.min'     => '密码长度不能小于6位'
-            ])->check($param);
-            
+            ])->check($params);
+
             // 调用模型方法创建商户
-            Merchant::createMerchant($param);
-            
-            return $this->success('添加成功');
-        } catch (\Throwable $e) {
+            Merchant::createMerchant($params);
+        } catch (Throwable $e) {
             return $this->fail($e->getMessage());
         }
+
+        return $this->success('创建成功');
     }
 
     /**
-     * 更新商户
+     * 编辑商户
      *
      * @param Request $request
      * @return Response
+     * @throws SodiumException
      */
-    public function update(Request $request): Response
+    public function edit(Request $request): Response
     {
-        $param = $request->only(['id', 'group_id', 'email', 'phone', 'qq', 'status', 'competence']);
-        
-        if (empty($param['id'])) {
-            return $this->fail('商户ID不能为空');
+        $payload = $request->post('payload');
+        if (empty($payload)) {
+            return $this->fail('非法请求');
         }
-        
-        $param['group_id'] = $param['group_id'] ?: 1;
 
-        if (!$user = Merchant::find($param['id'])) {
+        $params = new XChaCha20(config('kkpay.api_crypto_key', ''))->get($payload);
+
+        if (empty($params['id'])) {
+            return $this->fail('请求参数缺失');
+        }
+
+        if (!$user = Merchant::find($params['id'])) {
             return $this->fail('该商户不存在');
         }
 
-        if (!MerchantGroup::find($param['group_id'])) {
-            return $this->fail('该用户组不存在');
-        }
-        
         try {
             // 验证数据
             validate([
-                'email|邮箱'     => 'email',
-                'phone|手机号码' => 'mobile',
-                'qq|QQ号码'      => 'number|length:5,10',
+                'email' => 'email',
+                'phone' => 'mobile',
             ], [
-                'email.email'      => '邮箱格式不正确',
-                'phone.mobile'     => '手机号码格式不正确',
-                'qq.number'        => 'QQ号码格式不正确',
-                'qq.length'        => 'QQ号码长度不正确',
-            ])->check($param);
-            
+                'email.email'  => '邮箱格式不正确',
+                'phone.mobile' => '手机号码格式不正确',
+            ])->check($params);
+
             // 调用模型方法更新商户
-            Merchant::updateMerchant((int)$param['id'], $param);
-            
-            return $this->success('更新成功');
-        } catch (\Throwable $e) {
+            Merchant::updateMerchant($user->id, $params);
+        } catch (Throwable $e) {
             return $this->fail($e->getMessage());
         }
+
+        return $this->success('编辑成功');
     }
 
     /**
@@ -122,10 +194,137 @@ class MerchantController extends AdminBase
 
         try {
             $user->delete();
-        } catch (\Throwable $e) {
+        } catch (Throwable $e) {
             return $this->fail($e->getMessage());
         }
 
         return $this->success('删除成功');
+    }
+
+    /**
+     * 快捷修改商户状态
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function changeStatus(Request $request): Response
+    {
+        $id     = $request->post('id');
+        $status = $request->post('status');
+        if (empty($id) || !in_array($status, [0, 1])) {
+            return $this->fail('必要参数缺失');
+        }
+        if (!$user = Merchant::find($id)) {
+            return $this->fail('该商户不存在');
+        }
+        $user->status = (int)$status;
+        if (!$user->save()) {
+            return $this->fail('修改失败');
+        }
+        return $this->success('修改成功');
+    }
+
+    /**
+     * 快捷修改商户风控状态
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function changeRiskStatus(Request $request): Response
+    {
+        $id     = $request->post('id');
+        $status = $request->post('risk_status');
+        if (empty($id) || !in_array($status, [0, 1])) {
+            return $this->fail('必要参数缺失');
+        }
+        if (!$merchant = Merchant::find($id)) {
+            return $this->fail('该商户不存在');
+        }
+        $merchant->risk_status = (int)$status;
+        if (!$merchant->save()) {
+            return $this->fail('修改失败');
+        }
+        return $this->success('修改成功');
+    }
+
+    /**
+     * 重置商户密码为123456
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function resetPassword(Request $request): Response
+    {
+        $id = $request->post('id');
+        if (empty($id)) {
+            return $this->fail('必要参数缺失');
+        }
+
+        try {
+            if (Merchant::resetPassword($id)) {
+                return $this->success('重置成功');
+            }
+        } catch (Throwable $e) {
+            return $this->fail($e->getMessage());
+        }
+
+        return $this->fail('重置失败');
+    }
+
+    /**
+     * 模拟登录商户
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function simulateLogin(Request $request): Response
+    {
+        $id = $request->post('id');
+        if (empty($id)) {
+            return $this->fail('必要参数缺失');
+        }
+
+        $adminId = $request->AdminInfo['id'];
+        $row     = Merchant::find($id);
+        try {
+            // 生成JWT令牌
+            $ext   = ['request_simulate_admin_id' => $adminId, 'merchant_id' => $row->id];
+            $token = JwtToken::getInstance()->generate($ext);
+
+            // 记录登录成功日志
+            $this->adminLog('模拟登录【' . $row->merchant_number . '】商户', $adminId);
+        } catch (Throwable $e) {
+            return $this->error('模拟登录失败：' . $e->getMessage());
+        }
+
+        // 返回登录成功响应
+        return $this->success('模拟登录成功', [
+            'account' => $row->merchant_number,
+            'token'   => $token,
+            'avatar'  => 'https://weavatar.com/avatar/' . hash('sha256', $row->email ?: '2854203763@qq.com') . '?d=mp',
+            'email'   => $row->email
+        ]);
+    }
+
+    /**
+     * 批量修改商户状态
+     * @param Request $request
+     * @return Response
+     */
+    public function batchChangeStatus(Request $request): Response
+    {
+        $ids    = $request->post('ids');
+        $status = (int)$request->post('status');
+
+        if (empty($ids) || !is_array($ids) || !in_array($status, [0, 1])) {
+            return $this->fail('必要参数缺失');
+        }
+
+        try {
+            Merchant::whereIn('id', $ids)->update(['status' => $status]);
+        } catch (Throwable $e) {
+            return $this->fail($e->getMessage());
+        }
+        return $this->success('修改成功');
     }
 }

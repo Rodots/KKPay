@@ -4,7 +4,11 @@ declare(strict_types = 1);
 
 namespace app\model;
 
+use Carbon\Carbon;
+use Exception;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use support\Log;
 use support\Model;
 use support\Db;
 use Throwable;
@@ -56,43 +60,62 @@ class Merchant extends Model
     }
 
     /**
+     * 获取创建时间
+     */
+    protected function createdAt(): Attribute
+    {
+        return Attribute::make(
+            get: fn(?string $value) => $value ? Carbon::parse($value)->format('Y-m-d H:i:s') : null,
+        );
+    }
+
+    /**
+     * 访问器：更新时间
+     */
+    protected function updatedAt(): Attribute
+    {
+        return Attribute::make(
+            get: fn(?string $value) => $value ? Carbon::parse($value)->format('Y-m-d H:i:s') : null,
+        );
+    }
+
+    /**
      * 创建商户
      *
-     * @param array $data 商户数据
-     * @return Merchant|false 成功返回商户对象，失败返回false
-     * @throws Throwable
+     * @param array $data 数据
+     * @return Merchant 成功返回模型对象，失败抛出错误
+     * @throws Exception
      */
-    public static function createMerchant(array $data): false|Merchant
+    public static function createMerchant(array $data): Merchant
     {
         // 开启事务
         Db::beginTransaction();
         try {
             // 创建商户
-            $merchant           = new self();
-            $merchant->group_id = $data['group_id'];
-            $merchant->email    = empty($data['email']) ? null : trim($data['email']);
-            $merchant->phone    = empty($data['phone']) ? null : trim($data['phone']);
-            $merchant->qq       = empty($data['qq']) ? null : trim($data['qq']);
-            $merchant->salt     = random(4);
-            $merchant->password = password_hash(hash('SHA3-256', $merchant->salt . $data['password'] . 'kkpay'), PASSWORD_BCRYPT);
-            $merchant->save();
+            $merchantRow              = new self();
+            $merchantRow->email       = empty($data['email']) ? null : trim($data['email']);
+            $merchantRow->phone       = empty($data['phone']) ? null : trim($data['phone']);
+            $merchantRow->remark      = empty($data['remark']) ? null : trim($data['remark']);
+            $merchantRow->salt        = random(4);
+            $merchantRow->password    = password_hash(hash('xxh128', trim($data['password'])) . $merchantRow->salt, PASSWORD_BCRYPT);
+            $merchantRow->status      = (int)$data['status'];
+            $merchantRow->risk_status = (int)$data['risk_status'];
+            $merchantRow->save();
 
             // 创建商户安全信息
             $securityRow              = new MerchantSecurity();
-            $securityRow->merchant_id = $merchant->id;
+            $securityRow->merchant_id = $merchantRow->id;
             $securityRow->save();
 
             // 创建商户密钥
             $encryptionRow              = new MerchantEncryption();
-            $encryptionRow->merchant_id = $merchant->id;
-            $encryptionRow->aes_key     = random(32);
+            $encryptionRow->merchant_id = $merchantRow->id;
             $encryptionRow->sha3_key    = random(32);
             $encryptionRow->save();
 
-            // 创建人民币钱包
+            // 创建商户钱包
             $walletRow              = new MerchantWallet();
-            $walletRow->merchant_id = $merchant->id;
-            $walletRow->currency    = 'CNY';
+            $walletRow->merchant_id = $merchantRow->id;
             $walletRow->save();
 
             // 提交事务
@@ -100,19 +123,20 @@ class Merchant extends Model
         } catch (Throwable $e) {
             // 回滚事务
             Db::rollBack();
-            throw $e;
+            Log::error('创建商户失败: ' . $e->getMessage());
+            throw new Exception('创建失败');
         }
 
-        return $merchant;
+        return $merchantRow;
     }
 
     /**
      * 更新商户信息
      *
      * @param int   $id   商户ID
-     * @param array $data 更新数据
+     * @param array $data 数据
      * @return true 更新是否成功
-     * @throws Throwable
+     * @throws Exception
      */
     public static function updateMerchant(int $id, array $data): true
     {
@@ -121,18 +145,20 @@ class Merchant extends Model
         try {
             $merchant = self::find($id);
             if (!$merchant) {
-                throw new \Exception('该商户不存在');
+                throw new Exception('该商户不存在');
             }
 
             // 更新商户基本信息
-            $merchant->group_id = $data['group_id'] ?? $merchant->group_id;
-            $merchant->email    = isset($data['email']) ? (empty($data['email']) ? null : trim($data['email'])) : $merchant->email;
-            $merchant->phone    = isset($data['phone']) ? (empty($data['phone']) ? null : trim($data['phone'])) : $merchant->phone;
-            $merchant->qq       = isset($data['qq']) ? (empty($data['qq']) ? null : trim($data['qq'])) : $merchant->qq;
+            $merchant->email       = isset($data['email']) ? (empty($data['email']) ? null : trim($data['email'])) : $merchant->email;
+            $merchant->phone       = isset($data['phone']) ? (empty($data['phone']) ? null : trim($data['phone'])) : $merchant->phone;
+            $merchant->remark      = empty($data['remark']) ? null : trim($data['remark']);
+            $merchant->status      = (int)$data['status'];
+            $merchant->risk_status = (int)$data['risk_status'];
 
-            // 更新状态和权限
-            if (isset($data['status'])) {
-                $merchant->status = (int)$data['status'];
+            // 更新密码
+            if (isset($data['new_password'])) {
+                $merchant->salt     = random(4);
+                $merchant->password = password_hash(hash('xxh128', trim($data['new_password'])) . $merchant->salt, PASSWORD_BCRYPT);
             }
 
             if (isset($data['competence'])) {
@@ -146,9 +172,34 @@ class Merchant extends Model
         } catch (Throwable $e) {
             // 回滚事务
             Db::rollBack();
-            throw $e;
+            Log::error('编辑商户失败: ' . $e->getMessage());
+            throw new Exception('编辑失败');
         }
 
+        return true;
+    }
+
+    /**
+     * 重置商户密码为123456
+     *
+     * @param int $id 商户ID
+     * @return true 重置是否成功
+     * @throws Exception
+     */
+    public static function resetPassword(int $id): true
+    {
+        $merchant = self::find($id);
+        if (!$merchant) {
+            throw new Exception('该商户不存在');
+        }
+
+        // 更新商户密码
+        $merchant->salt     = random(4);
+        $merchant->password = password_hash(hash('xxh128', '123456') . $merchant->salt, PASSWORD_BCRYPT);
+
+        if (!$merchant->save()) {
+            throw new Exception('重置密码失败');
+        }
         return true;
     }
 }
