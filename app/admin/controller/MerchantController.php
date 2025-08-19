@@ -5,6 +5,7 @@ declare(strict_types = 1);
 namespace app\admin\controller;
 
 use app\model\Merchant;
+use app\model\MerchantLog;
 use core\baseController\AdminBase;
 use SodiumException;
 use support\Request;
@@ -326,5 +327,73 @@ class MerchantController extends AdminBase
             return $this->fail($e->getMessage());
         }
         return $this->success('修改成功');
+    }
+
+    /**
+     * 商户操作日志
+     */
+    public function log(Request $request): Response
+    {
+        $from   = $request->get('from', 0);
+        $limit  = $request->get('limit', 10);
+        $sort   = $request->get('sort', 'id');
+        $order  = $request->get('order', 'desc');
+        $params = $request->only(['merchant_number', 'content', 'ip', 'created_at']);
+
+        try {
+            validate([
+                'merchant_number' => 'alphaNum|startWith:M|length:24',
+                'content'         => 'max:1024',
+                'ip'              => 'max:45',
+                'created_at'      => 'array'
+            ], [
+                'merchant_number.alphaNum'  => '商户编号是以M开头的24位英文+数字',
+                'merchant_number.startWith' => '商户编号是以M开头的24位英文+数字',
+                'merchant_number.length'    => '商户编号是以M开头的24位英文+数字',
+                'content.max'               => '操作内容不能超过1024个字符',
+                'ip.max'                    => '操作IP长度不能超过45位',
+                'created_at.array'          => '请重新选择选择时间范围'
+            ])->check($params);
+        } catch (Throwable $e) {
+            return $this->fail($e->getMessage());
+        }
+
+        // 检测要排序的字段是否在允许的字段列表中并检测排序顺序是否正确
+        if (!in_array($sort, ['id', 'merchant_id', 'ip']) || !in_array($order, ['asc', 'desc'])) {
+            return $this->fail('排序失败，请刷新后重试');
+        }
+
+        // 构建查询
+        $query = MerchantLog::with(['merchant:id,merchant_number'])->when($params, function ($q) use ($params) {
+            foreach ($params as $key => $value) {
+                if ($value === '' || $value === null) {
+                    continue;
+                }
+                switch ($key) {
+                    case 'merchant_number':
+                        $q->where('merchant_id', Merchant::where('merchant_number', $value)->value('id'));
+                        break;
+                    case 'content':
+                        $q->where('content', 'like', '%' . $value . '%');
+                        break;
+                    case 'ip':
+                        $q->where('ip', $value);
+                        break;
+                    case 'created_at':
+                        $q->whereBetween('created_at', [$value[0], $value[1]]);
+                        break;
+                }
+            }
+            return $q;
+        });
+
+        // 获取总数和数据
+        $total = $query->count();
+        $list  = $query->skip($from)->take($limit)->orderBy($sort, $order)->get();
+
+        return $this->success(data: [
+            'list'  => $list,
+            'total' => $total,
+        ]);
     }
 }
