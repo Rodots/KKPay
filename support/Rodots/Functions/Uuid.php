@@ -21,10 +21,11 @@ final readonly class Uuid
     /**
      * 生成 UUID v4 (随机 UUID)
      *
+     * @param bool $withDashes 是否包含横杠，默认为 false
      * @return non-empty-string
      * @throws RandomException
      */
-    public static function v4(): string
+    public static function v4(bool $withDashes = false): string
     {
         $bytes = random_bytes(16);
 
@@ -34,19 +35,20 @@ final readonly class Uuid
         // 设置变体 (RFC 4122) 到第 17-18 位
         $bytes[8] = chr(ord($bytes[8]) & 0x3F | (self::UUID_VARIANT_RFC4122 << 6));
 
-        return self::formatUuid($bytes);
+        return self::formatUuid($bytes, $withDashes);
     }
 
     /**
      * 生成 UUID v6 (时间排序 UUID)
      *
-     * @param int|null    $timestamp 自定义时间戳 (微秒)，默认使用当前时间
-     * @param string|null $nodeId    自定义节点 ID (6 字节)，默认使用随机数
+     * @param int|null    $timestamp  自定义时间戳 (微秒)，默认使用当前时间
+     * @param string|null $nodeId     自定义节点 ID (6 字节)，默认使用随机数
+     * @param bool        $withDashes 是否包含横杠，默认为 false
      * @return non-empty-string
      * @throws RandomException
      * @throws InvalidArgumentException
      */
-    public static function v6(?int $timestamp = null, ?string $nodeId = null): string
+    public static function v6(?int $timestamp = null, ?string $nodeId = null, bool $withDashes = false): string
     {
         $timestamp ??= intval(microtime(true) * 1_000_000); // 微秒时间戳
         $nodeId    ??= substr(random_bytes(6), 0, 6); // 使用随机数作为节点 ID
@@ -75,17 +77,18 @@ final readonly class Uuid
         $bytes .= $clockSeq[1]; // 时钟序列低字节
         $bytes .= $nodeId; // 6 字节节点 ID
 
-        return self::formatUuid($bytes);
+        return self::formatUuid($bytes, $withDashes);
     }
 
     /**
      * 生成 UUID v7 (时间排序 UUID 新格式)
      *
-     * @param int|null $timestamp 自定义时间戳 (毫秒)，默认使用当前时间
+     * @param int|null $timestamp  自定义时间戳 (毫秒)，默认使用当前时间
+     * @param bool     $withDashes 是否包含横杠，默认为 false
      * @return non-empty-string
      * @throws RandomException
      */
-    public static function v7(?int $timestamp = null): string
+    public static function v7(?int $timestamp = null, bool $withDashes = false): string
     {
         $timestamp ??= intval(microtime(true) * 1000);
 
@@ -104,18 +107,23 @@ final readonly class Uuid
         // 设置变体 (RFC 4122) 到第 65-66 位 (字节 8 的高 2 位)
         $bytes[8] = chr(ord($bytes[8]) & 0x3F | (self::UUID_VARIANT_RFC4122 << 6));
 
-        return self::formatUuid($bytes);
+        return self::formatUuid($bytes, $withDashes);
     }
 
     /**
      * 格式化字节为 UUID 字符串格式
      *
-     * @param string $bytes 16 字节的二进制数据
+     * @param string $bytes      16 字节的二进制数据
+     * @param bool   $withDashes 是否包含横杠
      * @return non-empty-string
      */
-    private static function formatUuid(string $bytes): string
+    private static function formatUuid(string $bytes, bool $withDashes = true): string
     {
         $hex = bin2hex($bytes);
+
+        if (!$withDashes) {
+            return $hex;
+        }
 
         return sprintf(
             '%s-%s-%s-%s-%s',
