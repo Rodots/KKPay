@@ -78,7 +78,7 @@ class AccountController extends AdminBase
 
             // 生成JWT令牌
             $ext   = ['admin_id' => $row->id];
-            $token = JwtToken::getInstance()->generate($ext);
+            $token = JwtToken::getInstance()->expire(config('kkpay.jwt_expire_time', 900))->generate($ext);
         } catch (Throwable $e) {
             // 记录登录错误日志
             Log::error('管理端登录失败: ' . $e->getMessage());
