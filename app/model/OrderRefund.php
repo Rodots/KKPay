@@ -29,7 +29,7 @@ class OrderRefund extends Model
     {
         return [
             'merchant_id'            => 'integer',
-            'amount'                 => 'decimal:6',
+            'amount'                 => 'decimal:2',
             'admin_id'               => 'integer',
             'notify_state'           => 'boolean',
             'notify_retry_count'     => 'integer',
@@ -56,7 +56,7 @@ class OrderRefund extends Model
      *
      * @return Attribute
      */
-    protected function InitiateTypeText(): Attribute
+    protected function initiateTypeText(): Attribute
     {
         return Attribute::make(
             get: function () {
@@ -76,7 +76,7 @@ class OrderRefund extends Model
      *
      * @return Attribute
      */
-    protected function StatusText(): Attribute
+    protected function statusText(): Attribute
     {
         return Attribute::make(
             get: function () {

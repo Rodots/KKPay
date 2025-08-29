@@ -131,7 +131,7 @@ class Merchant extends Model
     }
 
     /**
-     * 更新商户信息
+     * 更新商户
      *
      * @param int   $id   商户ID
      * @param array $data 数据

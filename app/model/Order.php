@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 namespace app\model;
 
+use Carbon\Carbon;
 use Exception;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
@@ -54,11 +55,11 @@ class Order extends Model
         return [
             'merchant_id'                => 'integer',
             'payment_channel_account_id' => 'integer',
-            'total_amount'               => 'decimal:6',
-            'buyer_pay_amount'           => 'decimal:6',
-            'receipt_amount'             => 'decimal:6',
-            'fee_amount'                 => 'decimal:6',
-            'profit_amount'              => 'decimal:6',
+            'total_amount'               => 'decimal:2',
+            'buyer_pay_amount'           => 'decimal:2',
+            'receipt_amount'             => 'decimal:2',
+            'fee_amount'                 => 'decimal:2',
+            'profit_amount'              => 'decimal:2',
             'notify_state'               => 'boolean',
             'notify_retry_count'         => 'integer',
             'notify_next_retry_time'     => 'timestamp',
@@ -73,66 +74,157 @@ class Order extends Model
     const string CREATED_AT = 'create_time';
     const string UPDATED_AT = 'update_time';
 
+    // 支付方式枚举
+    const string PAYMENT_TYPE_ALIPAY    = 'Alipay';
+    const string PAYMENT_TYPE_WECHATPAY = 'WechatPay';
+    const string PAYMENT_TYPE_BANK      = 'Bank';
+    const string PAYMENT_TYPE_UNIONPAY  = 'UnionPay';
+    const string PAYMENT_TYPE_QQWALLET  = 'QQWallet';
+    const string PAYMENT_TYPE_JDPAY     = 'JDPay';
+    const string PAYMENT_TYPE_PAYPAL    = 'PayPal';
+
     // 交易状态枚举
-    const string TRADE_STATUS_WAIT_BUYER_PAY = 'WAIT_BUYER_PAY';
-    const string TRADE_STATUS_CLOSED         = 'TRADE_CLOSED';
-    const string TRADE_STATUS_SUCCESS        = 'TRADE_SUCCESS';
-    const string TRADE_STATUS_FINISHED       = 'TRADE_FINISHED';
-    const string TRADE_STATUS_FROZEN         = 'TRADE_FROZEN';
+    const string TRADE_STATE_WAIT_BUYER_PAY = 'WAIT_BUYER_PAY';
+    const string TRADE_STATE_CLOSED         = 'TRADE_CLOSED';
+    const string TRADE_STATE_SUCCESS        = 'TRADE_SUCCESS';
+    const string TRADE_STATE_FINISHED       = 'TRADE_FINISHED';
+    const string TRADE_STATE_FROZEN         = 'TRADE_FROZEN';
 
     // 结算状态枚举
-    const string SETTLE_STATUS_PENDING    = 'PENDING';
-    const string SETTLE_STATUS_PROCESSING = 'PROCESSING';
-    const string SETTLE_STATUS_COMPLETED  = 'COMPLETED';
-    const string SETTLE_STATUS_FAILED     = 'FAILED';
+    const string SETTLE_STATE_PENDING    = 'PENDING';
+    const string SETTLE_STATE_PROCESSING = 'PROCESSING';
+    const string SETTLE_STATE_COMPLETED  = 'COMPLETED';
+    const string SETTLE_STATE_FAILED     = 'FAILED';
+
+    /**
+     * 模型启动方法，用于注册模型事件
+     *
+     * @return void
+     */
+    protected static function boot(): void
+    {
+        parent::boot();
+
+        static::creating(function ($order) {
+            // 生成一个28位的时间序列号作为订单号，并确保不重复
+            $now     = microtime(true);
+            $seconds = (int)$now;
+            $micros  = (int)(($now - $seconds) * 1000000); // 取微秒级后6位
+            // 组合：业务类型(1) + 时间(14) + 微秒(6) + 随机纯数字(5) + 随机字母(2) = 28位
+            $order->trade_no = 'P' . date('YmdHis', $seconds) . str_pad((string)$micros, 6, '0', STR_PAD_LEFT) . random(5, 'num') . random(2, 'upper');
+        });
+    }
+
+    /**
+     * 访问器：交易创建时间
+     */
+    protected function createTime(): Attribute
+    {
+        return Attribute::make(
+            get: fn(?string $value) => $value ? Carbon::parse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
+        );
+    }
+
+    /**
+     * 访问器：交易付款时间
+     */
+    protected function paymentTime(): Attribute
+    {
+        return Attribute::make(
+            get: fn(?string $value) => $value ? Carbon::parse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
+        );
+    }
+
+    /**
+     * 访问器：交易结束/关闭时间
+     */
+    protected function closeTime(): Attribute
+    {
+        return Attribute::make(
+            get: fn(?string $value) => $value ? Carbon::parse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
+        );
+    }
+
+    /**
+     * 访问器：订单最后更新时间
+     */
+    protected function updateTime(): Attribute
+    {
+        return Attribute::make(
+            get: fn(?string $value) => $value ? Carbon::parse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
+        );
+    }
 
     /***
-     * 获取器【交易状态文本】
+     * 访问器：交易状态文本
      *
      * @return Attribute
      */
-    protected function tradeStatusText(): Attribute
+    protected function paymentTypeText(): Attribute
     {
         return Attribute::make(
             get: function () {
                 $enum = [
-                    self::TRADE_STATUS_WAIT_BUYER_PAY => '等待付款',
-                    self::TRADE_STATUS_CLOSED         => '交易关闭',
-                    self::TRADE_STATUS_SUCCESS        => '交易成功',
-                    self::TRADE_STATUS_FINISHED       => '交易完成',
-                    self::TRADE_STATUS_FROZEN         => '交易冻结',
+                    self::PAYMENT_TYPE_ALIPAY    => '支付宝',
+                    self::PAYMENT_TYPE_WECHATPAY => '微信支付',
+                    self::PAYMENT_TYPE_BANK      => '银联/银行卡',
+                    self::PAYMENT_TYPE_UNIONPAY  => '云闪付',
+                    self::PAYMENT_TYPE_QQWALLET  => 'QQ钱包',
+                    self::PAYMENT_TYPE_JDPAY     => '京东支付',
+                    self::PAYMENT_TYPE_PAYPAL    => 'PayPal',
                 ];
-                return $enum[$this->getOriginal('trade_status')] ?? '未知';
+                return $enum[$this->getOriginal('payment_type')] ?? '未知';
+            }
+        );
+    }
+
+    /***
+     * 访问器：交易状态文本
+     *
+     * @return Attribute
+     */
+    protected function tradeStateText(): Attribute
+    {
+        return Attribute::make(
+            get: function () {
+                $enum = [
+                    self::TRADE_STATE_WAIT_BUYER_PAY => '等待付款',
+                    self::TRADE_STATE_CLOSED         => '交易关闭',
+                    self::TRADE_STATE_SUCCESS        => '交易成功',
+                    self::TRADE_STATE_FINISHED       => '交易完成',
+                    self::TRADE_STATE_FROZEN         => '交易冻结',
+                ];
+                return $enum[$this->getOriginal('trade_state')] ?? '未知';
             }
         );
     }
 
     /**
-     * 获取器【结算状态文本】
+     * 访问器：结算状态文本
      *
      * @return Attribute
      */
-    protected function settleStatusText(): Attribute
+    protected function settleStateText(): Attribute
     {
         return Attribute::make(
             get: function () {
                 $enum = [
-                    self::SETTLE_STATUS_PENDING    => '待结算',
-                    self::SETTLE_STATUS_PROCESSING => '结算中',
-                    self::SETTLE_STATUS_COMPLETED  => '已结算',
-                    self::SETTLE_STATUS_FAILED     => '结算失败',
+                    self::SETTLE_STATE_PENDING    => '待结算',
+                    self::SETTLE_STATE_PROCESSING => '结算中',
+                    self::SETTLE_STATE_COMPLETED  => '已结算',
+                    self::SETTLE_STATE_FAILED     => '结算失败',
                 ];
-                return $enum[$this->getOriginal('settle_status')] ?? '未知';
+                return $enum[$this->getOriginal('settle_state')] ?? '未知';
             }
         );
     }
 
     /**
-     * 一个订单可以存在多次退款。
+     * 该订单属于这个商户
      */
-    public function OrderRefund(): HasMany
+    public function merchant(): BelongsTo
     {
-        return $this->hasMany(OrderRefund::class, 'trade_no', 'trade_no');
+        return $this->belongsTo(Merchant::class);
     }
 
     /**
@@ -148,14 +240,15 @@ class Order extends Model
      */
     public function paymentChannel(): HasOneThrough
     {
-        return $this->hasOneThrough(
-            PaymentChannel::class,
-            PaymentChannelAccount::class,
-            'id', // PaymentChannelAccount 表中与 Order 表关联的外键
-            'id', // PaymentChannel 表中与 PaymentChannelAccount 表关联的外键
-            'payment_channel_account_id', // Order 表中与 PaymentChannelAccount 表关联的外键
-            'payment_channel_id' // PaymentChannelAccount 表中与 PaymentChannel 表关联的外键
-        );
+        return $this->hasOneThrough(PaymentChannel::class, PaymentChannelAccount::class, 'id', 'id', 'payment_channel_account_id', 'payment_channel_id');
+    }
+
+    /**
+     * 一个订单可以存在多次退款
+     */
+    public function OrderRefund(): HasMany
+    {
+        return $this->hasMany(OrderRefund::class, 'trade_no', 'trade_no');
     }
 
     /**
@@ -175,10 +268,10 @@ class Order extends Model
         $user_id  = $order->getAttribute('user_id');
 
         if (in_array($order->getOriginal('status'), [
-            self::TRADE_STATUS_WAIT_BUYER_PAY,
-            self::TRADE_STATUS_CLOSED,
-            self::TRADE_STATUS_FROZEN,
-            self::TRADE_STATUS_CLOSED
+            self::TRADE_STATE_WAIT_BUYER_PAY,
+            self::TRADE_STATE_CLOSED,
+            self::TRADE_STATE_FINISHED,
+            self::TRADE_STATE_FROZEN
         ])) {
             throw new Exception("订单号 $trade_no 的状态不支持退款");
         }
@@ -221,15 +314,10 @@ class Order extends Model
             'status'       => 1
         ]);
 
-        // 判断是全额退款还是部分退款并更新订单状态
-        $this->update([
-            'status' => (bccomp((string)$amount, (string)$order_amount, 2) === 0) ? self::STATUS_FULL_REFUND : self::STATUS_PARTIAL_REFUND
-        ]);
-
         // 根据这个订单对应支付通道的扣费模式处理商户的余额增减
         if ($this->paymentChannel()->value('mode') === 0) {
             // 【第一种模式】资金由平台代收，然后结算给商户，手续费从每笔订单直接扣除
-            if (!BalanceRecord::change($user_id, $real_amount, '订单退款', 1, $trade_no)) {
+            if (!MerchantWalletRecord::change($user_id, $real_amount, '订单退款', 1, $trade_no)) {
                 throw new Exception("更新商户余额失败");
             }
         }

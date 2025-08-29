@@ -34,12 +34,12 @@ class MerchantWalletRecord extends Model
     {
         return [
             'merchant_id'        => 'integer',
-            'balance'            => 'decimal:6',
-            'old_balance'        => 'decimal:6',
-            'new_balance'        => 'decimal:6',
-            'freeze_balance'     => 'decimal:6',
-            'old_freeze_balance' => 'decimal:6',
-            'new_freeze_balance' => 'decimal:6'
+            'balance'            => 'decimal:2',
+            'old_balance'        => 'decimal:2',
+            'new_balance'        => 'decimal:2',
+            'freeze_balance'     => 'decimal:2',
+            'old_freeze_balance' => 'decimal:2',
+            'new_freeze_balance' => 'decimal:2'
         ];
     }
 

@@ -29,9 +29,9 @@ class MerchantWithdrawalRecord extends Model
         return [
             'merchant_id'     => 'integer',
             'payee_info'      => 'array',
-            'amount'          => 'decimal:6',
-            'received_amount' => 'decimal:6',
-            'fee'             => 'decimal:6',
+            'amount'          => 'decimal:2',
+            'received_amount' => 'decimal:2',
+            'fee'             => 'decimal:2',
             'fee_type'        => 'boolean'
         ];
     }

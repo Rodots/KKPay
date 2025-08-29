@@ -34,9 +34,9 @@ class MerchantWalletPrepaidRecord extends Model
     {
         return [
             'merchant_id' => 'integer',
-            'balance'     => 'decimal:6',
-            'old_balance' => 'decimal:6',
-            'new_balance' => 'decimal:6'
+            'balance'     => 'decimal:2',
+            'old_balance' => 'decimal:2',
+            'new_balance' => 'decimal:2'
         ];
     }
 }

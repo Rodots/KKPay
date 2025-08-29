@@ -132,7 +132,7 @@ class Admin extends Model
     }
 
     /**
-     * 创建管理员
+     * 更新管理员
      *
      * @param int   $id   商户ID
      * @param array $data 数据

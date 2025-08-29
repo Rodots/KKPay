@@ -37,9 +37,9 @@ class PaymentChannelAccount extends Model
             'payment_channel_id' => 'integer',
             'rate_mode'          => 'boolean',
             'rate'               => 'decimal:4',
-            'min_amount'         => 'decimal:6',
-            'max_amount'         => 'decimal:6',
-            'daily_limit'        => 'decimal:6',
+            'min_amount'         => 'decimal:2',
+            'max_amount'         => 'decimal:2',
+            'daily_limit'        => 'decimal:2',
             'config'             => 'array',
             'status'             => 'boolean',
             'maintenance'        => 'boolean'

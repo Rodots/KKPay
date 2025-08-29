@@ -218,7 +218,7 @@ class MerchantController extends AdminBase
         if (!$user = Merchant::find($id)) {
             return $this->fail('该商户不存在');
         }
-        $user->status = (int)$status;
+        $user->status = (bool)$status;
         if (!$user->save()) {
             return $this->fail('修改失败');
         }
@@ -241,7 +241,7 @@ class MerchantController extends AdminBase
         if (!$merchant = Merchant::find($id)) {
             return $this->fail('该商户不存在');
         }
-        $merchant->risk_status = (int)$status;
+        $merchant->risk_status = (bool)$status;
         if (!$merchant->save()) {
             return $this->fail('修改失败');
         }

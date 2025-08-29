@@ -159,7 +159,7 @@ class AdminController extends AdminBase
             return $this->fail('请求参数缺失');
         }
 
-        if (!$user = Admin::find($params['id'])) {
+        if (!Admin::where('id', $params['id'])->exists()) {
             return $this->fail('该管理员不存在');
         }
 
@@ -182,7 +182,7 @@ class AdminController extends AdminBase
             ])->check($params);
 
             // 调用模型方法更新管理员
-            Admin::updateAdmin($user->id, $params);
+            Admin::updateAdmin($params['id'], $params);
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
         }
@@ -206,7 +206,7 @@ class AdminController extends AdminBase
         if (!$user = Admin::find($id)) {
             return $this->fail('该管理员不存在');
         }
-        $user->status = (int)$status;
+        $user->status = (bool)$status;
         if (!$user->save()) {
             return $this->fail('修改失败');
         }
