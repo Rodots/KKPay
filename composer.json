@@ -1,4 +1,5 @@
 {
+  "license": "proprietary",
   "require": {
     "php": ">=8.4",
     "workerman/webman-framework": "^2.1",
@@ -6,7 +7,7 @@
     "webman/redis": "^2.1",
     "webman/cache": "^2.1",
     "firebase/php-jwt": "^6.11",
-    "illuminate/events": "^12.21",
+    "illuminate/events": "^12",
     "topthink/think-validate": "^3.0",
     "monolog/monolog": "^3.9",
     "vectorface/googleauthenticator": "^3.4",
