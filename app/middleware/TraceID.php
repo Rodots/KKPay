@@ -4,7 +4,7 @@ declare(strict_types = 1);
 
 namespace app\middleware;
 
-use Core\utils\TraceIDUtil;
+use Core\Utils\TraceIDUtil;
 use Webman\MiddlewareInterface;
 use Webman\Http\Response;
 use Webman\Http\Request;

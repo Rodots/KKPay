@@ -2,12 +2,17 @@
 
 declare(strict_types = 1);
 
-namespace Core\utils;
+namespace Core\Utils;
 
 use Webman\Context;
 
-class TraceIDUtil
+final class TraceIDUtil
 {
+    /** 禁止实例化 */
+    private function __construct()
+    {
+    }
+
     /**
      * 获取当前请求的跟踪ID
      * 

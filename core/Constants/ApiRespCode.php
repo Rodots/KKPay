@@ -2,7 +2,7 @@
 
 declare(strict_types = 1);
 
-namespace Core\constants;
+namespace Core\Constants;
 
 enum ApiRespCode: int
 {

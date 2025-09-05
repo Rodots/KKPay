@@ -2,10 +2,10 @@
 
 declare(strict_types = 1);
 
-namespace Core\traits;
+namespace Core\Traits;
 
-use Core\constants\AdminRespCode;
-use Core\utils\TraceIDUtil;
+use Core\Constants\AdminRespCode;
+use Core\Utils\TraceIDUtil;
 use support\Response;
 
 trait AdminResponse

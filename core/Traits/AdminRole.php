@@ -2,7 +2,7 @@
 
 declare(strict_types = 1);
 
-namespace Core\traits;
+namespace Core\Traits;
 
 use app\model\Admin;
 

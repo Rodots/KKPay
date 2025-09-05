@@ -18,7 +18,7 @@ return [
         ],
         'processors' => [
             function (Monolog\LogRecord $record): Monolog\LogRecord {
-                $traceId = Core\utils\TraceIDUtil::getTraceID();
+                $traceId = Core\Utils\TraceIDUtil::getTraceID();
                 if ($traceId !== null) {
                     $record->offsetSet('extra', ['trace_id' => $traceId]);
                 }

@@ -4,8 +4,8 @@ declare(strict_types = 1);
 
 namespace app\middleware;
 
-use Core\constants\AdminRespCode;
-use Core\traits\AdminResponse;
+use Core\Constants\AdminRespCode;
+use Core\Traits\AdminResponse;
 use ReflectionClass;
 use ReflectionException;
 use support\Rodots\JWT\Exception\JwtTokenException;

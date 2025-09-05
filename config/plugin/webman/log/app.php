@@ -1,7 +1,7 @@
 <?php
 return [
     'enable' => true,
-    'exception' => [
+    'Exception' => [
         // 是否记录异常到日志
         'enable' => true,
         // 不会记录到日志的异常类

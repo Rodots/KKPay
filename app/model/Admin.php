@@ -5,7 +5,7 @@ declare(strict_types = 1);
 namespace app\model;
 
 use Carbon\Carbon;
-use Core\traits\AdminRole;
+use Core\Traits\AdminRole;
 use Exception;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use support\Log;

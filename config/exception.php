@@ -3,6 +3,6 @@
 declare(strict_types = 1);
 
 return [
-    //    '' => support\exception\Handler::class,
-    '' => Core\exception\Handler::class
+    //    '' => support\Exception\Handler::class,
+    '' => Core\Exception\Handler::class
 ];

@@ -4,8 +4,8 @@ declare(strict_types = 1);
 
 namespace Core\baseController;
 
-use Core\traits\AdminResponse;
-use Core\traits\AdminRole;
+use Core\Traits\AdminResponse;
+use Core\Traits\AdminRole;
 
 class AdminBase
 {
