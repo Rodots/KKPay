@@ -2,10 +2,10 @@
 
 declare(strict_types = 1);
 
-namespace app\middleware;
+namespace App\middleware;
 
-use core\constants\AdminRespCode;
-use core\traits\AdminResponse;
+use Core\constants\AdminRespCode;
+use Core\traits\AdminResponse;
 use ReflectionClass;
 use ReflectionException;
 use support\Rodots\JWT\Exception\JwtTokenException;

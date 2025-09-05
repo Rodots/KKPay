@@ -2,9 +2,9 @@
 
 declare(strict_types = 1);
 
-namespace app\api\controller;
+namespace App\api\controller;
 
-use app\model\User;
+use App\model\User;
 use support\Request;
 
 class PayController

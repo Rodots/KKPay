@@ -6,7 +6,6 @@ chdir(__DIR__);
 require_once __DIR__ . '/vendor/autoload.php';
 
 use support\App;
-use Workerman\Worker;
 
 ini_set('display_errors', 'on');
 error_reporting(E_ALL);

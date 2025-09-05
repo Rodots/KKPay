@@ -12,6 +12,7 @@
     "monolog/monolog": "^3.9",
     "vectorface/googleauthenticator": "^3.4",
     "ext-bcmath": "*",
+    "ext-curl": "*",
     "ext-event": "*",
     "ext-openssl": "*",
     "ext-pdo": "*",
@@ -19,14 +20,16 @@
     "ext-sodium": "*"
   },
   "require-dev": {
-    "webman/log": "^2.1",
-    "symfony/var-dumper": "^7.3"
+    "webman/log": "^2",
+    "symfony/var-dumper": "^7"
   },
   "autoload": {
     "psr-4": {
-      "": "./",
-      "app\\": "./app",
-      "App\\": "./app"
+      "app\\": "app/",
+      "App\\": "app/",
+      "Core\\": "core/",
+      "support\\": "support/",
+      "Gateway\\": "support/Gateway/"
     }
   },
   "scripts": {

@@ -2,10 +2,10 @@
 
 declare(strict_types = 1);
 
-namespace core\baseController;
+namespace Core\baseController;
 
-use core\traits\AdminResponse;
-use core\traits\AdminRole;
+use Core\traits\AdminResponse;
+use Core\traits\AdminRole;
 
 class AdminBase
 {
@@ -22,7 +22,7 @@ class AdminBase
         if (empty($admin_id)) {
             return;
         }
-        $row = new \app\model\AdminLog();
+        $row = new \App\model\AdminLog();
 
         $row->admin_id   = $admin_id;
         $row->content    = $content;

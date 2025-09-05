@@ -2,7 +2,7 @@
 
 declare(strict_types = 1);
 
-namespace app\model;
+namespace App\model;
 
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Casts\Attribute;

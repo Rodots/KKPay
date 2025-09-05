@@ -2,10 +2,10 @@
 
 declare(strict_types = 1);
 
-namespace app\model;
+namespace App\model;
 
 use Carbon\Carbon;
-use core\traits\AdminRole;
+use Core\traits\AdminRole;
 use Exception;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use support\Log;

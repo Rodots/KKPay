@@ -2,10 +2,10 @@
 
 declare(strict_types = 1);
 
-namespace core\traits;
+namespace Core\traits;
 
-use core\constants\ApiRespCode;
-use core\utils\TraceIDUtil;
+use Core\constants\ApiRespCode;
+use Core\utils\TraceIDUtil;
 use support\Response;
 
 trait ApiResponse

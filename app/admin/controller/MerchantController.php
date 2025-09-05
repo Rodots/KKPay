@@ -2,11 +2,11 @@
 
 declare(strict_types = 1);
 
-namespace app\admin\controller;
+namespace App\admin\controller;
 
-use app\model\Merchant;
-use app\model\MerchantLog;
-use core\baseController\AdminBase;
+use App\model\Merchant;
+use App\model\MerchantLog;
+use Core\baseController\AdminBase;
 use SodiumException;
 use support\Request;
 use support\Response;

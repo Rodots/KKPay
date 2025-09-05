@@ -2,10 +2,10 @@
 
 declare(strict_types=1);
 
-namespace app\admin\controller;
+namespace App\admin\controller;
 
-use app\model\Order;
-use core\baseController\AdminBase;
+use App\model\Order;
+use Core\baseController\AdminBase;
 use support\Db;
 use support\Request;
 use support\Response;

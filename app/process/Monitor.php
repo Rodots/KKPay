@@ -1,7 +1,7 @@
 <?php
 declare(strict_types = 1);
 
-namespace app\process;
+namespace App\process;
 
 use FilesystemIterator;
 use RecursiveDirectoryIterator;

@@ -1,8 +1,8 @@
 <?php
 
-namespace core\exception;
+namespace Core\exception;
 
-use core\utils\TraceIDUtil;
+use Core\utils\TraceIDUtil;
 use RuntimeException;
 use SplFileObject;
 use Throwable;

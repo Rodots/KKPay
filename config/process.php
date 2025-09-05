@@ -4,7 +4,7 @@ declare(strict_types = 1);
 
 use support\Log;
 use support\Request;
-use app\process\Http;
+use App\process\Http;
 
 global $argv;
 
@@ -27,7 +27,7 @@ return [
     ],
     // File update detection and automatic reload
     'monitor' => [
-        'handler'     => app\process\Monitor::class,
+        'handler'     => App\process\Monitor::class,
         'reloadable'  => false,
         'constructor' => [
             // Monitor these directories

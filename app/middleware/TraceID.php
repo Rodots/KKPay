@@ -2,9 +2,9 @@
 
 declare(strict_types = 1);
 
-namespace app\middleware;
+namespace App\middleware;
 
-use core\utils\TraceIDUtil;
+use Core\utils\TraceIDUtil;
 use Webman\MiddlewareInterface;
 use Webman\Http\Response;
 use Webman\Http\Request;

@@ -2,10 +2,10 @@
 
 declare(strict_types = 1);
 
-namespace app\admin\controller;
+namespace App\admin\controller;
 
-use app\model\PaymentChannel;
-use core\baseController\AdminBase;
+use App\model\PaymentChannel;
+use Core\baseController\AdminBase;
 use SodiumException;
 use support\Request;
 use support\Response;
@@ -45,6 +45,10 @@ class PaymentChannelController extends AdminBase
         // 检测要排序的字段是否在允许的字段列表中并检测排序顺序是否正确
         if (!in_array($sort, ['id', 'costs', 'rate', 'created_at']) || !in_array($order, ['asc', 'desc'])) {
             return $this->fail('排序失败，请刷新后重试');
+        }
+        if ($sort === 'created_at') {
+            // created_at字段在数据库中没有索引，使用id字段代替以提升查询性能
+            $sort = 'id';
         }
 
         // 构建查询

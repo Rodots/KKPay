@@ -2,10 +2,10 @@
 
 declare(strict_types = 1);
 
-namespace app\admin\controller;
+namespace App\admin\controller;
 
-use app\model\Admin;
-use core\baseController\AdminBase;
+use App\model\Admin;
+use Core\baseController\AdminBase;
 use SodiumException;
 use support\Cache;
 use support\Log;
