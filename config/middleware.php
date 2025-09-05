@@ -6,11 +6,11 @@ return [
     // 全局中间件
     '' => [
         // 添加跟踪ID中间件
-        App\middleware\TraceID::class,
+        app\middleware\TraceID::class,
     ],
     // 管理端中间件
     'admin' => [
         // 身份验证中间件
-        App\middleware\AuthCheckAdmin::class,
+        app\middleware\AuthCheckAdmin::class,
     ],
 ];

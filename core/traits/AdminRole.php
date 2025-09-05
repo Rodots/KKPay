@@ -4,7 +4,7 @@ declare(strict_types = 1);
 
 namespace Core\traits;
 
-use App\model\Admin;
+use app\model\Admin;
 
 trait AdminRole
 {

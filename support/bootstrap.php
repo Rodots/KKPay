@@ -1,6 +1,7 @@
 <?php
 declare(strict_types = 1);
 
+use support\App;
 use support\Log;
 use Webman\Bootstrap;
 use Webman\Config;
@@ -31,7 +32,7 @@ if ($worker) {
 }
 
 Config::clear();
-support\App::loadAllConfig(['route']);
+App::loadAllConfig(['route']);
 if ($timezone = config('app.default_timezone')) {
     date_default_timezone_set($timezone);
 }
@@ -109,11 +110,10 @@ foreach (config('plugin', []) as $firm => $projects) {
 }
 
 $directory = base_path() . '/plugin';
-$paths = [config_path()];
+$paths     = [config_path()];
 foreach (Util::scanDir($directory) as $path) {
     if (is_dir($path = "$path/config")) {
         $paths[] = $path;
     }
 }
 Route::load($paths);
-

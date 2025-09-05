@@ -2,9 +2,9 @@
 
 declare(strict_types = 1);
 
-namespace App\admin\controller;
+namespace app\admin\controller;
 
-use App\model\PaymentChannel;
+use app\model\PaymentChannel;
 use Core\baseController\AdminBase;
 use SodiumException;
 use support\Request;

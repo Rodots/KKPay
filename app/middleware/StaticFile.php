@@ -1,6 +1,6 @@
 <?php
 
-namespace App\middleware;
+namespace app\middleware;
 
 use Webman\MiddlewareInterface;
 use Webman\Http\Response;
@@ -8,7 +8,7 @@ use Webman\Http\Request;
 
 /**
  * Class StaticFile
- * @package App\middleware
+ * @package app\middleware
  */
 class StaticFile implements MiddlewareInterface
 {

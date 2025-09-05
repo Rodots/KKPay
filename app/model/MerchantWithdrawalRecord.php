@@ -2,7 +2,7 @@
 
 declare(strict_types = 1);
 
-namespace App\model;
+namespace app\model;
 
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use support\Model;

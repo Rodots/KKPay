@@ -2,7 +2,7 @@
 
 declare(strict_types = 1);
 
-namespace App\middleware;
+namespace app\middleware;
 
 use Core\constants\AdminRespCode;
 use Core\traits\AdminResponse;

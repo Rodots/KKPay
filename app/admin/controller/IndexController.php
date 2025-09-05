@@ -2,9 +2,9 @@
 
 declare(strict_types = 1);
 
-namespace App\admin\controller;
+namespace app\admin\controller;
 
-use App\model\Admin;
+use app\model\Admin;
 use Core\baseController\AdminBase;
 use support\Request;
 
