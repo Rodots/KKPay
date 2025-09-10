@@ -106,12 +106,12 @@ class Order extends Model
         parent::boot();
 
         static::creating(function ($order) {
-            // 生成一个28位的时间序列号作为订单号，并确保不重复
+            // 生成一个24位的时间序列号作为订单号，并确保不重复
             $now     = microtime(true);
             $seconds = (int)$now;
             $micros  = (int)(($now - $seconds) * 1000000); // 取微秒级后6位
-            // 组合：业务类型(1) + 时间(14) + 微秒(6) + 随机纯数字(5) + 随机字母(2) = 28位
-            $order->trade_no = 'P' . date('YmdHis', $seconds) . str_pad((string)$micros, 6, '0', STR_PAD_LEFT) . random(5, 'num') . random(2, 'upper');
+            // 组合：业务类型(1) + 时间(12) + 微秒(6) + 随机字母(5) = 24位
+            $order->trade_no = 'P' . date('ymdHis', $seconds) . str_pad((string)$micros, 6, '0', STR_PAD_LEFT) . random(5, 'upper');
         });
     }
 
