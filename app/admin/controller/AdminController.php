@@ -130,7 +130,6 @@ class AdminController extends AdminBase
                 'password.min'     => '密码长度不能小于5位'
             ])->check($params);
 
-            // 调用模型方法创建管理员
             Admin::createAdmin($params);
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
@@ -181,7 +180,6 @@ class AdminController extends AdminBase
                 'new_password.min' => '密码长度不能小于5位'
             ])->check($params);
 
-            // 调用模型方法更新管理员
             Admin::updateAdmin($params['id'], $params);
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());

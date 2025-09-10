@@ -107,7 +107,6 @@ class AccountController extends AdminBase
      */
     public function getProfile(Request $request): Response
     {
-        // 调用模型方法获取用户信息并返回
         return $this->success('获取用户信息成功', Admin::getProfile($request->AdminInfo['id']));
     }
 

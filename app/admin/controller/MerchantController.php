@@ -23,7 +23,7 @@ class MerchantController extends AdminBase
     {
         $from   = $request->get('from', 0);
         $limit  = $request->get('limit', 10);
-        $params = $request->only(['merchant_number', 'email', 'phone', 'remark', 'status', 'risk_status']);
+        $params = $request->only(['merchant_number', 'email', 'phone', 'remark', 'status', 'risk_status', 'created_at']);
 
         try {
             validate([
@@ -68,6 +68,9 @@ class MerchantController extends AdminBase
                         break;
                     case 'risk_status':
                         $q->where('risk_status', (int)$value);
+                        break;
+                    case 'created_at':
+                        $q->whereBetween('created_at', [$value[0], $value[1]]);
                         break;
                 }
             }
@@ -123,7 +126,6 @@ class MerchantController extends AdminBase
                 'password.min'     => '密码长度不能小于6位'
             ])->check($params);
 
-            // 调用模型方法创建商户
             Merchant::createMerchant($params);
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
@@ -166,7 +168,6 @@ class MerchantController extends AdminBase
                 'phone.mobile' => '手机号码格式不正确',
             ])->check($params);
 
-            // 调用模型方法更新商户
             Merchant::updateMerchant($user->id, $params);
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());

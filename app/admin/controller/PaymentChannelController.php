@@ -6,6 +6,7 @@ namespace app\admin\controller;
 
 use app\model\PaymentChannel;
 use Core\baseController\AdminBase;
+use Core\Utils\PaymentGatewayUtil;
 use SodiumException;
 use support\Request;
 use support\Response;
@@ -43,7 +44,7 @@ class PaymentChannelController extends AdminBase
         }
 
         // 检测要排序的字段是否在允许的字段列表中并检测排序顺序是否正确
-        if (!in_array($sort, ['id', 'costs', 'rate', 'created_at']) || !in_array($order, ['asc', 'desc'])) {
+        if (!in_array($sort, ['id', 'costs', 'rate', 'min_amount', 'max_amount', 'daily_limit', 'created_at']) || !in_array($order, ['asc', 'desc'])) {
             return $this->fail('排序失败，请刷新后重试');
         }
         if ($sort === 'created_at') {
@@ -52,7 +53,7 @@ class PaymentChannelController extends AdminBase
         }
 
         // 构建查询
-        $query = PaymentChannel::select(['id', 'code', 'name', 'payment_type', 'gateway', 'costs', 'fixed_costs', 'rate', 'fixed_fee', 'status', 'created_at'])->when($params, function ($q) use ($params) {
+        $query = PaymentChannel::select(['id', 'code', 'name', 'payment_type', 'gateway', 'costs', 'fixed_costs', 'rate', 'fixed_fee', 'min_amount', 'max_amount', 'daily_limit', 'status', 'created_at'])->when($params, function ($q) use ($params) {
             foreach ($params as $key => $value) {
                 if ($value === '' || $value === null) {
                     continue;
@@ -100,6 +101,31 @@ class PaymentChannelController extends AdminBase
     }
 
     /**
+     * 获取支付通道对接信息配置项
+     */
+    public function configForm(Request $request): Response
+    {
+        $channel_id = $request->get('channel_id');
+
+        if (empty($channel_id)) {
+            return $this->fail('获取支付通道对接信息失败，请刷新重试');
+        }
+
+        $gateway = PaymentChannel::where('id', $channel_id)->value('gateway');
+        if (!$gateway) {
+            return $this->fail('获取支付通道对接信息失败，请刷新重试');
+        }
+
+        // 使用工具类获取网关配置项
+        $config = PaymentGatewayUtil::getInfo($gateway, 'config', true);
+        if ($config === null) {
+            return $this->fail('获取支付网关配置项失败，请检查该支付通道的网关代码是否正确');
+        }
+
+        return $this->success(data: $config);
+    }
+
+    /**
      * 创建支付通道
      *
      * @param Request $request
@@ -118,7 +144,6 @@ class PaymentChannelController extends AdminBase
         try {
             validate($this->getPaymentChannelValidationRules(), $this->getPaymentChannelValidationMessages())->check($params);
 
-            // 调用模型方法创建商户
             PaymentChannel::createPaymentChannel($params);
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
@@ -154,7 +179,6 @@ class PaymentChannelController extends AdminBase
         try {
             validate($this->getPaymentChannelValidationRules(), $this->getPaymentChannelValidationMessages())->check($params);
 
-            // 调用模型方法更新商户
             PaymentChannel::updatePaymentChannel((int)$params['id'], $params);
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
@@ -177,12 +201,12 @@ class PaymentChannelController extends AdminBase
             return $this->fail('必要参数缺失');
         }
 
-        if (!$user = PaymentChannel::find($id)) {
+        if (!$row = PaymentChannel::find($id)) {
             return $this->fail('该支付通道不存在');
         }
 
         try {
-            $user->delete();
+            $row->delete();
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
         }
@@ -244,7 +268,6 @@ class PaymentChannelController extends AdminBase
 
         return $this->success('修改成功');
     }
-
 
     /**
      * 支付通道验证规则
