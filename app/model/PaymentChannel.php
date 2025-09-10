@@ -195,13 +195,13 @@ class PaymentChannel extends Model
             // 固定费用相关字段
             $paymentChannelRow->fixed_costs = bcround((string)$data['fixed_costs'], 2);
             $paymentChannelRow->fixed_fee   = bcround((string)$data['fixed_fee'], 2);
-            $paymentChannelRow->min_fee     = empty($data['min_fee']) ? null : bcround($data['min_fee'], 2);
-            $paymentChannelRow->max_fee     = empty($data['max_fee']) ? null : bcround($data['max_fee'], 2);
+            $paymentChannelRow->min_fee     = empty($data['min_fee']) ? null : bcround((string)$data['min_fee'], 2);
+            $paymentChannelRow->max_fee     = empty($data['max_fee']) ? null : bcround((string)$data['max_fee'], 2);
 
             // 金额限制字段
-            $paymentChannelRow->min_amount  = empty($data['min_amount']) ? null : bcround($data['min_amount'], 2);
-            $paymentChannelRow->max_amount  = empty($data['max_amount']) ? null : bcround($data['max_amount'], 2);
-            $paymentChannelRow->daily_limit = empty($data['daily_limit']) ? null : bcround($data['daily_limit'], 2);
+            $paymentChannelRow->min_amount  = empty($data['min_amount']) ? null : bcround((string)$data['min_amount'], 2);
+            $paymentChannelRow->max_amount  = empty($data['max_amount']) ? null : bcround((string)$data['max_amount'], 2);
+            $paymentChannelRow->daily_limit = empty($data['daily_limit']) ? null : bcround((string)$data['daily_limit'], 2);
 
             // 时间段
             $paymentChannelRow->earliest_time = $data['earliest_time'] ?? null;
@@ -224,14 +224,6 @@ class PaymentChannel extends Model
         return $paymentChannelRow;
     }
 
-    /**
-     * 更新支付通道
-     *
-     * @param int   $id   支付通道ID
-     * @param array $data 数据
-     * @return true 更新是否成功
-     * @throws Exception
-     */
     /**
      * 更新支付通道
      *
@@ -270,13 +262,13 @@ class PaymentChannel extends Model
             // 固定费用相关字段
             $paymentChannel->fixed_costs = bcround((string)$data['fixed_costs'], 2);
             $paymentChannel->fixed_fee   = bcround((string)$data['fixed_fee'], 2);
-            $paymentChannel->min_fee     = empty($data['min_fee']) ? null : bcround($data['min_fee'], 2);
-            $paymentChannel->max_fee     = empty($data['max_fee']) ? null : bcround($data['max_fee'], 2);
+            $paymentChannel->min_fee     = empty($data['min_fee']) ? null : bcround((string)$data['min_fee'], 2);
+            $paymentChannel->max_fee     = empty($data['max_fee']) ? null : bcround((string)$data['max_fee'], 2);
 
             // 金额限制字段
-            $paymentChannel->min_amount  = empty($data['min_amount']) ? null : bcround($data['min_amount'], 2);
-            $paymentChannel->max_amount  = empty($data['max_amount']) ? null : bcround($data['max_amount'], 2);
-            $paymentChannel->daily_limit = empty($data['daily_limit']) ? null : bcround($data['daily_limit'], 2);
+            $paymentChannel->min_amount  = empty($data['min_amount']) ? null : bcround((string)$data['min_amount'], 2);
+            $paymentChannel->max_amount  = empty($data['max_amount']) ? null : bcround((string)$data['max_amount'], 2);
+            $paymentChannel->daily_limit = empty($data['daily_limit']) ? null : bcround((string)$data['daily_limit'], 2);
 
             // 时间段
             $paymentChannel->earliest_time = $data['earliest_time'] ?? null;
