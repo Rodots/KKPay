@@ -265,7 +265,7 @@ CREATE TABLE `kkpay_merchant_withdrawal_record`  (
 -- ----------------------------
 DROP TABLE IF EXISTS `kkpay_order`;
 CREATE TABLE `kkpay_order`  (
-  `trade_no` char(28) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '平台订单号',
+  `trade_no` char(24) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '平台订单号',
   `out_trade_no` varchar(128) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '商户订单号',
   `api_trade_no` varchar(255) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '上游订单号',
   `bill_trade_no` varchar(255) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '真实交易流水号',
@@ -402,16 +402,16 @@ CREATE TABLE `kkpay_payment_channel`  (
 DROP TABLE IF EXISTS `kkpay_payment_channel_account`;
 CREATE TABLE `kkpay_payment_channel_account`  (
   `id` int UNSIGNED NOT NULL AUTO_INCREMENT,
-  `name` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '子账户名称',
+  `name` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '子账户名称',
   `payment_channel_id` int UNSIGNED NOT NULL COMMENT '支付通道ID',
-  `rate_mode` bit(1) NOT NULL DEFAULT b'0' COMMENT '费率模式 0:继承 1:自定义',
+  `inherit_config` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否继承配置',
   `rate` decimal(5, 4) NULL DEFAULT NULL COMMENT '费率',
   `min_amount` decimal(12, 2) NULL DEFAULT NULL COMMENT '单笔最小金额(留空继承)',
   `max_amount` decimal(12, 2) NULL DEFAULT NULL COMMENT '单笔最大金额(留空继承)',
   `daily_limit` decimal(12, 2) NULL DEFAULT NULL COMMENT '单日收款限额(留空继承)',
   `earliest_time` char(5) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '最早可用时间(留空继承)',
   `latest_time` char(5) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '最晚可用时间(留空继承)',
-  `config` json NULL COMMENT '配置',
+  `config` json NULL COMMENT '对接信息配置',
   `status` bit(1) NOT NULL DEFAULT b'0' COMMENT '状态',
   `maintenance` bit(1) NOT NULL DEFAULT b'0' COMMENT '维护状态',
   `remark` varchar(1024) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '备注',
