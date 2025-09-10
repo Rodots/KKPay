@@ -14,6 +14,7 @@ class Alipay
         'url'         => 'https://opendocs.alipay.com/open-v3/08c7f9f8_alipay.trade.pay',
         'description' => '蚂蚁集团旗下的支付宝，是以每个人为中心，以实名和信任为基础的生活平台。自2004年成立以来，支付宝已经与超过200家金融机构达成合作，为上千万小微商户提供支付服务。随着场景拓展和产品创新，拓展的服务场景不断增加，支付宝已发展成为融合了支付、生活服务、政务服务、理财、保险、公益等多个场景与行业的开放性平台。支付宝还推出了跨境支付、退税等多项服务，让中国用户在境外也能享受移动支付的便利。',
         'version'     => '1.0.0',
+        'notes'       => '<p>选择可用的支付类型，注意只能选择已经签约的产品，否则会无法支付！</p><p>如果使用<span class="text-green-600">公钥证书</span>模式对接，需将<span class="text-green-600">应用公钥证书</span>、<span class="text-green-600">支付宝公钥证书</span>、<span class="text-green-600">支付宝根证书</span>共<b>3</b>个<span class="text-destructive">.crt</span>文件放置于<span class="text-blue-600">/core/Gateway/Alipay/cert/支付宝AppID/</span>文件夹</p>',
         'config'      => [
             [
                 "field"       => "app_id",
@@ -35,8 +36,7 @@ class Alipay
                 "field"       => "alipay_public_key",
                 "type"        => "textarea",
                 "label"       => "支付宝公钥",
-                "placeholder" => "请输入支付宝公钥",
-                "required"    => true,
+                "placeholder" => "请输入支付宝公钥，填错也可以支付成功但会导致无法回调，如果用公钥证书模式此处留空不填",
                 "maxlength"   => 2048,
                 "span"        => 24
             ],
