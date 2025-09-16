@@ -13,7 +13,7 @@ final class XChaCha20
 
     public function __construct(string $keyStr)
     {
-        // 任意字符串 → 32 字节
+        // 任意32位字符串
         $this->key = $keyStr;
     }
 
@@ -44,7 +44,7 @@ final class XChaCha20
         if ($data === false) return null;
         $nonce = substr($data, 0, self::NONCE_BYTES);
         $ct    = substr($data, self::NONCE_BYTES);
-        $pt = sodium_crypto_aead_xchacha20poly1305_ietf_decrypt(
+        $pt    = sodium_crypto_aead_xchacha20poly1305_ietf_decrypt(
             $ct,
             $aad,
             $nonce,
