@@ -275,7 +275,7 @@ class AccountController extends AdminBase
             ]);
         } catch (Throwable $e) {
             // 记录错误日志并返回失败响应
-            Log::error('生成TOTP密钥失败: ' . $e);
+            Log::error('生成TOTP密钥失败: ' . $e->getMessage());
             return $this->fail('生成TOTP密钥失败，请重试或联系运维');
         }
     }
@@ -327,7 +327,7 @@ class AccountController extends AdminBase
             $this->adminLog('启用TOTP双重验证', $adminId);
             return $this->success('启用成功');
         } catch (Throwable $e) {
-            Log::error('TOTP绑定失败: ' . $e);
+            Log::error('TOTP绑定失败: ' . $e->getMessage());
             return $this->fail('绑定失败，请稍后重试');
         }
     }
