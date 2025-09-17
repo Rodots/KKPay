@@ -41,6 +41,7 @@ class PaymentChannelAccount extends Model
         return [
             'payment_channel_id' => 'integer',
             'inherit_config'     => 'boolean',
+            'roll_weight'        => 'integer',
             'rate'               => 'decimal:4',
             'min_amount'         => 'decimal:2',
             'max_amount'         => 'decimal:2',

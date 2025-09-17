@@ -270,8 +270,8 @@ CREATE TABLE `kkpay_order`  (
   `api_trade_no` varchar(255) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '上游订单号',
   `bill_trade_no` varchar(255) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '真实交易流水号',
   `merchant_id` int UNSIGNED NOT NULL COMMENT '商户ID',
-  `payment_type` enum('Alipay','WechatPay','Bank','UnionPay','QQWallet','JDPay','PayPal') CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '支付方式',
-  `payment_channel_account_id` int NOT NULL COMMENT '支付通道子账户ID',
+  `payment_type` enum('None','Alipay','WechatPay','Bank','UnionPay','QQWallet','JDPay','PayPal') CHARACTER SET ascii COLLATE ascii_bin NOT NULL DEFAULT 'None' COMMENT '支付方式',
+  `payment_channel_account_id` int UNSIGNED NOT NULL COMMENT '支付通道子账户ID',
   `subject` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '商品名称',
   `total_amount` decimal(11, 2) NOT NULL COMMENT '订单总金额',
   `buyer_pay_amount` decimal(11, 2) NULL DEFAULT NULL COMMENT '用户在交易中支付的金额',
@@ -307,20 +307,20 @@ CREATE TABLE `kkpay_order`  (
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '订单表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
--- Table structure for kkpay_order_buyer_info
+-- Table structure for kkpay_order_buyer
 -- ----------------------------
-DROP TABLE IF EXISTS `kkpay_order_buyer_info`;
-CREATE TABLE `kkpay_order_buyer_info`  (
+DROP TABLE IF EXISTS `kkpay_order_buyer`;
+CREATE TABLE `kkpay_order_buyer`  (
   `trade_no` char(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '平台订单号',
   `ip` varchar(45) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT 'IP地址',
   `user_agent` varchar(1024) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '浏览器标识',
-  `buyer` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '付款人',
+  `user_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '付款人',
   `phone` char(11) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '手机号码',
   `created_at` timestamp NULL DEFAULT NULL COMMENT '创建时间',
   `updated_at` timestamp NULL DEFAULT NULL COMMENT '更新时间',
   PRIMARY KEY (`trade_no`) USING BTREE,
   INDEX `idx_ip`(`ip` ASC) USING BTREE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '订单买家信息表' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '订单买家表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for kkpay_order_notification
@@ -405,6 +405,7 @@ CREATE TABLE `kkpay_payment_channel_account`  (
   `name` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '子账户名称',
   `payment_channel_id` int UNSIGNED NOT NULL COMMENT '支付通道ID',
   `inherit_config` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否继承配置',
+  `roll_weight` int UNSIGNED NOT NULL DEFAULT 1 COMMENT '轮询权重',
   `rate` decimal(5, 4) NULL DEFAULT NULL COMMENT '费率',
   `min_amount` decimal(12, 2) NULL DEFAULT NULL COMMENT '单笔最小金额(留空继承)',
   `max_amount` decimal(12, 2) NULL DEFAULT NULL COMMENT '单笔最大金额(留空继承)',
