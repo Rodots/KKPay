@@ -2,6 +2,87 @@
 
 declare(strict_types = 1);
 
+use app\model\Config;
+use support\Cache;
+use support\Log;
+
+/**
+ * 获取系统配置
+ *
+ * @param string      $group   配置组别，为null时获取所有组别
+ * @param string|null $key     配置键名，为null时获取组别下所有配置
+ * @param mixed       $default 默认值
+ * @return mixed
+ */
+function sys_config(string $group = 'all', ?string $key = null, mixed $default = null): mixed
+{
+    // 构建缓存键名
+    $cacheKey = 'sysconfig_' . $group;
+
+    // 尝试从缓存获取
+    $value = Cache::get($cacheKey);
+
+    if ($value !== null) {
+        // 如果缓存存在且不需要特定key，直接返回
+        if ($key === null) {
+            return $value;
+        }
+
+        // 如果需要特定key，检查缓存中是否存在
+        if (isset($value[$key])) {
+            return $value[$key];
+        }
+    }
+
+    try {
+        // 从数据库查询
+        if ($group === null) {
+            // 获取所有配置
+            $configs = Config::all()->groupBy('g')->map(function ($group) {
+                return $group->pluck('v', 'k');
+            })->toArray();
+        } else {
+            // 获取指定组别的配置
+            $configs = Config::where('g', $group)->get()->pluck('v', 'k')->toArray();
+        }
+
+        // 缓存配置
+        Cache::set($cacheKey, $configs, 600);
+
+        // 返回请求的配置
+        if ($group === null) {
+            return $configs;
+        }
+
+        return $key === null ? $configs : ($configs[$key] ?? $default);
+    } catch (Throwable $e) {
+        // 记录错误日志
+        Log::error('系统配置项获取失败: ' . $e->getMessage());
+
+        // 发生错误时返回默认值
+        return $default;
+    }
+}
+
+/**
+ * 清除系统配置缓存
+ *
+ * @param string|null $group 配置组别，为null时清除所有缓存
+ * @return bool
+ */
+function clear_sys_config_cache(?string $group = 'all'): bool
+{
+    try {
+        Cache::delete('sysconfig:' . $group);
+
+        return true;
+    } catch (Throwable $e) {
+        // 记录错误日志
+        Log::error('清除系统配置项获取失败: ' . $e->getMessage());
+        return false;
+    }
+}
+
 /**
  * 生成指定长度和模式的随机字符串
  *
@@ -58,51 +139,9 @@ function is_https(): bool
     return (isset($_SERVER['HTTPS']) && (strtolower($_SERVER['HTTPS']) === 'on' || $_SERVER['HTTPS'] === true)) || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] === 443) || (isset($_SERVER['HTTP_X_CLIENT_SCHEME']) && $_SERVER['HTTP_X_CLIENT_SCHEME'] === 'https') || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') || (isset($_SERVER['REQUEST_SCHEME']) && $_SERVER['REQUEST_SCHEME'] === 'https') || (isset($_SERVER['HTTP_EWS_CUSTOME_SCHEME']) && $_SERVER['HTTP_EWS_CUSTOME_SCHEME'] === 'https');
 }
 
-function site_url(): string
+function site_url(?string $path = null): string
 {
-    return (is_https() ? 'https://' : 'http://') . request()->host() . '/';
-}
-
-/**
- * 尝试将不同格式的日期时间字符串或Unix时间戳转换为统一的日期时间格式字符串。
- * @param string|int|null $datetime 输入值，可以是Unix时间戳整数或符合预设格式的日期时间字符串。
- * @return string 返回格式化后的日期时间字符串（格式为'Y-m-d H:i:s'），如果输入无法被识别，则返回错误信息。
- * @throws Exception
- */
-function format_date(string|int|null $datetime = null): string
-{
-    $formats = [
-        'Y-m-d\TH:i:s.u\Z', // ISO 8601格式，包含毫秒
-        'Y-m-d\TH:i:s\Z',   // ISO 8601格式，不包含毫秒
-        'Y-m-d H:i:s',      // 一般日期时间格式（不包含时区信息）
-        '@U',              // Unix时间戳
-    ];
-    $date    = false;
-
-    // 检查输入类型
-    if (is_int($datetime)) {
-        // 直接处理Unix时间戳
-        $date = new DateTimeImmutable('@' . $datetime);
-    } elseif (is_string($datetime)) {
-        // 尝试所有预定义的格式来解析字符串
-        foreach ($formats as $format) {
-            $date = DateTimeImmutable::createFromFormat($format, $datetime);
-            if ($date !== false) {
-                break; // 成功解析，跳出循环
-            }
-        }
-    } else {
-        return "输入类型错误，请输入Unix时间戳或日期时间字符串。";
-    }
-
-    // 检查是否成功解析
-    if ($date) {
-        // 格式化输出
-        return $date->format('Y-m-d H:i:s');
-    } else {
-        // 所有尝试的格式均未成功解析
-        return "无法识别的日期时间格式。";
-    }
+    return (is_https() ? 'https://' : 'http://') . request()->host() . '/' . ($path ?? '');
 }
 
 /**
@@ -117,4 +156,108 @@ function get_client_ip(): string
 
     // 返回获取到的IP地址，如果未获取到则返回'0.0.0.0'
     return request()->getRealIp();
+}
+
+/**
+ * 从URL中提取域名（包含端口，但忽略标准端口80/443）
+ *
+ * @param string $url 完整的URL地址
+ * @return string|null 返回域名，失败时返回null
+ */
+function extract_domain(string $url): ?string
+{
+    // 验证URL格式
+    if (empty($url) || !filter_var($url, FILTER_VALIDATE_URL)) {
+        return null;
+    }
+
+    // 解析URL
+    $parsedUrl = parse_url($url);
+
+    if (!isset($parsedUrl['host'])) {
+        return null;
+    }
+
+    $host   = $parsedUrl['host'];
+    $scheme = $parsedUrl['scheme'] ?? 'http';
+    $port   = $parsedUrl['port'] ?? null;
+
+    // 如果没有端口，直接返回host
+    if ($port === null) {
+        return $host;
+    }
+
+    // 检查是否为标准端口
+    $isStandardPort = ($scheme === 'https' && $port === 443) ||
+        ($scheme === 'http' && $port === 80);
+
+    // 如果是标准端口，忽略端口号
+    if ($isStandardPort) {
+        return $host;
+    }
+
+    // 非标准端口，返回host:port格式
+    return $host . ':' . $port;
+}
+
+/**
+ * 检测是否为移动设备（手机或平板）
+ * @return bool
+ */
+function isMobile(): bool
+{
+    if (preg_match('/(blackberry|configuration\/cldc|hp |hp-|htc |htc_|htc-|iemobile|kindle|midp|mmp|motorola|mobile|nokia|opera mini|opera |Googlebot-Mobile|YahooSeeker\/M1A1-R2D2|android|iphone|ipod|mobi|palm|palmos|pocket|portalmmm|ppc;|smartphone|sonyericsson|sqh|spv|symbian|treo|up.browser|up.link|vodafone|windows ce|xda |xda_)/i', request()->header('user-agent', ''))) {
+        return true;
+    }
+    return false;
+
+}
+
+/**
+ * 检测是否为微信浏览器
+ * @return bool
+ */
+function isWechat(): bool
+{
+    $userAgent = request()->header('user-agent', '');
+    if (str_contains($userAgent, 'MicroMessenger/') && !str_contains($userAgent, 'WindowsWechat'))
+        return true;
+    else
+        return false;
+}
+
+/**
+ * 检测是否为支付宝
+ * @return bool
+ */
+function isAlipay(): bool
+{
+    if (str_contains(request()->header('user-agent', ''), 'AlipayClient/'))
+        return true;
+    else
+        return false;
+}
+
+/**
+ * 检测是否为QQ
+ * @return bool
+ */
+function isQQ(): bool
+{
+    if (str_contains(request()->header('user-agent', ''), 'QQ/'))
+        return true;
+    else
+        return false;
+}
+
+/**
+ * 检测是否为云闪付
+ * @return bool
+ */
+function isUnionPay(): bool
+{
+    if (str_contains(request()->header('user-agent', ''), 'UnionPay/'))
+        return true;
+    else
+        return false;
 }
