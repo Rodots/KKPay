@@ -9,6 +9,7 @@ use Exception;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use support\Model;
 
@@ -70,11 +71,34 @@ class Order extends Model
         ];
     }
 
+    /**
+     * 可批量赋值的属性。
+     *
+     * @var array
+     */
+    protected $fillable = [
+        'out_trade_no',
+        'merchant_id',
+        'payment_type',
+        'payment_channel_account_id',
+        'subject',
+        'total_amount',
+        'buyer_pay_amount',
+        'receipt_amount',
+        'notify_url',
+        'return_url',
+        'attach',
+        'quit_url',
+        'domain',
+        'close_time',
+    ];
+
     // 时间字段配置
     const string CREATED_AT = 'create_time';
     const string UPDATED_AT = 'update_time';
 
     // 支付方式枚举
+    const string PAYMENT_TYPE_NONE      = 'None';
     const string PAYMENT_TYPE_ALIPAY    = 'Alipay';
     const string PAYMENT_TYPE_WECHATPAY = 'WechatPay';
     const string PAYMENT_TYPE_BANK      = 'Bank';
@@ -84,11 +108,11 @@ class Order extends Model
     const string PAYMENT_TYPE_PAYPAL    = 'PayPal';
 
     // 交易状态枚举
-    const string TRADE_STATE_WAIT_BUYER_PAY = 'WAIT_BUYER_PAY';
-    const string TRADE_STATE_CLOSED         = 'TRADE_CLOSED';
-    const string TRADE_STATE_SUCCESS        = 'TRADE_SUCCESS';
-    const string TRADE_STATE_FINISHED       = 'TRADE_FINISHED';
-    const string TRADE_STATE_FROZEN         = 'TRADE_FROZEN';
+    const string TRADE_STATE_WAIT_PAY = 'WAIT_PAY';
+    const string TRADE_STATE_CLOSED   = 'TRADE_CLOSED';
+    const string TRADE_STATE_SUCCESS  = 'TRADE_SUCCESS';
+    const string TRADE_STATE_FINISHED = 'TRADE_FINISHED';
+    const string TRADE_STATE_FROZEN   = 'TRADE_FROZEN';
 
     // 结算状态枚举
     const string SETTLE_STATE_PENDING    = 'PENDING';
@@ -111,7 +135,8 @@ class Order extends Model
             $seconds = (int)$now;
             $micros  = (int)(($now - $seconds) * 1000000); // 取微秒级后6位
             // 组合：业务类型(1) + 时间(12) + 微秒(6) + 随机字母(5) = 24位
-            $order->trade_no = 'P' . date('ymdHis', $seconds) . str_pad((string)$micros, 6, '0', STR_PAD_LEFT) . random(5, 'upper');
+            $order->trade_no    = 'P' . date('ymdHis', $seconds) . str_pad((string)$micros, 6, '0', STR_PAD_LEFT) . random(5, 'upper');
+            $order->create_time = Carbon::now()->timezone(config('app.default_timezone'));
         });
     }
 
@@ -165,6 +190,7 @@ class Order extends Model
         return Attribute::make(
             get: function () {
                 $enum = [
+                    self::PAYMENT_TYPE_NONE      => '未选择',
                     self::PAYMENT_TYPE_ALIPAY    => '支付宝',
                     self::PAYMENT_TYPE_WECHATPAY => '微信支付',
                     self::PAYMENT_TYPE_BANK      => '银联/银行卡',
@@ -188,11 +214,11 @@ class Order extends Model
         return Attribute::make(
             get: function () {
                 $enum = [
-                    self::TRADE_STATE_WAIT_BUYER_PAY => '等待付款',
-                    self::TRADE_STATE_CLOSED         => '交易关闭',
-                    self::TRADE_STATE_SUCCESS        => '交易成功',
-                    self::TRADE_STATE_FINISHED       => '交易完成',
-                    self::TRADE_STATE_FROZEN         => '交易冻结',
+                    self::TRADE_STATE_WAIT_PAY => '等待付款',
+                    self::TRADE_STATE_CLOSED   => '交易关闭',
+                    self::TRADE_STATE_SUCCESS  => '交易成功',
+                    self::TRADE_STATE_FINISHED => '交易完成',
+                    self::TRADE_STATE_FROZEN   => '交易冻结',
                 ];
                 return $enum[$this->getOriginal('trade_state')] ?? '未知';
             }
@@ -244,11 +270,29 @@ class Order extends Model
     }
 
     /**
+     * 订单买家信息
+     */
+    public function buyerInfo(): HasOne
+    {
+        return $this->hasOne(OrderBuyer::class, 'trade_no', 'trade_no');
+    }
+
+    /**
      * 一个订单可以存在多次退款
      */
     public function OrderRefund(): HasMany
     {
         return $this->hasMany(OrderRefund::class, 'trade_no', 'trade_no');
+    }
+
+    /**
+     * 获取表名
+     *
+     * @return string
+     */
+    public static function getTableName(): string
+    {
+        return new static()->getTable();
     }
 
     /**
@@ -268,7 +312,7 @@ class Order extends Model
         $user_id  = $order->getAttribute('user_id');
 
         if (in_array($order->getOriginal('status'), [
-            self::TRADE_STATE_WAIT_BUYER_PAY,
+            self::TRADE_STATE_WAIT_PAY,
             self::TRADE_STATE_CLOSED,
             self::TRADE_STATE_FINISHED,
             self::TRADE_STATE_FROZEN
@@ -321,5 +365,37 @@ class Order extends Model
                 throw new Exception("更新商户余额失败");
             }
         }
+    }
+
+    /**
+     * 检查传入的支付方式是否合法
+     */
+    public static function checkPaymentType(?string $payment_type): bool
+    {
+        if ($payment_type === null) {
+            return true;
+        }
+
+        return in_array($payment_type, [
+            self::PAYMENT_TYPE_ALIPAY,
+            self::PAYMENT_TYPE_WECHATPAY,
+            self::PAYMENT_TYPE_BANK,
+            self::PAYMENT_TYPE_UNIONPAY,
+            self::PAYMENT_TYPE_QQWALLET,
+            self::PAYMENT_TYPE_JDPAY,
+            self::PAYMENT_TYPE_PAYPAL,
+        ]);
+    }
+
+    /**
+     * 创建订单记录
+     */
+    public static function createOrderRecord(array $fillData): Order
+    {
+        $order = new self();
+        $order->fill($fillData);
+        $order->save();
+
+        return $order;
     }
 }

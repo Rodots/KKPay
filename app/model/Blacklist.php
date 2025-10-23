@@ -37,4 +37,45 @@ class Blacklist extends Model
             'expired_at' => 'timestamp'
         ];
     }
+
+    /**
+     * 实体类型常量枚举
+     */
+    public const string ENTITY_TYPE_USER_ID            = 'USER_ID';
+    public const string ENTITY_TYPE_BANK_CARD          = 'BANK_CARD';
+    public const string ENTITY_TYPE_ID_CARD            = 'ID_CARD';
+    public const string ENTITY_TYPE_MOBILE             = 'MOBILE';
+    public const string ENTITY_TYPE_IP_ADDRESS         = 'IP_ADDRESS';
+    public const string ENTITY_TYPE_DEVICE_FINGERPRINT = 'DEVICE_FINGERPRINT';
+
+    /**
+     * 风险等级常量
+     */
+    public const int RISK_LEVEL_LOW      = 1;
+    public const int RISK_LEVEL_MEDIUM   = 2;
+    public const int RISK_LEVEL_HIGH     = 3;
+    public const int RISK_LEVEL_CRITICAL = 4;
+
+    /**
+     * 黑名单来源常量
+     */
+    public const string ORIGIN_MANUAL_REVIEW  = 'MANUAL_REVIEW';
+    public const string ORIGIN_AUTO_DETECTION = 'AUTO_DETECTION';
+    public const string ORIGIN_THIRD_PARTY    = 'THIRD_PARTY';
+    public const string ORIGIN_SYSTEM_ALERT   = 'SYSTEM_ALERT';
+
+    /**
+     * 获取所有支持的实体类型
+     */
+    public static function getSupportedEntityTypes(): array
+    {
+        return [
+            self::ENTITY_TYPE_USER_ID,
+            self::ENTITY_TYPE_BANK_CARD,
+            self::ENTITY_TYPE_ID_CARD,
+            self::ENTITY_TYPE_MOBILE,
+            self::ENTITY_TYPE_IP_ADDRESS,
+            self::ENTITY_TYPE_DEVICE_FINGERPRINT,
+        ];
+    }
 }

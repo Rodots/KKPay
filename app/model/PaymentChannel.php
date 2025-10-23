@@ -62,6 +62,12 @@ class PaymentChannel extends Model
     const string PAYMENT_TYPE_JDPAY     = 'JDPay';
     const string PAYMENT_TYPE_PAYPAL    = 'PayPal';
 
+    // 轮询模式枚举
+    const int ROLL_MODE_ORDER  = 0;  // 按顺序依次轮询
+    const int ROLL_MODE_RANDOM = 1;  // 随机轮询
+    const int ROLL_MODE_WEIGHT = 2;  // 按权重随机轮询
+    const int ROLL_MODE_FIRST  = 3;  // 仅使用第一个可用账户
+
     /***
      * 访问器：交易状态文本
      *
@@ -95,10 +101,10 @@ class PaymentChannel extends Model
         return Attribute::make(
             get: function () {
                 $enum = [
-                    0 => '按顺序依次轮询',
-                    1 => '随机轮询',
-                    2 => '按权重随机轮询',
-                    3 => '仅使用第一个可用账户',
+                    self::ROLL_MODE_ORDER => '按顺序依次轮询',
+                    self::ROLL_MODE_RANDOM => '随机轮询',
+                    self::ROLL_MODE_WEIGHT => '按权重随机轮询',
+                    self::ROLL_MODE_FIRST => '仅使用第一个可用账户',
                 ];
                 return $enum[$this->getOriginal('roll_mode')] ?? '未知';
             }
