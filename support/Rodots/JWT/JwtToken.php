@@ -34,9 +34,9 @@ class JwtToken
     // 终端设备标识
     private ?string $device = self::DEVICE_WEB;
     // Redis缓存前缀
-    private string $redisPrefix = 'KKPay:JWT:';
+    private string $redisPrefix = 'JWT:';
     // Redis缓存黑名单前缀
-    private string $blacklistPrefix = 'KKPay:JWT:blacklist:';
+    private string $blacklistPrefix = 'JWT:blacklist:';
     // 支持的算法列表
     public static array $supportedAlgorithms = [
         'ES384'  => ['type' => 'openssl', 'curve' => 'secp384r1'],
