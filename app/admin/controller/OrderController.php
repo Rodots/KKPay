@@ -71,7 +71,7 @@ class OrderController extends AdminBase
         }
 
         // 构建查询
-        $query = Order::with(['merchant:id,merchant_number', 'paymentChannelAccount:id,name,payment_channel_id', 'paymentChannelAccount.paymentChannel:id,gateway'])->when($params, function ($q) use ($params) {
+        $query = Order::with(['merchant:id,merchant_number', 'paymentChannelAccount:id,name,payment_channel_id', 'paymentChannelAccount.paymentChannel:id,code'])->when($params, function ($q) use ($params) {
             foreach ($params as $key => $value) {
                 if ($value === '' || $value === null) {
                     continue;

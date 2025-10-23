@@ -262,7 +262,7 @@ class AccountController extends AdminBase
             $secret = $ga->createSecret();
 
             // 将密钥存储到Redis中，有效期5分钟
-            Redis::setex('KKPay:TOTP:Verify:admin:' . $request->AdminInfo['id'], 300, $secret);
+            Redis::setex('TOTP:Verify:admin:' . $request->AdminInfo['id'], 300, $secret);
 
             // 返回生成的密钥和二维码
             return $this->success('生成TOTP密钥成功，请在5分钟内完成绑定', [
@@ -296,7 +296,7 @@ class AccountController extends AdminBase
 
         // 获取管理员ID和Redis键
         $adminId  = $request->AdminInfo['id'];
-        $redisKey = 'KKPay:TOTP:Verify:admin:' . $adminId;
+        $redisKey = 'TOTP:Verify:admin:' . $adminId;
         $secret   = Redis::get($redisKey);
 
         // 检查密钥是否过期
