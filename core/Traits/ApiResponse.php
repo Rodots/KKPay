@@ -42,6 +42,10 @@ trait ApiResponse
      */
     public function fail(string $message = '失败', ApiRespCode|int $code = ApiRespCode::FAIL, mixed $data = []): Response
     {
+        if (request()->isGet()) {
+            return $this->pageMsg($message);
+        }
+
         $result = [
             'state'   => false,
             'code'    => $code,
@@ -80,5 +84,78 @@ trait ApiResponse
             $result['trace_id'] = $trace_id;
         }
         return new Response(500, ['Content-Type' => 'application/json'], json_encode($result, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+    }
+
+    /**
+     * 返回一个带消息的视图响应
+     *
+     * @param string $message
+     * @return Response
+     */
+    public function pageMsg(string $message = '错错错，是我的错，请你再试一遍吧~'): Response
+    {
+        $html = <<<HTML
+<!DOCTYPE html>
+<html lang="zh-CN">
+<head>
+    <meta charset="UTF-8">
+    <meta name="viewport" content="width=device-width, initial-scale=1.0">
+    <title>页面提示</title>
+    <style>
+        body {
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
+            margin: 0;
+            padding: 0;
+            min-height: 100vh;
+            display: flex;
+            align-items: center;
+            justify-content: center;
+        }
+        .container {
+            background: white;
+            border-radius: 10px;
+            box-shadow: 0 10px 30px rgba(0,0,0,0.2);
+            padding: 40px;
+            text-align: center;
+            max-width: 512px;
+            width: 75vw;
+        }
+        .title {
+            font-size: 24px;
+            color: #2c3e50;
+            margin: 20px 0;
+        }
+        .message {
+            color: #7f8c8d;
+            font-size: 16px;
+            margin-bottom: 30px;
+        }
+        .back-button {
+            background: #3498db;
+            color: white;
+            border: none;
+            padding: 12px 24px;
+            border-radius: 5px;
+            font-size: 16px;
+            cursor: pointer;
+            text-decoration: none;
+            display: inline-block;
+            transition: background 0.3s;
+        }
+        .back-button:hover {
+            background: #2980b9;
+        }
+    </style>
+</head>
+<body>
+    <div class="container">
+        <h1 class="title">页面提示</h1>
+        <p class="message">{$message}</p>
+        <a href="javascript:history.back()" class="back-button">返回上一页</a>
+    </div>
+</body>
+</html>
+HTML;
+        return new Response(200, ['Content-Type' => 'text/html; charset=utf-8', 'Cache-Control' => 'no-cache'], $html);
     }
 }

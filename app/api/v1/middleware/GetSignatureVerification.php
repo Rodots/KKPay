@@ -1,0 +1,332 @@
+<?php
+
+declare(strict_types = 1);
+
+namespace app\api\v1\middleware;
+
+use app\model\Merchant;
+use app\model\MerchantEncryption;
+use Core\Traits\ApiResponse;
+use support\Log;
+use support\Rodots\Crypto\AES;
+use support\Rodots\Crypto\RSA2;
+use Throwable;
+use Webman\Http\Request;
+use Webman\Http\Response;
+use Webman\MiddlewareInterface;
+
+/**
+ * API签名验证中间件
+ * 支持SHA3和RSA2两种签名算法
+ */
+class GetSignatureVerification implements MiddlewareInterface
+{
+    use ApiResponse;
+
+    /**
+     * 偏移有效期（秒）
+     */
+    private const int OFFSET_VALID_TIME = 600; // 10分钟
+
+    /**
+     * 支持的签名算法
+     */
+    private const array SUPPORTED_SIGN_TYPES = ['sha3', 'rsa2'];
+
+    /**
+     * 必需参数列表
+     */
+    private const array REQUIRED_PARAMS = [
+        'merchant_number' => '商户编号(merchant_number)缺失',
+        'biz_content'     => '业务参数(biz_content)缺失',
+        'timestamp'       => '请求时间戳格式错误',
+        'sign_type'       => '签名算法类型不被允许',
+        'sign'            => '签名缺失'
+    ];
+
+    /**
+     * 处理请求
+     */
+    public function process(Request $request, callable $handler): Response
+    {
+        try {
+            // 获取并验证请求参数
+            $params       = $this->getRequestParams($request);
+            $errorMessage = $this->validateAllParams($params);
+            if ($errorMessage) {
+                return $this->fail($errorMessage);
+            }
+
+            // 获取并验证商户信息
+            $merchant = $this->getMerchantAndValidate($params['merchant_number']);
+            if (is_string($merchant)) {
+                return $this->fail($merchant);
+            }
+
+            // 获取商户加密配置并处理加密参数
+            $merchantEncryption = MerchantEncryption::find($merchant->id);
+            $params             = $this->processEncryptedParams($params, $merchantEncryption->aes_key ?? null);
+            if (is_string($params)) {
+                return $this->fail($params);
+            }
+
+            // 执行所有验证
+            $errorMessage = $this->performAllValidations($params, $merchantEncryption);
+            if ($errorMessage) {
+                return $this->fail($errorMessage);
+            }
+
+            // 将验证结果添加到请求中
+            $this->attachToRequest($request, $merchant, $merchantEncryption, $params);
+        } catch (Throwable $e) {
+            Log::error('API签名验证异常:' . $e->getMessage());
+            return $this->error('签名验证异常');
+        }
+
+        return $handler($request);
+    }
+
+    /**
+     * 获取请求参数
+     */
+    private function getRequestParams(Request $request): array
+    {
+        $params = $request->all();
+        return [
+            'merchant_number'  => $params['merchant_number'] ?? '',
+            'encryption_param' => $params['encryption_param'] ?? null,
+            'timestamp'        => $params['timestamp'] ?? '',
+            'biz_content'      => $params['biz_content'] ?? '',
+            'sign_type'        => $params['sign_type'] ?? '',
+            'sign'             => $params['sign'] ?? ''
+        ];
+    }
+
+    /**
+     * 验证所有参数
+     */
+    private function validateAllParams(array $params): ?string
+    {
+        // 验证商户编号格式
+        if (empty($params['merchant_number'])) {
+            return self::REQUIRED_PARAMS['merchant_number'];
+        }
+        if (!preg_match('/^M[A-Z0-9]{23}$/', $params['merchant_number'])) {
+            return '商户编号(merchant_number)格式错误';
+        }
+
+        // 如果没有加密参数，验证明文参数
+        if (empty($params['encryption_param'])) {
+            return $this->validateRequiredParams($params);
+        }
+
+        return null;
+    }
+
+    /**
+     * 获取并验证商户信息
+     */
+    private function getMerchantAndValidate(string $merchantNumber): Merchant|string
+    {
+        $merchant = Merchant::where('merchant_number', $merchantNumber)->select(['id', 'merchant_number', 'diy_order_subject', 'status', 'risk_status', 'competence'])->first();
+        if (!$merchant) {
+            return '该商户不可用';
+        }
+
+        if (!$this->checkMerchantStatus($merchant)) {
+            return '商户权限不足';
+        }
+
+        return $merchant;
+    }
+
+    /**
+     * 处理加密参数
+     */
+    private function processEncryptedParams(array $params, ?string $aesKey): array|string
+    {
+        if (empty($params['encryption_param'])) {
+            return $params;
+        }
+
+        if (empty($aesKey)) {
+            return '商户未配置请求内容加密密钥';
+        }
+
+        try {
+            $decryptedParams = new AES($aesKey)->get($params['encryption_param']);
+
+            $errorMessage = $this->validateRequiredParams($decryptedParams);
+            if ($errorMessage) {
+                return $errorMessage;
+            }
+
+            // 合并参数并移除加密字段
+            $mergedParams = array_merge($params, $decryptedParams);
+            unset($mergedParams['encryption_param']);
+            return $mergedParams;
+        } catch (Throwable $e) {
+            Log::error('参数解密失败:' . $e->getMessage());
+            return '参数解密失败';
+        }
+    }
+
+    /**
+     * 执行所有验证
+     */
+    private function performAllValidations(array $params, MerchantEncryption $merchantEncryption): ?string
+    {
+        // 验证时间戳
+        if (!$this->validateTimestamp($params['timestamp'])) {
+            return '请求时间偏移过大';
+        }
+
+        // 验证签名算法类型
+        if (!$this->validateSignType($params['sign_type'], $merchantEncryption->mode)) {
+            return '签名算法类型不被允许';
+        }
+
+        // 验证签名
+        if (!$this->verifySignature($params, $merchantEncryption)) {
+            return '签名验证失败';
+        }
+
+        return null;
+    }
+
+    /**
+     * 将验证结果附加到请求
+     */
+    private function attachToRequest(Request $request, Merchant $merchant, MerchantEncryption $merchantEncryption, array $params): void
+    {
+        $request->merchant           = $merchant;
+        $request->merchantEncryption = $merchantEncryption;
+        $request->verifiedParams     = $params;
+    }
+
+    /**
+     * 验证必需参数
+     */
+    private function validateRequiredParams(array $params): ?string
+    {
+        $validations = [
+            'biz_content' => fn($v) => !empty($v),
+            'timestamp'   => fn($v) => !empty($v) && is_numeric($v),
+            'sign_type'   => fn($v) => !empty($v) && in_array($v, self::SUPPORTED_SIGN_TYPES),
+            'sign'        => fn($v) => !empty($v)
+        ];
+
+        foreach ($validations as $field => $validator) {
+            if (!$validator($params[$field] ?? '')) {
+                return self::REQUIRED_PARAMS[$field];
+            }
+        }
+
+        return null;
+    }
+
+    /**
+     * 检查商户状态
+     */
+    private function checkMerchantStatus(Merchant $merchant): bool
+    {
+        return $merchant->status === true && $merchant->risk_status === false && in_array('pay', $merchant->competence);
+    }
+
+    /**
+     * 验证签名算法类型
+     */
+    private function validateSignType(string $signType, string $mode): bool
+    {
+        return match ($mode) {
+            'only_sha3' => $signType === 'sha3',
+            'only_rsa2' => $signType === 'rsa2',
+            'open' => in_array($signType, self::SUPPORTED_SIGN_TYPES),
+            default => false
+        };
+    }
+
+    /**
+     * 验证时间戳
+     */
+    private function validateTimestamp(string $timestamp): bool
+    {
+        if (!is_numeric($timestamp)) {
+            return false;
+        }
+
+        return abs(time() - (int)$timestamp) <= self::OFFSET_VALID_TIME;
+    }
+
+    /**
+     * 验证签名
+     */
+    private function verifySignature(array $params, MerchantEncryption $merchantEncryption): bool
+    {
+        try {
+            $signString = $this->buildSignString($params);
+
+            return match ($params['sign_type']) {
+                'sha3' => $this->verifySha3Signature($signString, $params['sign'], $merchantEncryption->sha3_key),
+                'rsa2' => $this->verifyRsa2Signature($signString, $params['sign'], $merchantEncryption->rsa2_key),
+                default => false
+            };
+        } catch (Throwable $e) {
+            Log::error('签名验证异常:' . $e->getMessage());
+            return false;
+        }
+    }
+
+    /**
+     * 构建签名字符串（参考支付宝V3协议）
+     */
+    private function buildSignString(array $params): string
+    {
+        $excludeKeys = ['sign', 'encryption_param'];
+
+        $signParams = array_filter(
+            $params,
+            fn($value, $key) => !in_array($key, $excludeKeys) && $value !== '' && $value !== null,
+            ARRAY_FILTER_USE_BOTH
+        );
+
+        ksort($signParams);
+
+        return implode(',', array_map(
+            fn($key, $value) => $key . '=' . $value,
+            array_keys($signParams),
+            $signParams
+        ));
+    }
+
+    /**
+     * 验证SHA3签名
+     */
+    private function verifySha3Signature(string $signString, string $signature, ?string $sha3Key): bool
+    {
+        if (empty($sha3Key)) {
+            return false;
+        }
+
+        $expectedSignature = hash('sha3-256', $signString . $sha3Key);
+        return hash_equals($expectedSignature, $signature);
+    }
+
+    /**
+     * 验证RSA2签名
+     */
+    private function verifyRsa2Signature(string $signString, string $signature, ?string $publicKey): bool
+    {
+        if (empty($publicKey)) {
+            return false;
+        }
+
+        try {
+            $rsa2 = RSA2::fromString('', $publicKey);
+            return $rsa2->verify($signString, $signature);
+        } catch (Throwable $e) {
+            Log::error('RSA2签名验证失败:' . $e->getMessage());
+            return false;
+        }
+    }
+}

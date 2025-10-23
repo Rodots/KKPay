@@ -3,6 +3,7 @@ declare(strict_types = 1);
 
 namespace Core\Utils;
 
+use Core\Exception\PaymentException;
 use ReflectionClass;
 use ReflectionException;
 
@@ -20,8 +21,6 @@ final class PaymentGatewayUtil
 
     /**
      * 私有构造函数，防止实例化
-     *
-     * 由于该类只提供静态方法，因此不需要实例化
      */
     private function __construct()
     {
@@ -29,14 +28,10 @@ final class PaymentGatewayUtil
 
     /**
      * 清空缓存
-     *
-     * @return true
      */
-    public static function clearCache(): true
+    public static function clearCache(): void
     {
         self::$infoCache = [];
-
-        return true;
     }
 
     /**
@@ -49,32 +44,48 @@ final class PaymentGatewayUtil
      */
     public static function getInfo(string $gateway, string $key = '', bool $force = false): array|string|null
     {
-        // 使用null合并赋值操作符的变体逻辑
-        $hasKey = $key !== '';
-
         // 检查缓存
-        if (!$force && array_key_exists($gateway, self::$infoCache)) {
-            $cachedInfo = self::$infoCache[$gateway];
-            if ($hasKey) {
-                return array_key_exists($key, $cachedInfo) ? $cachedInfo[$key] : $cachedInfo;
-            }
-            return $cachedInfo;
+        if (!$force && isset(self::$infoCache[$gateway])) {
+            return self::getFromCache($gateway, $key);
         }
 
         $info = self::readStaticInfo($gateway);
-
         if ($info === null) {
             return null;
         }
 
         // 缓存并返回
         self::$infoCache[$gateway] = $info;
+        return self::getFromCache($gateway, $key);
+    }
 
-        if ($hasKey) {
-            return array_key_exists($key, $info) ? $info[$key] : $info;
+    /**
+     * 加载支付网关类或调用类中的指定方法
+     *
+     * @param string $gateway 网关类名
+     * @param string $method  要调用的方法名（可选）
+     * @param array  $items   方法参数（可选）
+     * @return string|array 返回完整类名或方法调用结果，如果类或方法不存在则抛出异常
+     *
+     * @throws PaymentException
+     */
+    public static function loadGateway(string $gateway, string $method = '', array $items = []): string|array
+    {
+        $fqcn = "\\Core\\Gateway\\$gateway\\$gateway";
+
+        if (!class_exists($fqcn)) {
+            throw new PaymentException("支付网关 '$gateway' 不存在。");
         }
 
-        return $info;
+        if ($method === '') {
+            return $fqcn;
+        }
+
+        if (!method_exists($fqcn, $method)) {
+            throw new PaymentException("支付网关 '$gateway' 中不存在方法 '$method'。");
+        }
+
+        return $fqcn::$method($items);
     }
 
     /**
@@ -82,27 +93,37 @@ final class PaymentGatewayUtil
      *
      * @param string $gateway 网关类名
      * @return array|null 返回网关描述，如果读取失败则返回null
-     *
      */
     private static function readStaticInfo(string $gateway): ?array
     {
-        // 构造完整的类名路径
-        $fqcn = "\\Core\\Gateway\\$gateway\\$gateway";
-
         try {
+            $fqcn = self::loadGateway($gateway);
+
             $reflection = new ReflectionClass($fqcn);
-        } catch (ReflectionException) {
+            if (!$reflection->hasProperty('info')) {
+                return null;
+            }
+
+            $property = $reflection->getProperty('info');
+            return $property->isStatic() ? $property->getValue() : null;
+        } catch (ReflectionException|PaymentException) {
             return null;
         }
+    }
 
-        // 检查是否存在info属性
-        if (!$reflection->hasProperty('info')) {
-            return null;
+    /**
+     * 从缓存中获取数据
+     *
+     * @param string $gateway 网关类名
+     * @param string $key     要获取的特定信息键值
+     * @return array|string|null
+     */
+    private static function getFromCache(string $gateway, string $key): array|string|null
+    {
+        if ($key === '' || !array_key_exists($key, self::$infoCache[$gateway])) {
+            return self::$infoCache[$gateway];
         }
 
-        $prop = $reflection->getProperty('info');
-
-        // 只返回静态属性的值
-        return $prop->isStatic() ? $prop->getValue() : null;
+        return self::$infoCache[$gateway][$key];
     }
 }
