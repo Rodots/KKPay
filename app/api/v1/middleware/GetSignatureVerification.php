@@ -7,9 +7,9 @@ namespace app\api\v1\middleware;
 use app\model\Merchant;
 use app\model\MerchantEncryption;
 use Core\Traits\ApiResponse;
+use Core\Utils\SignatureUtil;
 use support\Log;
 use support\Rodots\Crypto\AES;
-use support\Rodots\Crypto\RSA2;
 use Throwable;
 use Webman\Http\Request;
 use Webman\Http\Response;
@@ -17,7 +17,6 @@ use Webman\MiddlewareInterface;
 
 /**
  * API签名验证中间件
- * 支持SHA3和RSA2两种签名算法
  */
 class GetSignatureVerification implements MiddlewareInterface
 {
@@ -187,7 +186,7 @@ class GetSignatureVerification implements MiddlewareInterface
         }
 
         // 验证签名
-        if (!$this->verifySignature($params, $merchantEncryption)) {
+        if (!SignatureUtil::verifySignature($params, $params['sign_type'], $merchantEncryption)) {
             return '签名验证失败';
         }
 
@@ -256,77 +255,5 @@ class GetSignatureVerification implements MiddlewareInterface
         }
 
         return abs(time() - (int)$timestamp) <= self::OFFSET_VALID_TIME;
-    }
-
-    /**
-     * 验证签名
-     */
-    private function verifySignature(array $params, MerchantEncryption $merchantEncryption): bool
-    {
-        try {
-            $signString = $this->buildSignString($params);
-
-            return match ($params['sign_type']) {
-                'sha3' => $this->verifySha3Signature($signString, $params['sign'], $merchantEncryption->sha3_key),
-                'rsa2' => $this->verifyRsa2Signature($signString, $params['sign'], $merchantEncryption->rsa2_key),
-                default => false
-            };
-        } catch (Throwable $e) {
-            Log::error('签名验证异常:' . $e->getMessage());
-            return false;
-        }
-    }
-
-    /**
-     * 构建签名字符串（参考支付宝V3协议）
-     */
-    private function buildSignString(array $params): string
-    {
-        $excludeKeys = ['sign', 'encryption_param'];
-
-        $signParams = array_filter(
-            $params,
-            fn($value, $key) => !in_array($key, $excludeKeys) && $value !== '' && $value !== null,
-            ARRAY_FILTER_USE_BOTH
-        );
-
-        ksort($signParams);
-
-        return implode(',', array_map(
-            fn($key, $value) => $key . '=' . $value,
-            array_keys($signParams),
-            $signParams
-        ));
-    }
-
-    /**
-     * 验证SHA3签名
-     */
-    private function verifySha3Signature(string $signString, string $signature, ?string $sha3Key): bool
-    {
-        if (empty($sha3Key)) {
-            return false;
-        }
-
-        $expectedSignature = hash('sha3-256', $signString . $sha3Key);
-        return hash_equals($expectedSignature, $signature);
-    }
-
-    /**
-     * 验证RSA2签名
-     */
-    private function verifyRsa2Signature(string $signString, string $signature, ?string $publicKey): bool
-    {
-        if (empty($publicKey)) {
-            return false;
-        }
-
-        try {
-            $rsa2 = RSA2::fromString('', $publicKey);
-            return $rsa2->verify($signString, $signature);
-        } catch (Throwable $e) {
-            Log::error('RSA2签名验证失败:' . $e->getMessage());
-            return false;
-        }
     }
 }

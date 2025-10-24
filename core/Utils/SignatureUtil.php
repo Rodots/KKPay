@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 namespace Core\Utils;
 
+use support\Log;
 use support\Rodots\Crypto\RSA2;
 use Throwable;
 
@@ -14,93 +15,92 @@ use Throwable;
 final class SignatureUtil
 {
     /**
-     * 构建签名字符串（参考支付宝V3协议）
-     * 格式：key=value键值对，英文逗号分隔，按字典序排序，空值或null忽略
+     * 构建签名字符串
+     *
+     * @param array $params 参数数组
+     * @return string 签名字符串
      */
-    public static function buildSignString(array $params, array $excludeKeys = ['sign']): string
+    public static function buildSignString(array $params): string
     {
-        $signParams = [];
-        foreach ($params as $key => $value) {
-            // 跳过排除的字段和空值
-            if (in_array($key, $excludeKeys) || $value === '' || $value === null) {
-                continue;
-            }
+        $excludeKeys = ['sign', 'encryption_param'];
 
-            $signParams[$key] = $value;
-        }
+        $signParams = array_filter(
+            $params,
+            fn($value, $key) => !in_array($key, $excludeKeys) && $value !== '' && $value !== null,
+            ARRAY_FILTER_USE_BOTH
+        );
 
-        // 按字典序排序
         ksort($signParams);
 
-        // 构建签名字符串
-        $signPairs = [];
-        foreach ($signParams as $key => $value) {
-            $signPairs[] = $key . '=' . $value;
-        }
-
-        return implode(',', $signPairs);
-    }
-
-    /**
-     * 生成SHA3签名
-     */
-    public static function generateSha3Signature(string $signString, string $key): string
-    {
-        return hash('sha3-256', $signString . $key);
+        return implode(',', array_map(
+            fn($key, $value) => $key . '=' . $value,
+            array_keys($signParams),
+            $signParams
+        ));
     }
 
     /**
      * 验证SHA3签名
+     *
+     * @param string      $signString 签名字符串
+     * @param string      $signature  待验证签名
+     * @param string|null $sha3Key    SHA3密钥
+     * @return bool 验证结果
      */
-    public static function verifySha3Signature(string $signString, string $signature, string $key): bool
+    public static function verifySha3Signature(string $signString, string $signature, ?string $sha3Key): bool
     {
-        $expectedSignature = self::generateSha3Signature($signString, $key);
+        if (empty($sha3Key)) {
+            return false;
+        }
+
+        $expectedSignature = hash('sha3-256', $signString . $sha3Key);
         return hash_equals($expectedSignature, $signature);
     }
 
     /**
-     * 生成RSA2签名
-     */
-    public static function generateRsa2Signature(string $signString, string $privateKey): string
-    {
-        try {
-            $rsa2 = RSA2::fromString($privateKey);
-            return $rsa2->sign($signString);
-        } catch (Throwable $e) {
-            throw new \RuntimeException('RSA2签名生成失败: ' . $e->getMessage());
-        }
-    }
-
-    /**
      * 验证RSA2签名
+     *
+     * @param string      $signString 签名字符串
+     * @param string      $signature  待验证签名
+     * @param string|null $publicKey  公钥
+     * @return bool 验证结果
      */
-    public static function verifyRsa2Signature(string $signString, string $signature, string $publicKey): bool
+    public static function verifyRsa2Signature(string $signString, string $signature, ?string $publicKey): bool
     {
+        if (empty($publicKey)) {
+            return false;
+        }
+
         try {
             $rsa2 = RSA2::fromString('', $publicKey);
             return $rsa2->verify($signString, $signature);
         } catch (Throwable $e) {
+            Log::error('RSA2签名验证失败:' . $e->getMessage());
             return false;
         }
     }
 
     /**
-     * 验证签名（自动识别签名类型）
+     * 验证签名
+     *
+     * @param array  $params             参数数组
+     * @param string $signType           签名类型
+     * @param object $merchantEncryption 商户加密配置对象
+     * @return bool 验证结果
      */
-    public static function verifySignature(
-        array   $params,
-        string  $signType,
-        ?string $sha3Key = null,
-        ?string $rsa2PublicKey = null
-    ): bool
+    public static function verifySignature(array $params, string $signType, object $merchantEncryption): bool
     {
-        $signString = self::buildSignString($params);
-        $signature  = $params['sign'] ?? '';
+        try {
+            $signString = self::buildSignString($params);
 
-        return match ($signType) {
-            'sha3' => $sha3Key && self::verifySha3Signature($signString, $signature, $sha3Key),
-            'rsa2' => $rsa2PublicKey && self::verifyRsa2Signature($signString, $signature, $rsa2PublicKey),
-            default => false
-        };
+            return match ($signType) {
+                'sha3' => self::verifySha3Signature($signString, $params['sign'], $merchantEncryption->sha3_key),
+                'rsa2' => self::verifyRsa2Signature($signString, $params['sign'], $merchantEncryption->rsa2_key),
+                default => false
+            };
+        } catch (Throwable $e) {
+            Log::error('签名验证异常:' . $e->getMessage());
+            return false;
+        }
     }
 }
