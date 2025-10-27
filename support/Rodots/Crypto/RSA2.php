@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types = 1);
 
 namespace support\Rodots\Crypto;
@@ -6,123 +7,155 @@ namespace support\Rodots\Crypto;
 use OpenSSLAsymmetricKey;
 use RuntimeException;
 use InvalidArgumentException;
+use JsonException;
 
+/**
+ * RSA2 工具类，封装基于 OpenSSL 的 RSA 加密、解密、签名与验签操作。
+ */
 final readonly class RSA2
 {
     private const int SIGNATURE_ALGORITHM = OPENSSL_ALGO_SHA256;
-    private const int PADDING = OPENSSL_PKCS1_PADDING;
-
-    public function __construct(
-        private OpenSSLAsymmetricKey $privateKey,
-        private ?OpenSSLAsymmetricKey $publicKey = null
-    ) {}
+    private const int PADDING             = OPENSSL_PKCS1_PADDING;
 
     /**
-     * 从字符串创建RSA2实例
+     * 构造函数。
+     *
+     * @param OpenSSLAsymmetricKey|null $privateKey 私钥资源
+     * @param OpenSSLAsymmetricKey|null $publicKey  公钥资源
+     * @throws InvalidArgumentException 如果未提供任何密钥
      */
-    public static function fromString(string $privateKeyStr, string $publicKeyStr = ''): self
+    public function __construct(
+        private ?OpenSSLAsymmetricKey $privateKey = null,
+        private ?OpenSSLAsymmetricKey $publicKey = null
+    )
+    {
+        if ($this->privateKey === null && $this->publicKey === null) {
+            throw new InvalidArgumentException('至少需要提供一个密钥（私钥或公钥）');
+        }
+    }
+
+    /**
+     * 从私钥字符串创建实例。
+     *
+     * - 若 $publicKeyStr 为 null，则**不加载公钥**（适用于仅签名/解密场景）。
+     * - 若提供了 $publicKeyStr（即使是空字符串），则尝试加载该公钥；空字符串将导致错误。
+     * - 如需从私钥提取公钥，请在实例化后调用 getPublicKeyPem()。
+     *
+     * @param string      $privateKeyStr PEM 格式的私钥字符串
+     * @param string|null $publicKeyStr  可选的 PEM 公钥字符串；若为 null，则不加载公钥
+     * @return self
+     * @throws InvalidArgumentException 当私钥或提供的公钥无效时
+     */
+    public static function fromPrivateKey(string $privateKeyStr, ?string $publicKeyStr = null): self
     {
         $privateKey = openssl_pkey_get_private($privateKeyStr);
         if ($privateKey === false) {
-            throw new InvalidArgumentException('Invalid private key: ' . openssl_error_string());
+            throw new InvalidArgumentException('无效的私钥: ' . openssl_error_string());
         }
 
         $publicKey = null;
-        if ($publicKeyStr !== '') {
+        if ($publicKeyStr !== null) {
             $publicKey = openssl_pkey_get_public($publicKeyStr);
             if ($publicKey === false) {
-                throw new InvalidArgumentException('Invalid public key: ' . openssl_error_string());
+                throw new InvalidArgumentException('无效的公钥: ' . openssl_error_string());
             }
-        } else {
-            // 从私钥提取公钥
-            $details = openssl_pkey_get_details($privateKey);
-            if ($details === false || !isset($details['key'])) {
-                throw new RuntimeException('Failed to extract public key from private key');
-            }
-            $publicKey = openssl_pkey_get_public($details['key']);
         }
 
         return new self($privateKey, $publicKey);
     }
 
     /**
-     * 私钥加密 → base64
+     * 从公钥字符串创建实例。
+     *
+     * @param string $publicKeyStr PEM 格式的公钥字符串
+     * @return self
+     * @throws InvalidArgumentException 当公钥无效时
      */
-    public function encrypt(string $plain): string
+    public static function fromPublicKey(string $publicKeyStr): self
     {
-        if (!openssl_private_encrypt($plain, $encrypted, $this->privateKey, self::PADDING)) {
-            throw new RuntimeException('RSA private encryption failed: ' . openssl_error_string());
+        $publicKey = openssl_pkey_get_public($publicKeyStr);
+        if ($publicKey === false) {
+            throw new InvalidArgumentException('无效的公钥: ' . openssl_error_string());
         }
-        return base64_encode($encrypted);
+
+        return new self(null, $publicKey);
     }
 
     /**
-     * 公钥解密
-     */
-    public function decrypt(string $b64): ?string
-    {
-        $data = base64_decode($b64, true);
-        if ($data === false) {
-            return null;
-        }
-
-        if ($this->publicKey === null) {
-            return null;
-        }
-
-        return openssl_public_decrypt($data, $decrypted, $this->publicKey, self::PADDING) 
-            ? $decrypted 
-            : null;
-    }
-
-    /**
-     * 公钥加密 → base64
+     * 使用公钥加密明文，并返回 Base64 编码结果。
+     *
+     * 适用于：发送方用接收方公钥加密数据。
+     *
+     * @param string $plain 明文数据
+     * @return string Base64 编码的密文
+     * @throws RuntimeException 当缺少公钥或加密失败时
      */
     public function publicEncrypt(string $plain): string
     {
         if ($this->publicKey === null) {
-            throw new RuntimeException('Public key not available');
+            throw new RuntimeException('公钥加密需要公钥');
         }
 
         if (!openssl_public_encrypt($plain, $encrypted, $this->publicKey, self::PADDING)) {
-            throw new RuntimeException('RSA public encryption failed: ' . openssl_error_string());
+            throw new RuntimeException('RSA公钥加密失败: ' . openssl_error_string());
         }
         return base64_encode($encrypted);
     }
 
     /**
-     * 私钥解密
+     * 使用私钥解密 Base64 编码的密文。
+     *
+     * 适用于：接收方用自己的私钥解密数据。
+     *
+     * @param string $b64 Base64 编码的密文
+     * @return string|null 解密后的明文；若解密失败（如密文损坏或密钥不匹配）则返回 null
+     * @throws RuntimeException 当缺少私钥时
      */
     public function privateDecrypt(string $b64): ?string
     {
+        if ($this->privateKey === null) {
+            throw new RuntimeException('私钥解密需要私钥');
+        }
+
         $data = base64_decode($b64, true);
         if ($data === false) {
             return null;
         }
 
-        return openssl_private_decrypt($data, $decrypted, $this->privateKey, self::PADDING) 
-            ? $decrypted 
-            : null;
+        return openssl_private_decrypt($data, $decrypted, $this->privateKey, self::PADDING) ? $decrypted : null;
     }
 
     /**
-     * 私钥签名 → base64
+     * 使用私钥对数据进行签名，并返回 Base64 编码的签名。
+     *
+     * @param string $data 待签名的数据
+     * @return string Base64 编码的签名
+     * @throws RuntimeException 当缺少私钥或签名失败时
      */
     public function sign(string $data): string
     {
+        if ($this->privateKey === null) {
+            throw new RuntimeException('签名需要私钥');
+        }
+
         if (!openssl_sign($data, $signature, $this->privateKey, self::SIGNATURE_ALGORITHM)) {
-            throw new RuntimeException('RSA signing failed: ' . openssl_error_string());
+            throw new RuntimeException('RSA签名失败: ' . openssl_error_string());
         }
         return base64_encode($signature);
     }
 
     /**
-     * 公钥验签
+     * 使用公钥验证数据签名。
+     *
+     * @param string $data         原始数据
+     * @param string $signatureB64 Base64 编码的签名
+     * @return bool 签名有效返回 true，否则 false
+     * @throws RuntimeException 当缺少公钥时
      */
     public function verify(string $data, string $signatureB64): bool
     {
         if ($this->publicKey === null) {
-            return false;
+            throw new RuntimeException('验证需要公钥');
         }
 
         $signature = base64_decode($signatureB64, true);
@@ -135,40 +168,96 @@ final readonly class RSA2
     }
 
     /**
-     * 解密并返回JSON数组
+     * 解密 Base64 密文并解析为 JSON 数组。
+     *
+     * 本方法会先调用 privateDecrypt() 解密，再解析 JSON。
+     * 若解密失败或 JSON 无效，将抛出异常（不再静默返回空数组）。
+     *
+     * @param string $b64 Base64 编码的密文
+     * @return array 解密并解析后的关联数组
+     * @throws RuntimeException 当解密失败时
+     * @throws JsonException 当 JSON 格式无效或结果不是数组时
      */
     public function get(string $b64): array
     {
-        $data = $this->decrypt($b64);
-        if ($data === null) {
-            return [];
+        $decrypted = $this->privateDecrypt($b64);
+        if ($decrypted === null) {
+            throw new RuntimeException('解密失败：密文无效或密钥不匹配');
         }
 
-        $decoded = json_decode($data, true);
-        return is_array($decoded) ? $decoded : [];
+        $decoded = json_decode($decrypted, true, flags: JSON_THROW_ON_ERROR);
+        if (!is_array($decoded)) {
+            throw new JsonException('解密后的内容不是有效的 JSON 数组');
+        }
+
+        return $decoded;
     }
 
     /**
-     * 获取公钥PEM格式字符串
+     * 获取公钥的 PEM 格式字符串。
+     *
+     * - 如果实例已持有公钥，直接返回；
+     * - 否则，若持有私钥，则动态从私钥提取公钥（不缓存）；
+     * - 否则返回 null。
+     *
+     * 注意：从私钥提取公钥是轻量操作，但每次调用都会重新计算。
+     *
+     * @return string|null PEM 格式的公钥，或 null
      */
     public function getPublicKeyPem(): ?string
     {
-        if ($this->publicKey === null) {
-            return null;
+        if ($this->publicKey !== null) {
+            $details = openssl_pkey_get_details($this->publicKey);
+            return $details['key'] ?? null;
         }
 
-        $details = openssl_pkey_get_details($this->publicKey);
-        return $details['key'] ?? null;
+        if ($this->privateKey !== null) {
+            $details = openssl_pkey_get_details($this->privateKey);
+            return $details['key'] ?? null;
+        }
+
+        return null;
     }
 
     /**
-     * 获取私钥PEM格式字符串
+     * 获取当前私钥的 PEM 格式字符串（可选加密导出）。
+     *
+     * 注意：本方法不支持密码短语（因未实现），若需密码保护请自行扩展。
+     *
+     * @param string|null $passphrase 保留参数（当前未使用）
+     * @return string|null PEM 格式的私钥；若无私钥则返回 null
+     * @throws RuntimeException 当导出失败时
      */
-    public function getPrivateKeyPem(?string $passphrase = null): string
+    public function getPrivateKeyPem(?string $passphrase = null): ?string
     {
+        if ($this->privateKey === null) {
+            return null;
+        }
+
+        // 注意：当前未使用 $passphrase，如需支持需调用 openssl_pkey_export 的密码参数
         if (!openssl_pkey_export($this->privateKey, $output, $passphrase)) {
-            throw new RuntimeException('Failed to export private key: ' . openssl_error_string());
+            throw new RuntimeException('导出私钥失败: ' . openssl_error_string());
         }
         return $output;
+    }
+
+    /**
+     * 判断是否持有私钥。
+     *
+     * @return bool
+     */
+    public function hasPrivateKey(): bool
+    {
+        return $this->privateKey !== null;
+    }
+
+    /**
+     * 判断是否持有公钥。
+     *
+     * @return bool
+     */
+    public function hasPublicKey(): bool
+    {
+        return $this->publicKey !== null;
     }
 }
