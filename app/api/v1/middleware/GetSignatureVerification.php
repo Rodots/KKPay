@@ -114,7 +114,7 @@ class GetSignatureVerification implements MiddlewareInterface
             return '商户编号(merchant_number)格式错误';
         }
 
-        // 如果没有加密参数，验证明文参数
+        // 如果没有加密参数，则继续验证其他必传明文参数
         if (empty($params['encryption_param'])) {
             return $this->validateRequiredParams($params);
         }
