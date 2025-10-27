@@ -1,15 +1,12 @@
 <?php
 
-declare(strict_types=1);
+declare(strict_types = 1);
 
 namespace Core\Service;
 
 use app\model\Order;
-use app\model\OrderBuyer;
-use app\model\OrderNotification;
-use app\model\Merchant;
-
 use Core\Exception\PaymentException;
+use Core\Utils\SignatureUtil;
 use support\Log;
 use support\Db;
 use Throwable;
@@ -24,12 +21,13 @@ class OrderService
      * 更新订单状态
      */
     public static function updateOrderStatus(
-        string $tradeNo, 
-        string $newStatus, 
+        string $tradeNo,
+        string $newStatus,
         ?array $additionalData = null
-    ): bool {
+    ): bool
+    {
         Db::beginTransaction();
-        
+
         try {
             $order = Order::where('trade_no', $tradeNo)->first();
             if (!$order) {
@@ -37,7 +35,7 @@ class OrderService
             }
 
             $oldStatus = $order->trade_state;
-            
+
             // 验证状态转换是否合法
             if (!self::isValidStatusTransition($oldStatus, $newStatus)) {
                 throw new PaymentException("订单状态不能从 {$oldStatus} 转换为 {$newStatus}");
@@ -45,7 +43,7 @@ class OrderService
 
             // 更新订单状态
             $order->trade_state = $newStatus;
-            
+
             // 当前时间戳
             $now_time = time();
 
@@ -55,15 +53,15 @@ class OrderService
                     $order->payment_time = date('Y-m-d H:i:s');
                     if ($additionalData) {
                         $order->buyer_pay_amount = $additionalData['buyer_pay_amount'] ?? $order->total_amount;
-                        $order->api_trade_no = $additionalData['api_trade_no'] ?? $order->api_trade_no;
-                        $order->bill_trade_no = $additionalData['bill_trade_no'] ?? null;
+                        $order->api_trade_no     = $additionalData['api_trade_no'] ?? $order->api_trade_no;
+                        $order->bill_trade_no    = $additionalData['bill_trade_no'] ?? null;
                     }
                     break;
-                    
+
                 case Order::TRADE_STATE_CLOSED:
                     $order->close_time = $now_time;
                     break;
-                    
+
                 case Order::TRADE_STATE_FINISHED:
                     if (!$order->payment_time) {
                         $order->payment_time = date('Y-m-d H:i:s');
@@ -77,9 +75,9 @@ class OrderService
 
             // 记录状态变更日志
             Log::info('订单状态更新', [
-                'trade_no' => $tradeNo,
-                'old_status' => $oldStatus,
-                'new_status' => $newStatus,
+                'trade_no'        => $tradeNo,
+                'old_status'      => $oldStatus,
+                'new_status'      => $newStatus,
                 'additional_data' => $additionalData
             ]);
 
@@ -88,13 +86,13 @@ class OrderService
 
         } catch (Throwable $e) {
             Db::rollBack();
-            
+
             Log::error('订单状态更新失败', [
-                'trade_no' => $tradeNo,
+                'trade_no'   => $tradeNo,
                 'new_status' => $newStatus,
-                'error' => $e->getMessage()
+                'error'      => $e->getMessage()
             ]);
-            
+
             throw new PaymentException('订单状态更新失败：' . $e->getMessage());
         }
     }
@@ -110,15 +108,15 @@ class OrderService
                 Order::TRADE_STATE_CLOSED,
                 Order::TRADE_STATE_FROZEN
             ],
-            Order::TRADE_STATE_SUCCESS => [
+            Order::TRADE_STATE_SUCCESS  => [
                 Order::TRADE_STATE_FINISHED,
                 Order::TRADE_STATE_FROZEN
             ],
-            Order::TRADE_STATE_FROZEN => [
+            Order::TRADE_STATE_FROZEN   => [
                 Order::TRADE_STATE_SUCCESS,
                 Order::TRADE_STATE_CLOSED
             ],
-            Order::TRADE_STATE_CLOSED => [], // 已关闭的订单不能再转换
+            Order::TRADE_STATE_CLOSED   => [], // 已关闭的订单不能再转换
             Order::TRADE_STATE_FINISHED => [] // 已完成的订单不能再转换
         ];
 
@@ -141,7 +139,7 @@ class OrderService
             self::sendAsyncNotification($tradeNo);
 
             Log::info('支付成功处理完成', [
-                'trade_no' => $tradeNo,
+                'trade_no'     => $tradeNo,
                 'payment_data' => $paymentData
             ]);
 
@@ -150,7 +148,7 @@ class OrderService
         } catch (Throwable $e) {
             Log::error('支付成功处理失败', [
                 'trade_no' => $tradeNo,
-                'error' => $e->getMessage()
+                'error'    => $e->getMessage()
             ]);
             return false;
         }
@@ -166,7 +164,7 @@ class OrderService
             return;
         }
 
-        $channel = $order->paymentChannelAccount->paymentChannel;
+        $channel     = $order->paymentChannelAccount->paymentChannel;
         $totalAmount = $order->buyer_pay_amount ?? $order->total_amount;
 
         // 计算平台手续费
@@ -188,17 +186,17 @@ class OrderService
         $profitAmount = $feeAmount - $costAmount;
 
         // 更新订单
-        $order->fee_amount = round($feeAmount, 2);
+        $order->fee_amount     = round($feeAmount, 2);
         $order->receipt_amount = round($receiptAmount, 2);
-        $order->profit_amount = round($profitAmount, 2);
+        $order->profit_amount  = round($profitAmount, 2);
         $order->save();
 
         Log::info('订单费用计算完成', [
-            'trade_no' => $tradeNo,
-            'total_amount' => $totalAmount,
-            'fee_amount' => $feeAmount,
+            'trade_no'       => $tradeNo,
+            'total_amount'   => $totalAmount,
+            'fee_amount'     => $feeAmount,
             'receipt_amount' => $receiptAmount,
-            'profit_amount' => $profitAmount
+            'profit_amount'  => $profitAmount
         ]);
     }
 
@@ -214,49 +212,38 @@ class OrderService
 
         // 构建通知数据
         $notifyData = [
-            'trade_no' => $order->trade_no,
-            'out_trade_no' => $order->out_trade_no,
-            'trade_state' => $order->trade_state,
-            'total_amount' => $order->total_amount,
+            'trade_no'         => $order->trade_no,
+            'out_trade_no'     => $order->out_trade_no,
+            'trade_state'      => $order->trade_state,
+            'total_amount'     => $order->total_amount,
             'buyer_pay_amount' => $order->buyer_pay_amount,
-            'receipt_amount' => $order->receipt_amount,
-            'payment_time' => $order->payment_time,
-            'attach' => $order->attach,
+            'receipt_amount'   => $order->receipt_amount,
+            'payment_time'     => $order->payment_time,
+            'attach'           => $order->attach,
         ];
 
         // TODO: 实现异步通知发送逻辑
         // 这里应该使用队列系统来发送通知，确保可靠性
 
         Log::info('异步通知已加入队列', [
-            'trade_no' => $tradeNo,
+            'trade_no'   => $tradeNo,
             'notify_url' => $order->notify_url
         ]);
     }
 
     /**
-     * 查询订单详情
+     * 构建同步通知参数
      */
-    public static function getOrderDetail(string $tradeNo): ?Order
+    public static function buildSyncNotificationParams(array $order): string
     {
-        return Order::with([
-            'merchant',
-            'paymentChannelAccount.paymentChannel',
-            'buyerInfo'
-        ])->where('trade_no', $tradeNo)->first();
-    }
+        $order['timestamp'] = time();
+        $order['sign_type'] = 'rsa2';
+        $order['sign']      = SignatureUtil::buildSignature($order, $order['sign_type'], sys_config('payment', 'system_rsa_private_key', 'Rodots'));
 
-    /**
-     * 根据商户订单号查询订单
-     */
-    public static function getOrderByOutTradeNo(int $merchantId, string $outTradeNo): ?Order
-    {
-        return Order::with([
-            'merchant',
-            'paymentChannelAccount.paymentChannel',
-            'buyerInfo'
-        ])->where('merchant_id', $merchantId)
-          ->where('out_trade_no', $outTradeNo)
-          ->first();
+        $queryString = http_build_query($order);
+        $separator   = str_contains($order['return_url'], '?') ? '&' : '?';
+
+        return $order['return_url'] . $separator . $queryString;
     }
 
     /**
@@ -295,7 +282,7 @@ class OrderService
             } catch (Throwable $e) {
                 Log::error('关闭过期订单失败', [
                     'trade_no' => $order->trade_no,
-                    'error' => $e->getMessage()
+                    'error'    => $e->getMessage()
                 ]);
             }
         }
@@ -306,6 +293,4 @@ class OrderService
 
         return $closedCount;
     }
-
-
 }

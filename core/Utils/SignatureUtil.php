@@ -72,8 +72,7 @@ final class SignatureUtil
         }
 
         try {
-            $rsa2 = RSA2::fromString('', $publicKey);
-            return $rsa2->verify($signString, $signature);
+            return RSA2::fromPublicKey($publicKey)->verify($signString, $signature);
         } catch (Throwable $e) {
             Log::error('RSA2签名验证失败:' . $e->getMessage());
             return false;
@@ -101,6 +100,33 @@ final class SignatureUtil
         } catch (Throwable $e) {
             Log::error('签名验证异常:' . $e->getMessage());
             return false;
+        }
+    }
+
+    /**
+     * 构建签名
+     *
+     * 根据指定的签名类型和密钥为参数数组生成相应的签名
+     *
+     * @param array  $params   需要签名的参数数组
+     * @param string $signType 签名类型，支持 'sha3' 和 'rsa2'
+     * @param string $signKey  签名密钥，根据签名类型可能是字符串或私钥对象
+     * @return string 生成的签名字符串
+     */
+    public static function buildSignature(array $params, string $signType, string $signKey): string
+    {
+        try {
+            $signString = self::buildSignString($params);
+
+            // 根据签名类型使用对应的算法生成签名
+            return match ($signType) {
+                'sha3' => hash('sha3-256', $signString . $signKey),
+                'rsa2' => RSA2::fromPrivateKey($signKey)->sign($signString),
+                default => throw new \Exception('不支持的签名类型')
+            };
+        } catch (Throwable $e) {
+            Log::error('签名异常:' . $e->getMessage());
+            return '';
         }
     }
 }

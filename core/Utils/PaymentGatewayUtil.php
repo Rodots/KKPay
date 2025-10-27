@@ -35,31 +35,6 @@ final class PaymentGatewayUtil
     }
 
     /**
-     * 获取支付网关的完整描述
-     *
-     * @param string $gateway 网关类名
-     * @param string $key     要获取的特定信息键值（可选）
-     * @param bool   $force   是否强制刷新缓存
-     * @return array|string|null 返回网关描述数组或特定信息，如果不存在则返回null
-     */
-    public static function getInfo(string $gateway, string $key = '', bool $force = false): array|string|null
-    {
-        // 检查缓存
-        if (!$force && isset(self::$infoCache[$gateway])) {
-            return self::getFromCache($gateway, $key);
-        }
-
-        $info = self::readStaticInfo($gateway);
-        if ($info === null) {
-            return null;
-        }
-
-        // 缓存并返回
-        self::$infoCache[$gateway] = $info;
-        return self::getFromCache($gateway, $key);
-    }
-
-    /**
      * 加载支付网关类或调用类中的指定方法
      *
      * @param string $gateway 网关类名
@@ -89,6 +64,47 @@ final class PaymentGatewayUtil
     }
 
     /**
+     * 从缓存中获取数据
+     *
+     * @param string $gateway 网关类名
+     * @param string $key     要获取的特定信息键值
+     * @return array|string|null
+     */
+    private static function getFromCache(string $gateway, string $key): array|string|null
+    {
+        if ($key === '' || !array_key_exists($key, self::$infoCache[$gateway])) {
+            return self::$infoCache[$gateway];
+        }
+
+        return self::$infoCache[$gateway][$key];
+    }
+
+    /**
+     * 获取支付网关的完整描述
+     *
+     * @param string $gateway 网关类名
+     * @param string $key     要获取的特定信息键值（可选）
+     * @param bool   $force   是否强制刷新缓存
+     * @return array|string|null 返回网关描述数组或特定信息，如果不存在则返回null
+     */
+    public static function getInfo(string $gateway, string $key = '', bool $force = false): array|string|null
+    {
+        // 检查缓存
+        if (!$force && isset(self::$infoCache[$gateway])) {
+            return self::getFromCache($gateway, $key);
+        }
+
+        $info = self::readStaticInfo($gateway);
+        if ($info === null) {
+            return null;
+        }
+
+        // 缓存并返回
+        self::$infoCache[$gateway] = $info;
+        return self::getFromCache($gateway, $key);
+    }
+
+    /**
      * 通过反射读取支付网关的描述
      *
      * @param string $gateway 网关类名
@@ -109,21 +125,5 @@ final class PaymentGatewayUtil
         } catch (ReflectionException|PaymentException) {
             return null;
         }
-    }
-
-    /**
-     * 从缓存中获取数据
-     *
-     * @param string $gateway 网关类名
-     * @param string $key     要获取的特定信息键值
-     * @return array|string|null
-     */
-    private static function getFromCache(string $gateway, string $key): array|string|null
-    {
-        if ($key === '' || !array_key_exists($key, self::$infoCache[$gateway])) {
-            return self::$infoCache[$gateway];
-        }
-
-        return self::$infoCache[$gateway][$key];
     }
 }

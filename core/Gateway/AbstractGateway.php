@@ -4,7 +4,6 @@ declare(strict_types = 1);
 
 namespace Core\Gateway;
 
-use app\model\Order;
 use support\Db;
 
 /**
@@ -64,9 +63,8 @@ abstract class AbstractGateway
     protected static function lockPaymentExt(string $trade_no, callable $func): mixed
     {
         return DB::transaction(function () use ($trade_no, $func) {
-            $tableName = Order::getTableName();
             // 1. 使用 DB::table 直接查询并进行排他锁
-            $ext = DB::table($tableName)->where('trade_no', $trade_no)->lockForUpdate()->value('payment_ext');
+            $ext = DB::table('order')->where('trade_no', $trade_no)->lockForUpdate()->value('payment_ext');
 
             // 2. 检查 ext 字段是否已有数据，如有则解析并返回
             if ($ext !== null) {
