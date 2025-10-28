@@ -76,7 +76,7 @@ abstract class AbstractGateway
 
             // 4. 直接使用 update 方法更新数据库
             // 使用 serialize 将新数据序列化为字符串
-            DB::table($tableName)->where('trade_no', $trade_no)->update(['payment_ext' => serialize($newExt)]);
+            DB::table('order')->where('trade_no', $trade_no)->update(['payment_ext' => serialize($newExt)]);
 
             // 5. 返回新数据
             return $newExt;
