@@ -8,9 +8,6 @@ Route::any('/.well-known/appspecific/com.chrome.devtools.json', function () {
     return new \support\Response(404);
 });
 
-// 异步通知路由
-Route::post('/api/notify/{orderNo}', [app\api\v1\controller\NotifyController::class, 'handle']);
-
 // 收银台页面
 Route::get('/checkout/{orderNo}', [app\api\controller\CheckoutController::class, 'index']);
 
