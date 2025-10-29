@@ -348,7 +348,7 @@ class PaymentService
             case 'page': //显示指定页面
                 $page = $result['page'] ?? '404';
                 try {
-                    return raw_view("pay_page/$page", array_merge($result['data'] ?? [], ['order' => $order]));
+                    return raw_view("/app/api/view/pay_page/$page", array_merge($result['data'] ?? [], ['order' => $order]));
                 } catch (Throwable $e) {
                     Log::error($e->getTraceAsString());
                     throw new PaymentException("页面不存在: $page");
