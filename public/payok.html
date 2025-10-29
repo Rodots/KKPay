@@ -3,7 +3,7 @@
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0, maximum-scale=1.0, user-scalable=no, viewport-fit=cover">
-    <title>错误提示</title>
+    <title>支付结果</title>
     <link href="/assets/css/weui.min.css" rel="stylesheet">
     <style>.page {position: absolute;top: 0;right: 0;bottom: 0;left: 0;overflow-y: auto;box-sizing: border-box;}</style>
 </head>
@@ -12,13 +12,15 @@
     <div class="page">
         <div class="weui-msg">
             <div class="weui-msg__icon-area">
-                <i class="weui-icon-warn weui-icon_msg"></i>
+                <i class="weui-icon-success weui-icon_msg"></i>
             </div>
             <div class="weui-msg__text-area">
-                <h2 class="weui-msg__title">该订单已超时或已被关闭</h2>
+                <h2 class="weui-msg__title">支付成功</h2>
+                <p class="weui-msg__desc">支付成功，请回到网站查看订单</p>
             </div>
             <div class="weui-msg__opr-area">
                 <p class="weui-btn-area">
+                    <a href="javascript:;" class="weui-btn weui-btn_primary" onclick="alert('请回到网站查看订单！')">确定</a>
                     <a href="javascript:;" class="weui-btn weui-btn_default" id="Close">关闭</a>
                 </p>
             </div>
