@@ -20,20 +20,19 @@ class StandardController
         // 校验请求
         if ($request->expectsJson() && $request->method() === 'GET' && $request->host(true) === parse_url($request->header('referer'))['host'] && $trade_no !== null) {
             if (preg_match('/^P\d{18}[A-Z]{5}$/', $trade_no)) {
-                $order = Db::table('order')->select(['trade_state', 'return_url', 'create_time', 'payment_time', 'close_time'])->where('trade_no', $trade_no)->first();
-
+                $order = Db::table('order')->select(['trade_no', 'out_trade_no', 'bill_trade_no', 'total_amount', 'attach', 'trade_state', 'return_url', 'create_time', 'payment_time'])->where('trade_no', $trade_no)->first();
                 if ($order !== null && $order->trade_state !== Order::TRADE_STATE_WAIT_PAY) {
                     if ($order->trade_state === Order::TRADE_STATE_SUCCESS || $order->trade_state === Order::TRADE_STATE_FROZEN) {
                         // 支付完成5分钟后禁止跳转回网站
                         if ($order->payment_time !== null && time() - strtotime($order->payment_time) > 300) {
-                            $return_url = '/payok.html';
+                            $redirect_url = '/payok.html';
                         } else {
-                            $return_url = OrderService::buildSyncNotificationParams($order->toArry());
+                            $redirect_url = OrderService::buildSyncNotificationParams((array)$order);
                         }
                         $result = [
                             'code'    => 20000,
                             'data'    => [
-                                'return_url' => $return_url
+                                'redirect_url' => $redirect_url
                             ],
                             'message' => '付款成功',
                             'state'   => true
@@ -42,7 +41,7 @@ class StandardController
                         $result = [
                             'code'    => 40423,
                             'data'    => [
-                                'return_url' => '/payfail.html'
+                                'redirect_url' => '/payfail.html'
                             ],
                             'message' => '交易已结束',
                             'state'   => true
