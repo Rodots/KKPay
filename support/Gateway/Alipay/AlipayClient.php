@@ -4,7 +4,6 @@ declare(strict_types = 1);
 
 namespace Gateway\Alipay;
 
-use Core\Utils\TraceIDUtil;
 use Exception;
 use Gateway\Alipay\Trait\HeaderUtilTrait;
 use Gateway\Alipay\Util\ConfigManager;
@@ -213,7 +212,7 @@ readonly class AlipayClient
     private function buildRequestHeaders(string $requestPath, string $requestBody): array
     {
         $headers = [
-            'alipay-request-id' => TraceIDUtil::getTraceID(),
+            'alipay-request-id' => date('YmdHis') . uniqid(),
             'Content-Type'      => 'application/json',
         ];
 

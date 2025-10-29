@@ -259,7 +259,7 @@ readonly class ConfigManager
             $publicKey = $this->certificateManager->extractPublicKey($publicKey) ?? $publicKey;
         }
         
-        $formattedKey     = $this->formatPublicKey($publicKey);
+        $formattedKey     = $this->signatureManager->formatKey($publicKey, 'PUBLIC KEY');
         $decodedSignature = base64_decode($signature, true);
 
         if ($decodedSignature === false) {
@@ -267,22 +267,6 @@ readonly class ConfigManager
         }
 
         return openssl_verify($content, $decodedSignature, $formattedKey, OPENSSL_ALGO_SHA256) === 1;
-    }
-
-    /**
-     * 将公钥格式化为 PEM（若已是 PEM 则原样返回）
-     */
-    private function formatPublicKey(string $key): string
-    {
-        $key = trim($key);
-
-        if (str_contains($key, '-----BEGIN PUBLIC KEY-----')) {
-            return $key;
-        }
-
-        return "-----BEGIN PUBLIC KEY-----\n" .
-            wordwrap($key, 64, "\n", true) .
-            "\n-----END PUBLIC KEY-----";
     }
 
     /**

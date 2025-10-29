@@ -13,10 +13,6 @@ use Gateway\Alipay\AlipayConfig;
  * - 从证书内容解析应用证书序列号（app_cert_sn）与根证书序列号（alipay_root_cert_sn）
  * - 提取并规范化公钥内容，用于验签
  * - 处理多证书链分割与十六进制序列号转换
- *
- * 说明
- * - 仅在证书模式下有效（CERT_MODE）
- * - openssl_x509_parse 返回结构存在差异，代码已做健壮性处理
  */
 readonly class CertificateManager
 {

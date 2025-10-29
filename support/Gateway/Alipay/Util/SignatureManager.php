@@ -7,8 +7,6 @@ namespace Gateway\Alipay\Util;
 use Exception;
 use Gateway\Alipay\AlipayConfig;
 
-use OpenSSLAsymmetricKey;
-
 /**
  * 非对称签名管理器（RSA-SHA256）
  *
@@ -43,7 +41,13 @@ readonly class SignatureManager
             throw new Exception('私钥缺失，请检查RSA私钥配置');
         }
 
-        $privateKey = $this->loadPrivateKey();
+        $privateKeyContent = $this->config->getPrivateKeyContent();
+        $formattedKey = $this->formatKey($privateKeyContent, 'PRIVATE KEY');
+        $privateKey   = openssl_pkey_get_private($formattedKey);
+
+        if (!$privateKey) {
+            throw new Exception('私钥格式错误，请检查RSA私钥配置');
+        }
 
         if (!openssl_sign($data, $signature, $privateKey, OPENSSL_ALGO_SHA256)) {
             throw new Exception('签名失败：OpenSSL签名操作失败');
@@ -116,6 +120,26 @@ readonly class SignatureManager
     }
 
     /**
+     * 规范化 PEM 格式的密钥字符串。
+     *
+     * @param string $key    私钥内容
+     * @param string $prefix 私钥标识
+     * @return string
+     */
+    public function formatKey(string $key, string $prefix): string
+    {
+        $key = trim($key);
+
+        if (str_contains($key, '-----BEGIN ' . $prefix . '-----')) {
+            return $key;
+        }
+
+        return "-----BEGIN " . $prefix . "-----\n" .
+            wordwrap($key, 64, "\n", true) .
+            "\n-----END " . $prefix . "-----";
+    }
+
+    /**
      * 构建待签名原文
      *
      * 规则
@@ -138,55 +162,13 @@ readonly class SignatureManager
     }
 
     /**
-     * 加载并解析私钥资源
-     *
-     * @throws Exception 当私钥加载失败时抛出
-     */
-    private function loadPrivateKey(): OpenSSLAsymmetricKey
-    {
-        $privateKeyContent = $this->config->getPrivateKeyContent();
-        if (!$privateKeyContent) {
-            throw new Exception('私钥缺失，请检查RSA私钥配置');
-        }
-
-        $formattedKey = $this->formatKey($privateKeyContent, 'PRIVATE KEY');
-        $privateKey   = openssl_pkey_get_private($formattedKey);
-
-        if (!$privateKey) {
-            throw new Exception('私钥格式错误，请检查RSA私钥配置');
-        }
-
-        return $privateKey;
-    }
-
-    /**
-     * 规范化 PEM 格式的密钥字符串。
-     *
-     * @param string $key    私钥内容
-     * @param string $prefix 私钥标识
-     * @return string
-     */
-    private function formatKey(string $key, string $prefix): string
-    {
-        $key = trim($key);
-
-        if (str_contains($key, '-----BEGIN ' . $prefix . '-----')) {
-            return $key;
-        }
-
-        return "-----BEGIN " . $prefix . "-----\n" .
-            wordwrap($key, 64, "\n", true) .
-            "\n-----END " . $prefix . "-----";
-    }
-
-    /**
      * 校验某字符串或可被转换为字符串的数据，是否为 NULL 或均为空白字符.
      *
      * @param string|null $value
      *
      * @return bool
      */
-    protected function isEmpty(?string $value): bool
+    private function isEmpty(?string $value): bool
     {
         return $value === null || trim($value) === '';
     }

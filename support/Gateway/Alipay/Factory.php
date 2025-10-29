@@ -12,9 +12,6 @@ use GuzzleHttp\Client;
  * 职责
  * - 提供多种构造便捷方法（密钥模式/证书模式/自定义 HTTP 客户端/沙箱）
  * - 统一封装 AlipayConfig 的创建逻辑
- *
- * 注意
- * - 沙箱环境仅用于联调测试，生产必须使用正式域名与证书
  */
 readonly class Factory
 {
