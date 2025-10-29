@@ -37,25 +37,25 @@ final readonly class RSA2
     /**
      * 从私钥字符串创建实例。
      *
-     * - 若 $publicKeyStr 为 null，则**不加载公钥**（适用于仅签名/解密场景）。
-     * - 若提供了 $publicKeyStr（即使是空字符串），则尝试加载该公钥；空字符串将导致错误。
-     * - 如需从私钥提取公钥，请在实例化后调用 getPublicKeyPem()。
+     * 自动规范化私钥格式（支持纯 Base64、修复 \n、添加 PEM 头尾）。
      *
-     * @param string      $privateKeyStr PEM 格式的私钥字符串
+     * @param string      $privateKeyStr PEM 或纯 Base64 格式的私钥字符串
      * @param string|null $publicKeyStr  可选的 PEM 公钥字符串；若为 null，则不加载公钥
      * @return self
      * @throws InvalidArgumentException 当私钥或提供的公钥无效时
      */
     public static function fromPrivateKey(string $privateKeyStr, ?string $publicKeyStr = null): self
     {
-        $privateKey = openssl_pkey_get_private($privateKeyStr);
+        $normalizedPrivateKey = self::normalizePem($privateKeyStr, 'PRIVATE KEY');
+        $privateKey           = openssl_pkey_get_private($normalizedPrivateKey);
         if ($privateKey === false) {
             throw new InvalidArgumentException('无效的私钥: ' . openssl_error_string());
         }
 
         $publicKey = null;
         if ($publicKeyStr !== null) {
-            $publicKey = openssl_pkey_get_public($publicKeyStr);
+            $normalizedPublicKey = self::normalizePem($publicKeyStr, 'PUBLIC KEY');
+            $publicKey           = openssl_pkey_get_public($normalizedPublicKey);
             if ($publicKey === false) {
                 throw new InvalidArgumentException('无效的公钥: ' . openssl_error_string());
             }
@@ -67,13 +67,14 @@ final readonly class RSA2
     /**
      * 从公钥字符串创建实例。
      *
-     * @param string $publicKeyStr PEM 格式的公钥字符串
+     * @param string $publicKeyStr PEM 或纯 Base64 格式的公钥字符串
      * @return self
      * @throws InvalidArgumentException 当公钥无效时
      */
     public static function fromPublicKey(string $publicKeyStr): self
     {
-        $publicKey = openssl_pkey_get_public($publicKeyStr);
+        $normalizedPublicKey = self::normalizePem($publicKeyStr, 'PUBLIC KEY');
+        $publicKey           = openssl_pkey_get_public($normalizedPublicKey);
         if ($publicKey === false) {
             throw new InvalidArgumentException('无效的公钥: ' . openssl_error_string());
         }
@@ -259,5 +260,40 @@ final readonly class RSA2
     public function hasPublicKey(): bool
     {
         return $this->publicKey !== null;
+    }
+
+    /**
+     * 规范化 PEM 格式的密钥字符串。
+     *
+     * @param string $key    原始密钥字符串（PEM 或纯 Base64）
+     * @param string $prefix 用于检测是否已为 PEM 格式的关键词，如 'PRIVATE KEY'
+     * @return string 标准 PEM 格式字符串
+     */
+    private static function normalizePem(string $key, string $prefix): string
+    {
+        $key = trim($key);
+        if ($key === '') {
+            throw new InvalidArgumentException("密钥不能为空");
+        }
+
+        // 修复字面量 \n 和 \r
+        $key = str_replace('\n', "\n", $key);
+        $key = str_replace('\r', '', $key);
+
+        // 如果已经是标准 PEM 格式，直接返回
+        if (preg_match('/-----BEGIN\s+' . preg_quote($prefix, '/') . '\s*-----/', $key)) {
+            return $key;
+        }
+
+        // 提取纯 Base64 内容（移除非 Base64 字符）
+        $base64 = preg_replace('/[^a-zA-Z0-9+\/=]/', '', $key);
+        if ($base64 === '' || strlen($base64) < 10) {
+            throw new InvalidArgumentException("密钥内容无效：无法提取有效的 Base64 数据");
+        }
+
+        // 按 PEM 标准每行 64 字符换行
+        $wrapped = wordwrap($base64, 64, "\n", true);
+
+        return "-----BEGIN {$prefix}-----\n{$wrapped}\n-----END {$prefix}-----";
     }
 }

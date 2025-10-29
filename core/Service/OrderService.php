@@ -238,7 +238,7 @@ class OrderService
     {
         $order['timestamp'] = time();
         $order['sign_type'] = 'rsa2';
-        $order['sign']      = SignatureUtil::buildSignature($order, $order['sign_type'], sys_config('payment', 'system_rsa_private_key', 'Rodots'));
+        $order['sign']      = SignatureUtil::buildSignature($order, $order['sign_type'], sys_config('payment', 'system_rsa2_private_key', 'Rodots'));
 
         $queryString = http_build_query($order);
         $separator   = str_contains($order['return_url'], '?') ? '&' : '?';
