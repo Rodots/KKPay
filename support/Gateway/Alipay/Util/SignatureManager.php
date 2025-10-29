@@ -40,13 +40,13 @@ readonly class SignatureManager
     public function sign(string $data): string
     {
         if (!$this->config->hasPrivateKey()) {
-            throw new Exception('私钥格式错误，请检查RSA私钥配置', 400);
+            throw new Exception('私钥缺失，请检查RSA私钥配置');
         }
 
         $privateKey = $this->loadPrivateKey();
 
         if (!openssl_sign($data, $signature, $privateKey, OPENSSL_ALGO_SHA256)) {
-            throw new Exception('签名失败：OpenSSL签名操作失败', 400);
+            throw new Exception('签名失败：OpenSSL签名操作失败');
         }
 
         return base64_encode($signature);
@@ -71,7 +71,7 @@ readonly class SignatureManager
         $decodedSignature = base64_decode($signature, true);
 
         if ($decodedSignature === false) {
-            throw new Exception('签名Base64解码失败', 400);
+            throw new Exception('签名Base64解码失败');
         }
 
         return openssl_verify($data, $decodedSignature, $formattedKey, OPENSSL_ALGO_SHA256) === 1;
@@ -94,7 +94,7 @@ readonly class SignatureManager
      */
     public function verifyParamsV1(array $params): bool
     {
-        $signature = $params['sign'] ?? throw new Exception('签名失败：缺少签名参数', 400);
+        $signature = $params['sign'] ?? throw new Exception('签名失败：缺少签名参数');
         unset($params['sign'], $params['sign_type']);
 
         return $this->verify($this->buildSignContent($params), $signature);
@@ -109,7 +109,7 @@ readonly class SignatureManager
      */
     public function verifyParamsV2(array $params): bool
     {
-        $signature = $params['sign'] ?? throw new Exception('签名失败：缺少签名参数', 400);
+        $signature = $params['sign'] ?? throw new Exception('签名失败：缺少签名参数');
         unset($params['sign']);
 
         return $this->verify($this->buildSignContent($params), $signature);
@@ -146,14 +146,14 @@ readonly class SignatureManager
     {
         $privateKeyContent = $this->config->getPrivateKeyContent();
         if (!$privateKeyContent) {
-            throw new Exception('私钥格式错误，请检查RSA私钥配置', 400);
+            throw new Exception('私钥缺失，请检查RSA私钥配置');
         }
 
         $formattedKey = $this->formatKey($privateKeyContent, 'PRIVATE KEY');
         $privateKey   = openssl_pkey_get_private($formattedKey);
 
         if (!$privateKey) {
-            throw new Exception('私钥格式错误，请检查RSA私钥配置', 400);
+            throw new Exception('私钥格式错误，请检查RSA私钥配置');
         }
 
         return $privateKey;
@@ -174,9 +174,9 @@ readonly class SignatureManager
             return $key;
         }
 
-        return "-----BEGIN ' . $prefix . '-----\n" .
+        return "-----BEGIN " . $prefix . "-----\n" .
             wordwrap($key, 64, "\n", true) .
-            "\n-----END ' . $prefix . '-----";
+            "\n-----END " . $prefix . "-----";
     }
 
     /**

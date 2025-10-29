@@ -36,7 +36,7 @@ function sys_config(string $group = 'all', ?string $key = null, mixed $default =
 
     try {
         // 从数据库查询
-        if ($group === null) {
+        if ($group === null || $group === 'all') {
             // 获取所有配置
             $configs = Config::all()->groupBy('g')->map(function ($group) {
                 return $group->pluck('v', 'k');
