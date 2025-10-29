@@ -252,13 +252,7 @@ class OrderService
     public static function canPay(Order $order): bool
     {
         // 检查订单状态
-        if ($order->trade_state !== Order::TRADE_STATE_WAIT_PAY) {
-            return false;
-        }
-
-        // 检查订单是否过期（默认30分钟）
-        $expireTime = strtotime($order->create_time) + 1800;
-        if (time() > $expireTime) {
+        if ($order->trade_state !== Order::TRADE_STATE_WAIT_PAY || $order->trade_state === Order::TRADE_STATE_CLOSED) {
             return false;
         }
 
