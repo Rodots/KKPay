@@ -67,7 +67,7 @@ readonly class SignatureManager
             return !$this->config->hasPrivateKey(); // 如果不需要签名则跳过验证
         }
 
-        $formattedKey     = $this->formatPublicKey($publicKey);
+        $formattedKey     = $this->formatKey($publicKey, 'PUBLIC KEY');
         $decodedSignature = base64_decode($signature, true);
 
         if ($decodedSignature === false) {
@@ -149,7 +149,7 @@ readonly class SignatureManager
             throw new Exception('私钥格式错误，请检查RSA私钥配置', 400);
         }
 
-        $formattedKey = $this->formatPrivateKey($privateKeyContent);
+        $formattedKey = $this->formatKey($privateKeyContent, 'PRIVATE KEY');
         $privateKey   = openssl_pkey_get_private($formattedKey);
 
         if (!$privateKey) {
@@ -160,35 +160,23 @@ readonly class SignatureManager
     }
 
     /**
-     * 将私钥格式化为 PKCS#1 PEM（若已为 PEM 则原样返回）
+     * 规范化 PEM 格式的密钥字符串。
+     *
+     * @param string $key    私钥内容
+     * @param string $prefix 私钥标识
+     * @return string
      */
-    private function formatPrivateKey(string $key): string
+    private function formatKey(string $key, string $prefix): string
     {
         $key = trim($key);
 
-        if (str_contains($key, '-----BEGIN RSA PRIVATE KEY-----')) {
+        if (str_contains($key, '-----BEGIN ' . $prefix . '-----')) {
             return $key;
         }
 
-        return "-----BEGIN RSA PRIVATE KEY-----\n" .
+        return "-----BEGIN ' . $prefix . '-----\n" .
             wordwrap($key, 64, "\n", true) .
-            "\n-----END RSA PRIVATE KEY-----";
-    }
-
-    /**
-     * 将公钥格式化为 PEM（若已为 PEM 则原样返回）
-     */
-    private function formatPublicKey(string $key): string
-    {
-        $key = trim($key);
-
-        if (str_contains($key, '-----BEGIN PUBLIC KEY-----')) {
-            return $key;
-        }
-
-        return "-----BEGIN PUBLIC KEY-----\n" .
-            wordwrap($key, 64, "\n", true) .
-            "\n-----END PUBLIC KEY-----";
+            "\n-----END ' . $prefix . '-----";
     }
 
     /**
