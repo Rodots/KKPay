@@ -21,8 +21,7 @@
     "ext-sodium": "*"
   },
   "require-dev": {
-    "webman/log": "^2",
-    "symfony/var-dumper": "^7"
+    "webman/log": "^2"
   },
   "autoload": {
     "psr-4": {
