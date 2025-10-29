@@ -18,9 +18,9 @@ class Handler extends ExceptionHandler
     /**
      * 获取指定文件中某行号周围的代码行
      *
-     * @param string $filename 文件路径
-     * @param int $lineNumber 行号
-     * @param int $range 范围，默认前后10行
+     * @param string $filename   文件路径
+     * @param int    $lineNumber 行号
+     * @param int    $range      范围，默认前后10行
      * @return array
      */
     protected function getLinesAround(string $filename, int $lineNumber, int $range = 10): array
@@ -29,7 +29,7 @@ class Handler extends ExceptionHandler
             throw new RuntimeException("Unable to read file: $filename");
         }
 
-        $file = new SplFileObject($filename);
+        $file      = new SplFileObject($filename);
         $startLine = max(1, $lineNumber - $range);
         $endLine   = $lineNumber + $range;
         $lines     = [];
@@ -54,7 +54,7 @@ class Handler extends ExceptionHandler
     /**
      * 渲染异常响应
      *
-     * @param Request $request
+     * @param Request   $request
      * @param Throwable $exception
      * @return Response
      */
@@ -79,7 +79,7 @@ class Handler extends ExceptionHandler
     /**
      * 返回 JSON 格式响应
      *
-     * @param int $code
+     * @param int       $code
      * @param Throwable $exception
      * @return Response
      */
@@ -98,8 +98,10 @@ class Handler extends ExceptionHandler
             $result['trace_id'] = $trace_id;
         }
 
+        $resCode = $exception->getCode() ?: 500;
+
         return new Response(
-            500,
+            $resCode,
             ['Content-Type' => 'application/json'],
             json_encode($result, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES)
         );
@@ -122,7 +124,7 @@ class Handler extends ExceptionHandler
 
         $error_code = '';
         foreach ($lines as $line) {
-            $class = $line['line'] === $exception->getLine() ? 'highlight' : '';
+            $class      = $line['line'] === $exception->getLine() ? 'highlight' : '';
             $error_code .= sprintf(
                 '<div class="code-line %s"><div class="line-number">%d</div><div class="line-content">%s</div></div>',
                 $class,
@@ -137,20 +139,22 @@ class Handler extends ExceptionHandler
             'error_code' => $error_code
         ];
 
-        return $this->renderTemplate($tpl, $vars);
+        $resCode = $exception->getCode() ?: 500;
+
+        return $this->renderTemplate($tpl, $vars, $resCode);
     }
 
     /**
      * 渲染模板文件
      *
      * @param string $path
-     * @param array $vars
-     * @param int $code
+     * @param array  $vars
+     * @param int    $code
      * @return Response
      */
     protected function renderTemplate(string $path, array $vars, int $code = 500): Response
     {
-        extract($vars, EXTR_OVERWRITE);
+        extract($vars);
         ob_start();
         require $path;
         $body = ob_get_clean();
