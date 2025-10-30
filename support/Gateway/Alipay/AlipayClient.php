@@ -5,7 +5,6 @@ declare(strict_types = 1);
 namespace Gateway\Alipay;
 
 use Exception;
-use Gateway\Alipay\Trait\HeaderUtilTrait;
 use Gateway\Alipay\Util\ConfigManager;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
@@ -23,7 +22,6 @@ use Psr\Http\Message\ResponseInterface;
  */
 readonly class AlipayClient
 {
-    use HeaderUtilTrait;
 
     /**
      * 默认 HTTP 请求超时时间（秒）
@@ -243,7 +241,9 @@ readonly class AlipayClient
         $statusCode      = $response->getStatusCode();
 
         // 处理加密响应
-        if ($this->config->isEncryptEnabled() && $statusCode >= 200 && $statusCode < 300 && !empty($this->getHeaderValue($responseHeaders, 'alipay-encrypt-type'))) {
+        // 通过ConfigManager获取头部值
+        $encryptType = $this->configManager->getHeaderValue($responseHeaders, 'alipay-encrypt-type');
+        if ($this->config->isEncryptEnabled() && $statusCode >= 200 && $statusCode < 300 && !empty($encryptType)) {
             $responseBody = $this->configManager->decryptResponse($responseBody);
         }
 

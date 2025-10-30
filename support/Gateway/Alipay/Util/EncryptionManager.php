@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 namespace Gateway\Alipay\Util;
 
+use Exception;
 use Gateway\Alipay\AlipayConfig;
 
 use Gateway\Alipay\Trait\CryptoUtilTrait;
@@ -36,12 +37,7 @@ readonly class EncryptionManager
     /**
      * 加密明文
      *
-     * 行为
-     * - 未启用加密时直通返回
-     * - 空字符串返回空字符串
-     * - 使用 AES-128-CBC + PKCS7 + 零 IV；结果 Base64 编码
-     *
-     * @throws \Exception 当加密失败时抛出
+     * @throws Exception 当加密失败时抛出
      */
     public function encrypt(string $plainText): string
     {
@@ -63,12 +59,12 @@ readonly class EncryptionManager
             );
 
             if ($encryptedData === false) {
-                throw new \Exception("AES加密失败，plainText={$plainText}，OpenSSL加密失败", 400);
+                throw new Exception("AES加密失败，plainText={$plainText}，OpenSSL加密失败", 400);
             }
 
             return base64_encode($encryptedData);
         } catch (Throwable $e) {
-            throw new \Exception(
+            throw new Exception(
                 "AES加密失败，plainText={$plainText}，keySize=" . strlen($this->config->encryptKey ?? '') . ", " . $e->getMessage(),
                 400
             );
@@ -78,12 +74,7 @@ readonly class EncryptionManager
     /**
      * 解密密文
      *
-     * 行为
-     * - 未启用加密时直通返回
-     * - 空字符串返回空字符串
-     * - 对 Base64 解码后执行 AES-128-CBC 解密，再移除 PKCS7 填充
-     *
-     * @throws \Exception 当解密失败时抛出
+     * @throws Exception 当解密失败时抛出
      */
     public function decrypt(string $cipherText): string
     {
@@ -105,12 +96,12 @@ readonly class EncryptionManager
             );
 
             if ($decryptedData === false) {
-                throw new \Exception("AES解密失败，cipherText={$cipherText}，OpenSSL解密失败", 400);
+                throw new Exception("AES解密失败，cipherText={$cipherText}，OpenSSL解密失败", 400);
             }
 
             return $this->stripPKCS7Padding($decryptedData);
         } catch (Throwable $e) {
-            throw new \Exception(
+            throw new Exception(
                 "AES解密失败，cipherText={$cipherText}，keySize=" . strlen($this->config->encryptKey ?? '') . ", " . $e->getMessage(),
                 400
             );

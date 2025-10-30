@@ -42,8 +42,8 @@ readonly class SignatureManager
         }
 
         $privateKeyContent = $this->config->getPrivateKeyContent();
-        $formattedKey = $this->formatKey($privateKeyContent, 'PRIVATE KEY');
-        $privateKey   = openssl_pkey_get_private($formattedKey);
+        $formattedKey      = $this->formatKey($privateKeyContent, 'PRIVATE KEY');
+        $privateKey        = openssl_pkey_get_private($formattedKey);
 
         if (!$privateKey) {
             throw new Exception('私钥格式错误，请检查RSA私钥配置');
@@ -64,21 +64,29 @@ readonly class SignatureManager
      *
      * @throws Exception 当签名验证失败时抛出
      */
-    public function verify(string $data, string $signature): bool
+    public function verify(string $data, string $signature, ?string $publicKey = null): bool
     {
-        $publicKey = $this->config->getPublicKeyContent();
+        // 如果没有提供公钥，则使用配置中的公钥
+        if ($publicKey === null) {
+            $publicKey = $this->config->getPublicKeyContent();
+        }
+
         if (!$publicKey) {
             return !$this->config->hasPrivateKey(); // 如果不需要签名则跳过验证
         }
 
-        $formattedKey     = $this->formatKey($publicKey, 'PUBLIC KEY');
+        // 如果是证书模式，公钥已经是从证书中提取的标准PEM格式，无需格式化
+        if (!$this->config->isCertMode()) {
+            $publicKey = $this->formatKey($publicKey, 'PUBLIC KEY');
+        }
+
         $decodedSignature = base64_decode($signature, true);
 
         if ($decodedSignature === false) {
             throw new Exception('签名Base64解码失败');
         }
 
-        return openssl_verify($data, $decodedSignature, $formattedKey, OPENSSL_ALGO_SHA256) === 1;
+        return openssl_verify($data, $decodedSignature, $publicKey, OPENSSL_ALGO_SHA256) === 1;
     }
 
     /**
@@ -105,13 +113,13 @@ readonly class SignatureManager
     }
 
     /**
-     * 验证参数签名（V2 规则：移除 sign 后验签）
+     * 验证参数签名（V3 规则：移除 sign 后验签）
      *
      * 生活号异步通知组成的待验签串里需要保留 sign_type 参数。
      *
      * @throws Exception 当签名验证失败时抛出
      */
-    public function verifyParamsV2(array $params): bool
+    public function verifyParamsV3(array $params): bool
     {
         $signature = $params['sign'] ?? throw new Exception('签名失败：缺少签名参数');
         unset($params['sign']);

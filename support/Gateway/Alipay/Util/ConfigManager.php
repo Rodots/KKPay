@@ -7,15 +7,12 @@ namespace Gateway\Alipay\Util;
 use Exception;
 use Gateway\Alipay\AlipayConfig;
 use Gateway\Alipay\Trait\HeaderUtilTrait;
-use Random\RandomException;
-use support\Rodots\Functions\Uuid;
 
 /**
  * 安全编排管理器（对签名/验签/加解密/证书做统一编排）
  *
  * - 请求签名：生成 Authorization 头，证书模式自动附加 alipay-root-cert-sn/app_cert_sn
  * - 响应验签：解析头信息，选择合适公钥进行验签
- *   · 严格模式：缺少签名抛错；宽松模式：缺签名直接跳过
  * - 对称加密：委托 EncryptionManager 进行请求加密/响应解密
  *
  * 注意：不持久化敏感数据，只做流程编排。
@@ -43,6 +40,19 @@ readonly class ConfigManager
     public function getValue(string $key): mixed
     {
         return $this->config->$key ?? null;
+    }
+
+    /**
+     * 从头数组中获取指定键的首个值
+     */
+    public function getHeaderValue(array $headers, string $key): string
+    {
+        if (!array_key_exists($key, $headers)) {
+            return '';
+        }
+
+        $value = $headers[$key];
+        return is_array($value) ? ($value[0] ?? '') : (string)$value;
     }
 
     /**
@@ -98,25 +108,15 @@ readonly class ConfigManager
      * 参数
      * - responseBody: 响应体（明文，若密文需先解密）
      * - headers: 响应头
-     * - isCheckSign: 是否开启严格验签；为 false 时宽松（缺签名直接跳过）
-     *
-     * 行为
-     * - 从头中读取 alipay-sn/timestamp/nonce/signature
-     * - 选择公钥：使用公钥文件或内存公钥
-     * - 验签失败时抛出异常；缺公钥且无需签名时跳过
      *
      * @throws Exception 当验签失败或公钥证书不可用时抛出
      */
-    public function verifyResponseV3(string $responseBody, array $headers, bool $isCheckSign = true): void
+    public function verifyResponseV3(string $responseBody, array $headers): void
     {
         $signature = $this->getHeaderValue($headers, 'alipay-signature');
 
-        // 严格模式：缺签名抛错；宽松模式：缺签名直接跳过
         if (empty($signature) || $signature === 'null') {
-            if ($isCheckSign) {
-                throw new Exception('响应缺少签名');
-            }
-            return;
+            throw new Exception('响应缺少签名');
         }
 
         $headerValues = $this->getHeaderValues($headers, [
@@ -134,7 +134,7 @@ readonly class ConfigManager
             $headerValues['alipay-nonce'] . "\n" .
             $responseBody . "\n";
 
-        if (!$this->verifyWithPublicKey($contentToVerify, $signature, $publicKey)) {
+        if (!$this->signatureManager->verify($contentToVerify, $signature, $publicKey)) {
             throw new Exception("签名验证失败: [sign=$signature, content=$responseBody]");
         }
     }
@@ -162,7 +162,7 @@ readonly class ConfigManager
             throw new Exception('支付宝RSA公钥错误。请检查公钥文件格式是否正确');
         }
 
-        if (!$this->verifyWithPublicKey(json_encode($results), $signature, $publicKey)) {
+        if (!$this->signatureManager->verify(json_encode($results), $signature, $publicKey)) {
             throw new Exception("签名验证失败: [content=$responseBody]");
         }
 
@@ -190,11 +190,8 @@ readonly class ConfigManager
      */
     private function generateNonce(): string
     {
-        try {
-            return Uuid::v4();
-        } catch (RandomException) {
-            return random(32);
-        }
+        // 简单实现，使用时间戳和随机数生成
+        return uniqid('', true) . bin2hex(random_bytes(8));
     }
 
     /**
@@ -244,29 +241,6 @@ readonly class ConfigManager
         }
 
         return $key;
-    }
-
-    /**
-     * 使用公钥验证签名
-     *
-     * 返回
-     * - true 表示验签通过；false 表示失败
-     */
-    private function verifyWithPublicKey(string $content, string $signature, string $publicKey): bool
-    {
-        // 检查是否是证书格式，如果是则从中提取公钥
-        if (str_contains($publicKey, '-----BEGIN CERTIFICATE-----')) {
-            $publicKey = $this->certificateManager->extractPublicKey($publicKey) ?? $publicKey;
-        }
-        
-        $formattedKey     = $this->signatureManager->formatKey($publicKey, 'PUBLIC KEY');
-        $decodedSignature = base64_decode($signature, true);
-
-        if ($decodedSignature === false) {
-            return false;
-        }
-
-        return openssl_verify($content, $decodedSignature, $formattedKey, OPENSSL_ALGO_SHA256) === 1;
     }
 
     /**
