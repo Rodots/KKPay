@@ -23,7 +23,7 @@ class OrderController extends AdminBase
     {
         $from   = $request->get('from', 0);
         $limit  = $request->get('limit', 10);
-        $params = $request->only(['fuzzy_trade_no', 'trade_no', 'out_trade_no', 'api_trade_no', 'bill_trade_no', 'merchant_number', 'payment_type', 'payment_channel_code', 'payment_channel_account_id', 'subject', 'total_amount', 'buyer_pay_amount', 'receipt_amount', 'create_time', 'payment_time', 'trade_state', 'settle_state', 'notify_state']);
+        $params = $request->only(['fuzzy_trade_no', 'trade_no', 'out_trade_no', 'api_trade_no', 'bill_trade_no', 'mch_trade_no', 'merchant_number', 'payment_type', 'payment_channel_code', 'payment_channel_account_id', 'subject', 'total_amount', 'buyer_pay_amount', 'receipt_amount', 'create_time', 'payment_time', 'trade_state', 'settle_state', 'notify_state']);
 
         try {
             validate([
@@ -32,6 +32,7 @@ class OrderController extends AdminBase
                 'out_trade_no'               => ['max:128', 'alphaDash'],
                 'api_trade_no'               => ['max:256', 'alphaDash'],
                 'bill_trade_no'              => ['max:256', 'alphaDash'],
+                'mch_trade_no'               => ['max:256', 'alphaDash'],
                 'merchant_number'            => ['alphaNum', 'startWith:M', 'length:24'],
                 'payment_channel_code'       => ['max:16', 'alphaNum', 'upper'],
                 'payment_channel_account_id' => ['number'],
@@ -52,6 +53,8 @@ class OrderController extends AdminBase
                 'api_trade_no.alphaDash'            => '上游订单号只能是字母和数字，下划线及破折号',
                 'bill_trade_no.max'                 => '交易流水号长度不能超过256位',
                 'bill_trade_no.alphaDash'           => '交易流水号只能是字母和数字，下划线及破折号',
+                'mch_trade_no.max'                  => '渠道交易流水号长度不能超过256位',
+                'mch_trade_no.alphaDash'            => '渠道交易流水号只能是字母和数字，下划线及破折号',
                 'merchant_number.alphaNum'          => '商户编号是以M开头的24位英文+数字',
                 'merchant_number.startWith'         => '商户编号是以M开头的24位英文+数字',
                 'merchant_number.length'            => '商户编号是以M开头的24位英文+数字',
@@ -83,7 +86,8 @@ class OrderController extends AdminBase
                             $query->where('trade_no', $value)
                                 ->where('out_trade_no', $value)
                                 ->where('api_trade_no', $value)
-                                ->where('bill_trade_no', $value);
+                                ->where('bill_trade_no', $value)
+                                ->where('mch_trade_no', $value);
                         });
                         break;
                     case 'trade_no':
@@ -97,6 +101,9 @@ class OrderController extends AdminBase
                         break;
                     case 'bill_trade_no':
                         $q->where('bill_trade_no', 'like', "%$value%");
+                        break;
+                    case 'mch_trade_no':
+                        $q->where('mch_trade_no', 'like', "%$value%");
                         break;
                     case 'merchant_number':
                         $q->where('merchant_number', trim($value));
