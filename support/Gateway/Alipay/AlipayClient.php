@@ -22,7 +22,6 @@ use Psr\Http\Message\ResponseInterface;
  */
 readonly class AlipayClient
 {
-
     /**
      * 默认 HTTP 请求超时时间（秒）
      */
@@ -50,6 +49,14 @@ readonly class AlipayClient
     )
     {
         $this->configManager = new ConfigManager($config);
+    }
+    
+    /**
+     * 获取配置管理器实例
+     */
+    public function getConfigManager(): ConfigManager
+    {
+        return $this->configManager;
     }
 
     /**

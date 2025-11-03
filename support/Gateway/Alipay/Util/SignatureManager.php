@@ -100,29 +100,14 @@ readonly class SignatureManager
     }
 
     /**
-     * 验证参数签名（V1 规则：移除 sign 与 sign_type 后验签）
+     * 验证参数签名
      *
      * @throws Exception 当签名验证失败时抛出
      */
-    public function verifyParamsV1(array $params): bool
+    public function verifyParams(array $params): bool
     {
         $signature = $params['sign'] ?? throw new Exception('签名失败：缺少签名参数');
         unset($params['sign'], $params['sign_type']);
-
-        return $this->verify($this->buildSignContent($params), $signature);
-    }
-
-    /**
-     * 验证参数签名（V3 规则：移除 sign 后验签）
-     *
-     * 生活号异步通知组成的待验签串里需要保留 sign_type 参数。
-     *
-     * @throws Exception 当签名验证失败时抛出
-     */
-    public function verifyParamsV3(array $params): bool
-    {
-        $signature = $params['sign'] ?? throw new Exception('签名失败：缺少签名参数');
-        unset($params['sign']);
 
         return $this->verify($this->buildSignContent($params), $signature);
     }

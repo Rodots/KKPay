@@ -33,6 +33,14 @@ readonly class ConfigManager
         $this->encryptionManager  = new EncryptionManager($config);
         $this->certificateManager = new CertificateManager($config);
     }
+    
+    /**
+     * 获取签名管理器实例
+     */
+    public function getSignatureManager(): SignatureManager
+    {
+        return $this->signatureManager;
+    }
 
     /**
      * 获取配置项的值
