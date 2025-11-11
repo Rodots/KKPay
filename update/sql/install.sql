@@ -232,7 +232,7 @@ CREATE TABLE `kkpay_merchant_wallet_record`  (
   `old_freeze_balance` decimal(12, 2) NOT NULL COMMENT '变更前冻结余额',
   `new_freeze_balance` decimal(12, 2) NOT NULL COMMENT '变更后冻结余额',
   `remark` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '备注',
-  `trade_no` char(32) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '关联平台订单号',
+  `trade_no` char(24) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '关联平台订单号',
   `created_at` timestamp NULL DEFAULT NULL COMMENT '操作时间',
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `idx_merchant_wallet_id`(`merchant_id` ASC) USING BTREE,
@@ -313,7 +313,7 @@ CREATE TABLE `kkpay_order`  (
 -- ----------------------------
 DROP TABLE IF EXISTS `kkpay_order_buyer`;
 CREATE TABLE `kkpay_order_buyer`  (
-  `trade_no` char(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '平台订单号',
+  `trade_no` char(24) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '平台订单号',
   `ip` varchar(45) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT 'IP地址',
   `user_agent` varchar(1024) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '浏览器标识',
   `user_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '付款人',
@@ -330,8 +330,8 @@ CREATE TABLE `kkpay_order_buyer`  (
 -- ----------------------------
 DROP TABLE IF EXISTS `kkpay_order_notification`;
 CREATE TABLE `kkpay_order_notification`  (
-  `id` char(36) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '通知校验ID',
-  `trade_no` char(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '平台订单号',
+  `id` char(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '通知校验ID',
+  `trade_no` char(24) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '平台订单号',
   `status` bit(1) NOT NULL DEFAULT b'0' COMMENT '状态 0:失败 1:成功',
   `content` varchar(2048) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT '' COMMENT '返回内容',
   `created_at` timestamp NULL DEFAULT NULL COMMENT '创建时间',
@@ -347,7 +347,7 @@ CREATE TABLE `kkpay_order_refund`  (
   `id` char(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '退款流水号',
   `merchant_id` int UNSIGNED NOT NULL COMMENT '商户ID',
   `initiate_type` enum('admin','api','merchant','system') CHARACTER SET ascii COLLATE ascii_bin NOT NULL DEFAULT 'system' COMMENT '发起类型',
-  `trade_no` char(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '平台订单号',
+  `trade_no` char(24) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '平台订单号',
   `out_trade_no` varchar(128) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '商户订单号',
   `api_trade_no` varchar(255) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '上游订单号',
   `out_biz_no` varchar(64) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '商家业务号',
