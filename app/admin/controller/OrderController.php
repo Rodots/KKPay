@@ -83,13 +83,13 @@ class OrderController extends AdminBase
                 }
                 switch ($key) {
                     case 'fuzzy_trade_no':
-                        $q->orWhere(function ($query) use ($value) {
+                        $q->where(function ($query) use ($value) {
                             $value = trim($value);
-                            $query->where('trade_no', $value)
-                                ->where('out_trade_no', $value)
-                                ->where('api_trade_no', $value)
-                                ->where('bill_trade_no', $value)
-                                ->where('mch_trade_no', $value);
+                            $query->orWhere('trade_no', $value)
+                                ->orWhere('out_trade_no', $value)
+                                ->orWhere('api_trade_no', $value)
+                                ->orWhere('bill_trade_no', $value)
+                                ->orWhere('mch_trade_no', $value);
                         });
                         break;
                     case 'trade_no':
