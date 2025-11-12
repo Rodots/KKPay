@@ -87,7 +87,7 @@ trait ApiResponse
     }
 
     /**
-     * 返回一个带消息的视图响应
+     * 返回一个带消息的HTML单页视图响应
      *
      * @param string $message
      * @return Response
@@ -131,7 +131,7 @@ trait ApiResponse
             margin-bottom: 30px;
         }
         .back-button {
-            background: #3498db;
+            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
             color: white;
             border: none;
             padding: 12px 24px;
@@ -143,7 +143,8 @@ trait ApiResponse
             transition: background 0.3s;
         }
         .back-button:hover {
-            background: #2980b9;
+            transform: translateY(-2px);
+            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
         }
     </style>
 </head>
@@ -157,5 +158,16 @@ trait ApiResponse
 </html>
 HTML;
         return new Response(200, ['Content-Type' => 'text/html; charset=utf-8', 'Cache-Control' => 'no-cache'], $html);
+    }
+
+    /**
+     * 返回一个带消息的纯文本响应
+     *
+     * @param string $message
+     * @return Response
+     */
+    public function textMsg(string $message = '错错错，是我的错，请你再试一遍吧~'): Response
+    {
+        return new Response(200, ['Content-Type' => 'text/plain; charset=utf-8', 'Cache-Control' => 'no-cache'], $message);
     }
 }

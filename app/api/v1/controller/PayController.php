@@ -215,8 +215,10 @@ class PayController
         $method  = $request->route->param('method');
         $orderNo = $request->route->param('orderNo');
 
+        $echoMethod = ($method === 'notify') ? 'textMsg' : 'pageMsg';
+
         if (empty($method) || empty($orderNo)) {
-            return $this->pageMsg('参数错误');
+            return $this->$echoMethod('参数错误');
         }
 
         try {
@@ -228,11 +230,11 @@ class PayController
             ])->where('trade_no', $orderNo)->first();
 
             if ($order === null) {
-                return $this->pageMsg('订单不存在');
+                return $this->$echoMethod('订单不存在');
             }
 
             if (!OrderService::canPay($order)) {
-                return $this->pageMsg('当前订单已交易结束');
+                return $this->$echoMethod('当前订单已交易结束');
             }
 
             $paymentChannelAccount = $order->paymentChannelAccount;
@@ -250,9 +252,10 @@ class PayController
                 'buyer'      => $order->buyerInfo->toArray(),
                 'config'     => sys_config(),
                 'subject'    => $order->subject,
-                'return_url' => site_url("api/return/$order->trade_no/"),
-                'notify_url' => site_url("api/notify/$order->trade_no/"),
+                'return_url' => site_url("pay/return/$order->trade_no.html"),
+                'notify_url' => site_url("pay/notify/$order->trade_no.html"),
             ];
+            unset($order);
 
             $gateway = $paymentChannelAccount->paymentChannel->gateway;
 
@@ -267,7 +270,7 @@ class PayController
                 'trace'    => $e->getTraceAsString(),
             ]);
 
-            return $this->pageMsg('系统异常，请稍后重试');
+            return $this->$echoMethod('系统异常，请稍后重试');
         }
     }
 }
