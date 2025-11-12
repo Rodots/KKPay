@@ -5,7 +5,7 @@ return [
         'options' => [
             'auth' => null,
             'db' => 0,
-            'prefix' => '',
+            'prefix' => 'KKPay:Queue',
             'max_attempts'  => 5,
             'retry_seconds' => 5,
         ],
