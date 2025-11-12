@@ -6,7 +6,7 @@ return [
             'auth' => null,
             'db' => 0,
             'prefix' => 'KKPay:Queue',
-            'max_attempts'  => 5,
+            'max_attempts'  => 2,
             'retry_seconds' => 5,
         ],
         // Connection pool, supports only Swoole or Swow drivers.

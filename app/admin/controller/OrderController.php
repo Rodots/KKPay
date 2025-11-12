@@ -8,6 +8,7 @@ use app\model\Order;
 use app\model\PaymentChannel;
 use app\model\PaymentChannelAccount;
 use Core\baseController\AdminBase;
+use Core\Service\OrderService;
 use Exception;
 use support\Db;
 use support\Request;
@@ -207,6 +208,29 @@ class OrderController extends AdminBase
         }
 
         return $this->success('删除成功');
+    }
+
+    /**
+     * 重新通知下游
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function reNotification(Request $request): Response
+    {
+        $trade_no = $request->input('trade_no');
+
+        if (empty($trade_no)) {
+            return $this->fail('必要参数缺失');
+        }
+
+        if (!$order = Order::find($trade_no)) {
+            return $this->fail('该订单不存在');
+        }
+
+        OrderService::sendAsyncNotification($trade_no, $order, 'order-notification-manual');
+
+        return $this->success('重新通知任务已提交，系统将异步处理，请留意后续状态更新');
     }
 
     public function refund(Request $request): Response

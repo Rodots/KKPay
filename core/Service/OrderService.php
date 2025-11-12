@@ -158,7 +158,7 @@ class OrderService
     /**
      * 发送异步通知
      */
-    private static function sendAsyncNotification(string $tradeNo, ?Order $order = null): void
+    public static function sendAsyncNotification(string $tradeNo, ?Order $order = null, string $queueName = 'order-notification'): void
     {
         if ($order === null) {
             $order = Order::where('trade_no', $tradeNo)->first();
@@ -185,8 +185,8 @@ class OrderService
         $notifyData['sign'] = SignatureUtil::buildSignature($notifyData, $notifyData['sign_type'], sys_config('payment', 'system_rsa2_private_key', 'Rodots'));
 
         // 使用Redis队列发送异步通知
-        if (!SyncQueue::send('order-notification', $notifyData)) {
-            Log::error("订单异步通知队列投递失败：" . $tradeNo);
+        if (!SyncQueue::send($queueName, $notifyData)) {
+            Log::error("订单异步通知队列{$queueName}投递失败：" . $tradeNo);
         }
     }
 
