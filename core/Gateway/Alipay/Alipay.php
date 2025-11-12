@@ -120,23 +120,19 @@ class Alipay extends AbstractGateway
     {
         $order = $items['order'];
 
-        try {
-            $alipay = Factory::createFromArray(self::formatConfig($items['channel']));
+        $alipay = Factory::createFromArray(self::formatConfig($items['channel']));
 
-            $params = [
-                'out_trade_no' => $order['trade_no'],
-                'total_amount' => $order['buyer_pay_amount'],
-                'subject'      => $items['subject'],
-                'product_code' => 'QUICK_WAP_WAY'
-            ];
+        $params = [
+            'out_trade_no' => $order['trade_no'],
+            'total_amount' => $order['buyer_pay_amount'],
+            'subject'      => $items['subject'],
+            'product_code' => 'QUICK_WAP_WAY'
+        ];
 
-            return self::lockPaymentExt($order['trade_no'], function () use ($alipay, $params, $items) {
-                $html = $alipay->pageExecute($params, 'alipay.trade.wap.pay', $items['return_url'], $items['notify_url']);
-                return ['type' => 'html', 'data' => $html];
-            });
-        } catch (Throwable $e) {
-            return ['type' => 'error', 'message' => $e->getMessage()];
-        }
+        return self::lockPaymentExt($order['trade_no'], function () use ($alipay, $params, $items) {
+            $html = $alipay->pageExecute($params, 'alipay.trade.wap.pay', $items['return_url'], $items['notify_url']);
+            return ['type' => 'html', 'data' => $html];
+        });
     }
 
     /**
@@ -148,23 +144,19 @@ class Alipay extends AbstractGateway
     {
         $order = $items['order'];
 
-        try {
-            $alipay = Factory::createFromArray(self::formatConfig($items['channel']));
+        $alipay = Factory::createFromArray(self::formatConfig($items['channel']));
 
-            $params = [
-                'out_trade_no' => $order['trade_no'],
-                'total_amount' => $order['buyer_pay_amount'],
-                'subject'      => $items['subject'],
-                'product_code' => 'FAST_INSTANT_TRADE_PAY'
-            ];
+        $params = [
+            'out_trade_no' => $order['trade_no'],
+            'total_amount' => $order['buyer_pay_amount'],
+            'subject'      => $items['subject'],
+            'product_code' => 'FAST_INSTANT_TRADE_PAY'
+        ];
 
-            return self::lockPaymentExt($order['trade_no'], function () use ($alipay, $params, $items) {
-                $html = $alipay->pageExecute($params, 'alipay.trade.page.pay', $items['return_url'], $items['notify_url']);
-                return ['type' => 'html', 'data' => $html];
-            });
-        } catch (Throwable $e) {
-            return ['type' => 'error', 'message' => $e->getMessage()];
-        }
+        return self::lockPaymentExt($order['trade_no'], function () use ($alipay, $params, $items) {
+            $html = $alipay->pageExecute($params, 'alipay.trade.page.pay', $items['return_url'], $items['notify_url']);
+            return ['type' => 'html', 'data' => $html];
+        });
     }
 
     /**
@@ -176,23 +168,19 @@ class Alipay extends AbstractGateway
     {
         $order = $items['order'];
 
-        try {
-            $alipay = Factory::createFromArray(self::formatConfig($items['channel']));
+        $alipay = Factory::createFromArray(self::formatConfig($items['channel']));
 
-            $params = [
-                'out_trade_no' => $order['trade_no'],
-                'total_amount' => $order['buyer_pay_amount'],
-                'subject'      => $items['subject'],
-                'product_code' => 'QR_CODE_OFFLINE'
-            ];
+        $params = [
+            'out_trade_no' => $order['trade_no'],
+            'total_amount' => $order['buyer_pay_amount'],
+            'subject'      => $items['subject'],
+            'product_code' => 'QR_CODE_OFFLINE'
+        ];
 
-            return self::lockPaymentExt($order['trade_no'], function () use ($alipay, $params, $items) {
-                $res = $alipay->v1Execute($params, 'alipay.trade.precreate', $items['return_url'], $items['notify_url']);
-                return ['type' => 'page', 'page' => 'alipay_qrcode', 'data' => ['url' => $res['qr_code']]];
-            });
-        } catch (Throwable $e) {
-            return ['type' => 'error', 'message' => $e->getMessage()];
-        }
+        return self::lockPaymentExt($order['trade_no'], function () use ($alipay, $params, $items) {
+            $res = $alipay->v1Execute($params, 'alipay.trade.precreate', $items['return_url'], $items['notify_url']);
+            return ['type' => 'page', 'page' => 'alipay_qrcode', 'data' => ['url' => $res['qr_code']]];
+        });
     }
 
     /**
@@ -203,28 +191,80 @@ class Alipay extends AbstractGateway
     public static function jsapi(array $items): array
     {
         $order = $items['order'];
+
+        $alipay = Factory::createFromArray(self::formatConfig($items['channel']));
+
+        $params = [
+            'out_trade_no' => $order['trade_no'],
+            'total_amount' => $order['buyer_pay_amount'],
+            'subject'      => $items['subject'],
+            'product_code' => 'JSAPI_PAY'
+        ];
+
+        return self::lockPaymentExt($order['trade_no'], function () use ($alipay, $params, $items) {
+            $html = $alipay->v1Execute($params, 'alipay.trade.create', $items['return_url'], $items['notify_url']);
+            return ['type' => 'html', 'data' => $html];
+        });
+    }
+
+    /**
+     * 异步通知处理
+     * @param array $items
+     * @return array
+     */
+    public static function notify(array $items): array
+    {
+        $order = $items['order'];
+        $post  = request()->post();
+
         try {
             $alipay = Factory::createFromArray(self::formatConfig($items['channel']));
 
-            $params = [
-                'out_trade_no' => $order['trade_no'],
-                'total_amount' => $order['buyer_pay_amount'],
-                'subject'      => $items['subject'],
-                'product_code' => 'JSAPI_PAY'
-            ];
+            // 通过ConfigManager获取SignatureManager实例
+            $signatureManager = $alipay->getConfigManager()->getSignatureManager();
 
-            return self::lockPaymentExt($order['trade_no'], function () use ($alipay, $params, $items) {
-                $html = $alipay->v1Execute($params, 'alipay.trade.create', $items['return_url'], $items['notify_url']);
-                return ['type' => 'html', 'data' => $html];
-            });
-        } catch (Throwable $e) {
-            return ['type' => 'error', 'message' => $e->getMessage()];
+            // 验证回调参数签名
+            if (!$signatureManager->verifyParams($post)) {
+                return ['type' => 'html', 'data' => 'fail'];
+            }
+
+            if (in_array($post['trade_status'], ['TRADE_FINISHED', 'TRADE_SUCCESS'], true)) {
+                if ($post['out_trade_no'] == $order['trade_no'] && round($post['total_amount'], 2) === round((float)$order['buyer_pay_amount'], 2)) {
+                    // 买家支付宝信息
+                    $buyer = [
+                        'user_id'       => empty($post['buyer_id']) ? null : $post['buyer_id'],
+                        'buyer_open_id' => empty($post['buyer_open_id']) ? null : $post['buyer_open_id'],
+                    ];
+                    // 处理支付异步通知
+                    self::processNotify(trade_no: $order['trade_no'], api_trade_no: $post['trade_no'], payment_time: $post['gmt_payment'], buyer: $buyer);
+                }
+            }
+
+            return ['type' => 'html', 'data' => 'success'];
+        } catch (Throwable) {
+            return ['type' => 'html', 'data' => 'fail'];
         }
     }
 
-    public static function notify(array $items): array
+    /**
+     * 异步通知处理
+     * @param array $items
+     * @return array
+     */
+    public static function notifytest(array $items): array
     {
-        return ['type' => 'html', 'data' => 'ok'];
+        $order = $items['order'];
+        $post  = request()->post();
+
+        // 买家支付宝信息
+        $buyer = [
+            'user_id'       => empty($post['buyer_id']) ? null : $post['buyer_id'],
+            'buyer_open_id' => empty($post['buyer_open_id']) ? null : $post['buyer_open_id'],
+        ];
+        // 处理支付异步通知
+        self::processNotify(trade_no: $order['trade_no'], api_trade_no: $post['trade_no'], bill_trade_no: $post['trade_no'], payment_time: $post['gmt_payment'] ?? null, buyer: $buyer);
+
+        return ['type' => 'html', 'data' => 'success'];
     }
 
     public static function refund(array $items): array

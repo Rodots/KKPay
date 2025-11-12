@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 namespace Core\Gateway;
 
+use Core\Service\OrderService;
 use support\Db;
 
 /**
@@ -81,6 +82,40 @@ abstract class AbstractGateway
             // 5. 返回新数据
             return $newExt;
         });
+    }
+
+    /**
+     * 处理支付异步通知
+     * 调用OrderService处理支付成功逻辑
+     *
+     * @param string          $trade_no      平台订单号
+     * @param string|int|null $api_trade_no  上游订单号
+     * @param string|int|null $bill_trade_no 真实交易流水号
+     * @param string|int|null $mch_trade_no  渠道交易流水号
+     * @param string|int|null $payment_time  支付时间
+     * @param array           $buyer         买家信息
+     * @return void
+     */
+    protected static function processNotify(string $trade_no, string|int|null $api_trade_no = null, string|int|null $bill_trade_no = null, string|int|null $mch_trade_no = null, string|int|null $payment_time = null, array $buyer = []): void
+    {
+        OrderService::handlePaymentSuccess(true, $trade_no, $api_trade_no, $bill_trade_no, $mch_trade_no, $payment_time, $buyer);
+    }
+
+    /**
+     * 处理支付同步通知
+     * 调用OrderService处理支付成功逻辑
+     *
+     * @param string          $trade_no      平台订单号
+     * @param string|int|null $api_trade_no  上游订单号
+     * @param string|int|null $bill_trade_no 真实交易流水号
+     * @param string|int|null $mch_trade_no  渠道交易流水号
+     * @param string|int|null $payment_time  支付时间
+     * @param array           $buyer         买家信息
+     * @return void
+     */
+    protected static function processReturn(string $trade_no, string|int|null $api_trade_no = null, string|int|null $bill_trade_no = null, string|int|null $mch_trade_no = null, string|int|null $payment_time = null, array $buyer = []): void
+    {
+        OrderService::handlePaymentSuccess(false, $trade_no, $api_trade_no, $bill_trade_no, $mch_trade_no, $payment_time, $buyer);
     }
 
     /**

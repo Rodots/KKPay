@@ -39,8 +39,8 @@ class PaymentService
                 'buyer'      => $orderBuyer->toArray(),
                 'config'     => sys_config(),
                 'subject'    => $order['subject'],
-                'return_url' => site_url() . 'api/return/' . $order['trade_no'] . '/',
-                'notify_url' => site_url() . 'api/notify/' . $order['trade_no'] . '/'
+                'return_url' => site_url("pay/return/{$order['trade_no']}.html"),
+                'notify_url' => site_url("pay/notify/{$order['trade_no']}.html"),
             ];
 
             // 加载网关
@@ -80,63 +80,6 @@ class PaymentService
             ]);
 
             throw new PaymentException('订单状态查询失败：' . $e->getMessage());
-        }
-    }
-
-    /**
-     * 处理异步通知
-     */
-    public static function handleNotify(string $gateway, array $notifyData): array
-    {
-        try {
-            // TODO: 实现网关通知处理逻辑
-            // 这里需要根据实际的网关实现来处理通知
-
-            // 模拟处理结果
-            $result = [
-                'success'      => true,
-                'out_trade_no' => $notifyData['out_trade_no'] ?? '',
-                'trade_status' => $notifyData['trade_status'] ?? 'TRADE_SUCCESS',
-                'api_trade_no' => $notifyData['api_trade_no'] ?? '',
-                'paid_amount'  => $notifyData['paid_amount'] ?? 0
-            ];
-
-            if ($result['success'] && !empty($result['out_trade_no'])) {
-                // 根据商户订单号查找订单
-                $order = Order::where('out_trade_no', $result['out_trade_no'])->first();
-                if (!$order) {
-                    Log::warning('异步通知订单不存在', [
-                        'gateway'      => $gateway,
-                        'out_trade_no' => $result['out_trade_no']
-                    ]);
-                    return ['success' => false, 'message' => '订单不存在'];
-                }
-
-                // 使用OrderService更新订单状态
-                OrderService::handlePaymentSuccess($order->trade_no, [
-                    'api_trade_no'     => $result['api_trade_no'],
-                    'buyer_pay_amount' => $result['paid_amount']
-                ]);
-
-                Log::info('异步通知处理成功', [
-                    'gateway'      => $gateway,
-                    'trade_no'     => $order->trade_no,
-                    'trade_status' => $result['trade_status']
-                ]);
-
-                return ['success' => true, 'message' => '通知处理成功'];
-            }
-
-            return ['success' => false, 'message' => '通知处理失败'];
-
-        } catch (Throwable $e) {
-            Log::error('异步通知处理异常', [
-                'gateway'     => $gateway,
-                'error'       => $e->getMessage(),
-                'notify_data' => $notifyData
-            ]);
-
-            return ['success' => false, 'message' => $e->getMessage()];
         }
     }
 
