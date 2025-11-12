@@ -75,7 +75,7 @@ class OrderController extends AdminBase
 
         // 构建查询
         $select_fields = ['trade_no', 'out_trade_no', 'merchant_id', 'payment_type', 'payment_channel_account_id', 'subject', 'total_amount', 'buyer_pay_amount', 'receipt_amount', 'create_time', 'payment_time', 'trade_state', 'settle_state', 'notify_state'];
-        $query = Order::with(['merchant:id,merchant_number', 'paymentChannelAccount:id,name,payment_channel_id', 'paymentChannelAccount.paymentChannel:id,code'])->select($select_fields)->when($params, function ($q) use ($params) {
+        $query         = Order::with(['merchant:id,merchant_number', 'paymentChannelAccount:id,name,payment_channel_id', 'paymentChannelAccount.paymentChannel:id,code'])->select($select_fields)->when($params, function ($q) use ($params) {
             foreach ($params as $key => $value) {
                 if ($value === '' || $value === null) {
                     continue;
@@ -175,6 +175,38 @@ class OrderController extends AdminBase
         }
 
         return $this->success('获取成功', $order->toArray());
+    }
+
+    /**
+     * 删除订单
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function delete(Request $request): Response
+    {
+        $trade_no = $request->input('trade_no');
+
+        if (empty($trade_no)) {
+            return $this->fail('必要参数缺失');
+        }
+
+        if (!$order = Order::find($trade_no)) {
+            return $this->fail('该订单不存在');
+        }
+
+        try {
+            DB::transaction(function () use ($order) {
+                $order->buyerInfo()->delete();
+                $order->OrderRefund()->delete();
+                $order->OrderNotification()->delete();
+                $order->delete();
+            });
+        } catch (Throwable $e) {
+            return $this->fail($e->getMessage());
+        }
+
+        return $this->success('删除成功');
     }
 
     public function refund(Request $request): Response

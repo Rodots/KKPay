@@ -341,6 +341,14 @@ class Order extends Model
     }
 
     /**
+     * 一个订单可以进行多次通知
+     */
+    public function OrderNotification(): HasMany
+    {
+        return $this->hasMany(OrderNotification::class, 'trade_no', 'trade_no');
+    }
+
+    /**
      * 获取表名
      *
      * @return string
