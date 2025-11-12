@@ -28,7 +28,7 @@ class OrderController extends AdminBase
         try {
             validate([
                 'fuzzy_trade_no'             => ['max:256', 'alphaDash'],
-                'trade_no'                   => ['max:28', 'alphaDash'],
+                'trade_no'                   => ['max:24', 'alphaDash'],
                 'out_trade_no'               => ['max:128', 'alphaDash'],
                 'api_trade_no'               => ['max:256', 'alphaDash'],
                 'bill_trade_no'              => ['max:256', 'alphaDash'],
@@ -43,11 +43,11 @@ class OrderController extends AdminBase
                 'create_time'                => ['array'],
                 'payment_time'               => ['array']
             ], [
-                'fuzzy_trade_no.max'                => '四合一单号长度不能超过256位',
-                'fuzzy_trade_no.alphaDash'          => '四合一单号只能是字母和数字，下划线及破折号',
-                'trade_no.max'                      => '平台订单号长度不能超过256位',
+                'fuzzy_trade_no.max'                => '五合一单号长度不能超过256位',
+                'fuzzy_trade_no.alphaDash'          => '五合一单号只能是字母和数字，下划线及破折号',
+                'trade_no.max'                      => '平台订单号长度不能超过24位',
                 'trade_no.alphaDash'                => '平台订单号只能是字母和数字，下划线及破折号',
-                'out_trade_no.max'                  => '商户订单号长度不能超过256位',
+                'out_trade_no.max'                  => '商户订单号长度不能超过128位',
                 'out_trade_no.alphaDash'            => '商户订单号只能是字母和数字，下划线及破折号',
                 'api_trade_no.max'                  => '上游订单号长度不能超过256位',
                 'api_trade_no.alphaDash'            => '上游订单号只能是字母和数字，下划线及破折号',
@@ -74,7 +74,8 @@ class OrderController extends AdminBase
         }
 
         // 构建查询
-        $query = Order::with(['merchant:id,merchant_number', 'paymentChannelAccount:id,name,payment_channel_id', 'paymentChannelAccount.paymentChannel:id,code'])->when($params, function ($q) use ($params) {
+        $select_fields = ['trade_no', 'out_trade_no', 'merchant_id', 'payment_type', 'payment_channel_account_id', 'subject', 'total_amount', 'buyer_pay_amount', 'receipt_amount', 'create_time', 'payment_time', 'trade_state', 'settle_state', 'notify_state'];
+        $query = Order::with(['merchant:id,merchant_number', 'paymentChannelAccount:id,name,payment_channel_id', 'paymentChannelAccount.paymentChannel:id,code'])->select($select_fields)->when($params, function ($q) use ($params) {
             foreach ($params as $key => $value) {
                 if ($value === '' || $value === null) {
                     continue;
@@ -151,7 +152,7 @@ class OrderController extends AdminBase
 
         // 获取总数和数据
         $total = $query->count();
-        $list  = $query->skip($from)->take($limit)->orderBy('create_time', 'desc')->get()->append(['payment_type_text', 'trade_state_text', 'settle_state_text']);
+        $list  = $query->skip($from)->take($limit)->orderBy('create_time', 'desc')->get()->append(['payment_type_text', 'trade_state_text', 'settle_state_text', 'payment_duration']);
 
         return $this->success(data: [
             'list'  => $list,
