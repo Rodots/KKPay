@@ -7,7 +7,7 @@ namespace app\model;
 use support\Model;
 
 /**
- * 订单买家信息表
+ * 订单异步通知表
  */
 class OrderNotification extends Model
 {
@@ -31,6 +31,13 @@ class OrderNotification extends Model
      * @var string
      */
     protected $keyType = 'string';
+
+    /**
+     * 禁用自动写入updated_at
+     *
+     * @var null
+     */
+    const null UPDATED_AT = null;
 
     /**
      * 获取应转换的属性。

@@ -33,7 +33,7 @@ class OrderRefund extends Model
             'admin_id'               => 'integer',
             'notify_state'           => 'boolean',
             'notify_retry_count'     => 'integer',
-            'notify_next_retry_time' => 'timestamp'
+            'notify_next_retry_time' => 'integer'
         ];
     }
 

@@ -63,7 +63,7 @@ class Order extends Model
             'profit_amount'              => 'decimal:2',
             'notify_state'               => 'boolean',
             'notify_retry_count'         => 'integer',
-            'notify_next_retry_time'     => 'datetime',
+            'notify_next_retry_time'     => 'integer',
         ];
     }
 
@@ -147,12 +147,13 @@ class Order extends Model
     }
 
     /**
-     * 访问器：交易付款时间
+     * 访问器/修改器：交易付款时间
      */
     protected function paymentTime(): Attribute
     {
         return Attribute::make(
             get: fn(?string $value) => $value ? Carbon::rawParse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
+            set: fn(string|int|null $value) => $value ? Carbon::parse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
         );
     }
 
@@ -163,7 +164,7 @@ class Order extends Model
     {
         return Attribute::make(
             get: fn(?string $value) => $value ? Carbon::rawParse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
-            set: fn(string|int|null $value) => $value ? Carbon::parse($value)->format('Y-m-d H:i:s') : null,
+            set: fn(string|int|null $value) => $value ? Carbon::parse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
         );
     }
 
@@ -240,6 +241,63 @@ class Order extends Model
                 return $enum[$this->getOriginal('settle_state')] ?? '未知';
             }
         );
+    }
+
+    protected function paymentDuration(): Attribute
+    {
+        return Attribute::make(
+            get: function () {
+                $create_time  = $this->getOriginal('create_time');
+                $payment_time = $this->getOriginal('payment_time');
+
+                if (!$payment_time) {
+                    return '0秒';
+                }
+
+                $create  = Carbon::parse($create_time);
+                $payment = Carbon::parse($payment_time);
+
+                $totalSeconds = $create->diffInSeconds($payment);
+
+                // 格式化时间
+                return $this->formatDuration($totalSeconds);
+            }
+        );
+    }
+
+    /**
+     * 将秒数格式化为易读的时间格式
+     *
+     * @param float $seconds
+     * @return string
+     */
+    private function formatDuration(float $seconds): string
+    {
+        if ($seconds <= 0) {
+            return '异常';
+        }
+
+        $days    = floor($seconds / 86400);
+        $hours   = floor(($seconds % 86400) / 3600);
+        $minutes = floor(($seconds % 3600) / 60);
+        $secs    = $seconds % 60;
+
+        $parts = [];
+
+        if ($days > 0) {
+            $parts[] = $days . '天';
+        }
+        if ($hours > 0) {
+            $parts[] = $hours . '时';
+        }
+        if ($minutes > 0) {
+            $parts[] = $minutes . '分';
+        }
+        if ($secs > 0 || empty($parts)) { // 如果没有其他单位，秒数必须显示
+            $parts[] = $secs . '秒';
+        }
+
+        return implode('', $parts);
     }
 
     /**
@@ -385,7 +443,7 @@ class Order extends Model
     }
 
     /**
-     * 创建订单记录
+     * 批量赋值创建订单
      */
     public static function createOrderRecord(array $fillData): Order
     {
