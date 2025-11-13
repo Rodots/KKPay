@@ -102,11 +102,14 @@ class OrderCreationService
      */
     private static function createOrderRecord(array $bizContent, int $merchantId, ?PaymentChannelAccount $paymentChannelAccount = null): Order
     {
-        // 准备支付信息
+        $receiptAmount = 0;
+        $feeAmount     = 0;
+        $profitAmount  = 0;
         if ($paymentChannelAccount) {
             // 有支付通道时，使用通道信息
             $paymentType             = $paymentChannelAccount->paymentChannel->payment_type;
             $paymentChannelAccountId = $paymentChannelAccount->id;
+            [$receiptAmount, $feeAmount, $profitAmount] = self::calculateOrderFees($bizContent['total_amount'], $paymentChannelAccount);
         } elseif (!empty($bizContent['payment_type'])) {
             // 有支付类型但无通道时，使用传入的支付类型
             $paymentType             = $bizContent['payment_type'];
@@ -116,6 +119,7 @@ class OrderCreationService
             $paymentType             = 'None';
             $paymentChannelAccountId = 0;
         }
+        // TODO 根据商户的设定，判断是否由买家支付手续费，以计算买家实付金额
 
         $fillData = [
             'out_trade_no'               => $bizContent['out_trade_no'],
@@ -125,7 +129,9 @@ class OrderCreationService
             'subject'                    => $bizContent['subject'],
             'total_amount'               => $bizContent['total_amount'],
             'buyer_pay_amount'           => $bizContent['total_amount'],
-            'receipt_amount'             => $bizContent['total_amount'],
+            'receipt_amount'             => $receiptAmount,
+            'fee_amount'                 => $feeAmount,
+            'profit_amount'              => $profitAmount,
             'notify_url'                 => $bizContent['notify_url'],
             'return_url'                 => $bizContent['return_url'],
             'attach'                     => $bizContent['attach'] ?: null,
@@ -135,6 +141,53 @@ class OrderCreationService
         ];
 
         return Order::createOrderRecord($fillData);
+    }
+
+    /**
+     * 计算订单手续费、商户实收金额和利润
+     *
+     * @param float                 $total_amount          订单总金额
+     * @param PaymentChannelAccount $paymentChannelAccount 支付渠道账户配置
+     * @return array [商户实收金额, 手续费金额, 利润金额]
+     */
+    private static function calculateOrderFees(float $total_amount, PaymentChannelAccount $paymentChannelAccount): array
+    {
+        // 1. 格式化金额
+        $total_amount = sprintf('%.2f', $total_amount);
+
+        $paymentChannel = $paymentChannelAccount->paymentChannel;
+
+        // 2. 获取手续费率
+        $rate = $paymentChannelAccount->inherit_config ? (string)$paymentChannel->rate : (string)$paymentChannelAccount->rate;
+
+        // 3. 计算基础手续费 (金额 * 费率 + 固定费用)
+        $baseFee   = bcmul($total_amount, $rate, 4);
+        $feeAmount = bcadd($baseFee, (string)$paymentChannel->fixed_fee, 4);
+
+        // 4. 应用手续费上下限限制（手续费不能超过订单金额）
+        $minFee    = (string)$paymentChannel->min_fee;
+        $feeAmount = bccomp($feeAmount, $minFee, 4) < 0 ? $minFee : $feeAmount;
+
+        // 如果存在最大手续费限制，则应用限制
+        if (!empty($paymentChannel->max_fee)) {
+            $maxFee    = (string)$paymentChannel->max_fee;
+            $feeAmount = bccomp($feeAmount, $maxFee, 4) > 0 ? $maxFee : $feeAmount;
+        }
+
+        // 确保手续费不超过订单总金额
+        $feeAmount = bccomp($feeAmount, $total_amount, 4) > 0 ? $total_amount : $feeAmount;
+
+        // 5. 计算成本
+        $costAmount = bcadd(bcmul($total_amount, (string)$paymentChannel->cost, 4), (string)$paymentChannel->fixed_cost, 4);
+
+        // 6. 计算商户实收金额（不能为负数）
+        $receiptAmount = bcsub($total_amount, $feeAmount, 4);
+        $receiptAmount = bccomp($receiptAmount, '0', 4) < 0 ? 0 : $receiptAmount;
+
+        // 7. 计算利润（可为负数）
+        $profitAmount = bcsub($feeAmount, $costAmount, 4);
+
+        return [$receiptAmount, $feeAmount, $profitAmount];
     }
 
     /**

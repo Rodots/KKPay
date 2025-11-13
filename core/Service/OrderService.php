@@ -118,44 +118,6 @@ class OrderService
     }
 
     /**
-     * 计算订单手续费和利润
-     */
-    private static function calculateOrderFees(string $tradeNo): void
-    {
-        $order = Order::with('paymentChannelAccount.paymentChannel')->where('trade_no', $tradeNo)->first();
-        if (!$order || !$order->paymentChannelAccount) {
-            return;
-        }
-
-        $channel     = $order->paymentChannelAccount->paymentChannel;
-        $totalAmount = $order->buyer_pay_amount ?? $order->total_amount;
-
-        // 计算平台手续费
-        $feeAmount = $totalAmount * $channel->rate + $channel->fixed_fee;
-        if ($channel->min_fee && $feeAmount < $channel->min_fee) {
-            $feeAmount = $channel->min_fee;
-        }
-        if ($channel->max_fee && $feeAmount > $channel->max_fee) {
-            $feeAmount = $channel->max_fee;
-        }
-
-        // 计算成本
-        $costAmount = $totalAmount * $channel->costs + $channel->fixed_costs;
-
-        // 计算商户实收金额
-        $receiptAmount = $totalAmount - $feeAmount;
-
-        // 计算利润
-        $profitAmount = $feeAmount - $costAmount;
-
-        // 更新订单
-        $order->fee_amount     = round($feeAmount, 2);
-        $order->receipt_amount = round($receiptAmount, 2);
-        $order->profit_amount  = round($profitAmount, 2);
-        $order->save();
-    }
-
-    /**
      * 发送异步通知
      */
     public static function sendAsyncNotification(string $tradeNo, ?Order $order = null, string $queueName = 'order-notification'): void
