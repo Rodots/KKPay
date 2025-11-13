@@ -7,6 +7,7 @@ namespace app\model;
 use Carbon\Carbon;
 use Exception;
 use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
 use support\Log;
 use support\Model;
@@ -201,5 +202,13 @@ class Merchant extends Model
             throw new Exception('重置密码失败');
         }
         return true;
+    }
+
+    /**
+     * 商户钱包
+     */
+    public function wallet(): HasOne
+    {
+        return $this->hasOne(MerchantWallet::class, 'merchant_id', 'id');
     }
 }

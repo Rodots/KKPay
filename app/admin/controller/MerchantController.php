@@ -45,7 +45,7 @@ class MerchantController extends AdminBase
         }
 
         // 构建查询
-        $query = Merchant::select(['id', 'merchant_number', 'email', 'phone', 'remark', 'status', 'risk_status', 'created_at', 'updated_at'])->when($params, function ($q) use ($params) {
+        $query = Merchant::with('wallet:merchant_id,balance,freeze_balance,margin,prepaid')->select(['id', 'merchant_number', 'email', 'phone', 'remark', 'status', 'risk_status', 'created_at', 'updated_at'])->when($params, function ($q) use ($params) {
             foreach ($params as $key => $value) {
                 if ($value === '' || $value === null) {
                     continue;

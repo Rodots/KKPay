@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 namespace app\model;
 
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use support\Model;
 
 /**
@@ -45,5 +46,15 @@ class MerchantWallet extends Model
             'margin'         => 'decimal:2',
             'prepaid'        => 'decimal:2'
         ];
+    }
+
+    /**
+     * 该钱包属于这个商户
+     *
+     * @return BelongsTo
+     */
+    public function merchant(): BelongsTo
+    {
+        return $this->belongsTo(Merchant::class, 'id', 'merchant_id');
     }
 }
