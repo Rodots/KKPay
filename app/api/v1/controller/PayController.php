@@ -221,6 +221,10 @@ class PayController
             return $this->$echoMethod('参数错误');
         }
 
+        if ($method === 'notify') {
+            Log::channel('pay_notify')->info('orderNo: ' . $orderNo, $request->all());
+        }
+
         try {
             // 预加载 paymentChannelAccount 及其关联的 paymentChannel（仅需 gateway 字段）
             $order = Order::with([

@@ -3,13 +3,11 @@
 declare(strict_types = 1);
 
 return [
-    'default' => [
+    'default'    => [
         'handlers'   => [
             [
                 'class'       => Monolog\Handler\RotatingFileHandler::class,
-                'constructor' => [
-                    runtime_path() . '/logs/kkpay.log',
-                ],
+                'constructor' => [runtime_path() . '/logs/kkpay.log'],
                 'formatter'   => [
                     'class'       => Monolog\Formatter\LineFormatter::class,
                     'constructor' => [null, 'Y-m-d H:i:s', true, true],
@@ -27,16 +25,13 @@ return [
         ],
     ],
     'pay_notify' => [
-        'handlers'   => [
+        'handlers' => [
             [
                 'class'       => Monolog\Handler\RotatingFileHandler::class,
-                'constructor' => [
-                    runtime_path() . '/notify_logs/kkpay.log',
-                    30
-                ],
+                'constructor' => [runtime_path() . '/notify_logs/notify.log', 30, 200, true, null, false, 'Y-m-d', '{date}'],
                 'formatter'   => [
                     'class'       => Monolog\Formatter\LineFormatter::class,
-                    'constructor' => [null, 'Y-m-d H:i:s', true, true],
+                    'constructor' => ["[%datetime%] %message% %context%\n", 'H:i:s', true, true],
                 ],
             ]
         ]
