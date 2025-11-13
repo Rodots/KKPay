@@ -44,7 +44,7 @@ class PaymentChannelController extends AdminBase
         }
 
         // 检测要排序的字段是否在允许的字段列表中并检测排序顺序是否正确
-        if (!in_array($sort, ['id', 'costs', 'rate', 'min_amount', 'max_amount', 'daily_limit', 'created_at']) || !in_array($order, ['asc', 'desc'])) {
+        if (!in_array($sort, ['id', 'cost', 'rate', 'min_amount', 'max_amount', 'daily_limit', 'created_at']) || !in_array($order, ['asc', 'desc'])) {
             return $this->fail('排序失败，请刷新后重试');
         }
         if ($sort === 'created_at') {
@@ -53,7 +53,7 @@ class PaymentChannelController extends AdminBase
         }
 
         // 构建查询
-        $query = PaymentChannel::select(['id', 'code', 'name', 'payment_type', 'gateway', 'costs', 'fixed_costs', 'rate', 'fixed_fee', 'min_amount', 'max_amount', 'daily_limit', 'status', 'created_at'])->when($params, function ($q) use ($params) {
+        $query = PaymentChannel::select(['id', 'code', 'name', 'payment_type', 'gateway', 'cost', 'fixed_cost', 'rate', 'fixed_fee', 'min_amount', 'max_amount', 'daily_limit', 'status', 'created_at'])->when($params, function ($q) use ($params) {
             foreach ($params as $key => $value) {
                 if ($value === '' || $value === null) {
                     continue;
@@ -96,7 +96,7 @@ class PaymentChannelController extends AdminBase
     {
         $id = $request->get('id');
 
-        $query = PaymentChannel::find($id, ['id', 'code', 'name', 'payment_type', 'gateway', 'costs', 'fixed_costs', 'rate', 'fixed_fee', 'min_fee', 'max_fee', 'min_amount', 'max_amount', 'daily_limit', 'earliest_time', 'latest_time', 'roll_mode', 'settle_cycle', 'status', 'updated_at']);
+        $query = PaymentChannel::find($id, ['id', 'code', 'name', 'payment_type', 'gateway', 'cost', 'fixed_cost', 'rate', 'fixed_fee', 'min_fee', 'max_fee', 'min_amount', 'max_amount', 'daily_limit', 'earliest_time', 'latest_time', 'roll_mode', 'settle_cycle', 'status', 'updated_at']);
         return $this->success(data: $query->toArray());
     }
 
@@ -282,8 +282,8 @@ class PaymentChannelController extends AdminBase
             'name'          => ['require', 'max:64'],
             'payment_type'  => ['require', 'in:Alipay,WechatPay,Bank,UnionPay,QQWallet,JDPay,PayPal'],
             'gateway'       => ['require', 'max:16', 'regex' => '/^[a-zA-Z0-9]+$/'],
-            'costs'         => ['require', 'float', 'between:0,100'],
-            'fixed_costs'   => ['require', 'float', 'egt:0'],
+            'cost'         => ['require', 'float', 'between:0,100'],
+            'fixed_cost'   => ['require', 'float', 'egt:0'],
             'rate'          => ['require', 'float', 'between:0,100'],
             'fixed_fee'     => ['require', 'float', 'egt:0'],
             'min_fee'       => ['float', 'egt:0'],
@@ -315,12 +315,12 @@ class PaymentChannelController extends AdminBase
             'gateway.require'      => '网关代码不能为空',
             'gateway.max'          => '网关代码长度不能超过16位',
             'gateway.regex'        => '网关代码只能由字母和数字组成',
-            'costs.require'        => '费率成本不能为空',
-            'costs.float'          => '费率成本必须是数字',
-            'costs.between'        => '费率成本必须在0到100%之间',
-            'fixed_costs.require'  => '固定成本不能为空',
-            'fixed_costs.float'    => '固定成本必须是数字',
-            'fixed_costs.egt'      => '固定成本不能为负数',
+            'cost.require'        => '费率成本不能为空',
+            'cost.float'          => '费率成本必须是数字',
+            'cost.between'        => '费率成本必须在0到100%之间',
+            'fixed_cost.require'  => '固定成本不能为空',
+            'fixed_cost.float'    => '固定成本必须是数字',
+            'fixed_cost.egt'      => '固定成本不能为负数',
             'rate.require'         => '费率不能为空',
             'rate.float'           => '费率必须是数字',
             'rate.between'         => '费率必须在0到100%之间',

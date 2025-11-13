@@ -60,13 +60,13 @@ class PaymentChannelAccountController extends AdminBase
                         $q->where('name', 'like', "%$value%");
                         break;
                     case 'inherit_config':
-                        $q->where('inherit_config', (int)$value);
+                        $q->where('inherit_config', (bool)$value);
                         break;
                     case 'status':
-                        $q->where('status', (int)$value);
+                        $q->where('status', (bool)$value);
                         break;
                     case 'maintenance':
-                        $q->where('maintenance', (int)$value);
+                        $q->where('maintenance', (bool)$value);
                         break;
                     case 'remark':
                         $q->where('remark', 'like', "%$value%");
