@@ -45,7 +45,7 @@ class MerchantWithdrawalRecord extends Model
     const string STATUS_CANCELED   = 'CANCELED';
 
     /***
-     * 获取器【状态文本】
+     * 访问器【状态文本】
      *
      * @return Attribute
      */
@@ -67,7 +67,7 @@ class MerchantWithdrawalRecord extends Model
     }
 
     /***
-     * 获取器【手续费收取方式文本】
+     * 访问器【手续费收取方式文本】
      *
      * @return Attribute
      */

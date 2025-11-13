@@ -81,6 +81,8 @@ class Order extends Model
         'total_amount',
         'buyer_pay_amount',
         'receipt_amount',
+        'fee_amount',
+        'profit_amount',
         'notify_url',
         'return_url',
         'attach',

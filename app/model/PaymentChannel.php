@@ -38,8 +38,8 @@ class PaymentChannel extends Model
     protected function casts(): array
     {
         return [
-            'costs'        => 'decimal:4',
-            'fixed_costs'  => 'decimal:2',
+            'cost'         => 'decimal:4',
+            'fixed_cost'   => 'decimal:2',
             'rate'         => 'decimal:4',
             'fixed_fee'    => 'decimal:2',
             'min_fee'      => 'decimal:2',
@@ -92,7 +92,7 @@ class PaymentChannel extends Model
     }
 
     /***
-     * 获取器【轮询模式文本】
+     * 访问器【轮询模式文本】
      *
      * @return Attribute
      */
@@ -101,10 +101,10 @@ class PaymentChannel extends Model
         return Attribute::make(
             get: function () {
                 $enum = [
-                    self::ROLL_MODE_ORDER => '按顺序依次轮询',
+                    self::ROLL_MODE_ORDER  => '按顺序依次轮询',
                     self::ROLL_MODE_RANDOM => '随机轮询',
                     self::ROLL_MODE_WEIGHT => '按权重随机轮询',
-                    self::ROLL_MODE_FIRST => '仅使用第一个可用账户',
+                    self::ROLL_MODE_FIRST  => '仅使用第一个可用账户',
                 ];
                 return $enum[$this->getOriginal('roll_mode')] ?? '未知';
             }
@@ -112,7 +112,7 @@ class PaymentChannel extends Model
     }
 
     /***
-     * 获取器【结算周期文本】
+     * 访问器【结算周期文本】
      *
      * @return Attribute
      */
@@ -121,22 +121,15 @@ class PaymentChannel extends Model
         return Attribute::make(
             get: function () {
                 $enum = [
-                    0  => '【实时】笔笔结算',
-                    1  => '【D0】即日结算',
-                    2  => '【D1】次日结算',
-                    3  => '【D2】隔日结算',
-                    4  => '【T0】工作日即日结算',
-                    5  => '【T1】工作日次日结算',
-                    6  => '【T2】工作日隔日结算',
-                    7  => '【D3】交易后3个自然日结算',
-                    8  => '【D7】交易后7个自然日结算',
-                    9  => '【D14】交易后14个自然日结算',
-                    10 => '【D30】交易后30个自然日结算',
-                    11 => '【T3】交易后3个工作日结算',
-                    12 => '【T7】交易后7个工作日结算',
-                    13 => '【T14】交易后14个工作日结算',
-                    14 => '【T30】交易后30个工作日结算',
-                    15 => '【测试】直接吃单，结算但不加减余额'
+                    0 => '【实时】笔笔结算',
+                    1 => '【测试】直接吃单，结算但不加减余额',
+                    2 => '【D0】即日结算',
+                    3 => '【D1】次日结算',
+                    4 => '【D2】隔日结算',
+                    5 => '【D3】交易后3个自然日结算',
+                    6 => '【D7】交易后7个自然日结算',
+                    7 => '【D14】交易后14个自然日结算',
+                    8 => '【D30】交易后30个自然日结算',
                 ];
                 return $enum[$this->getOriginal('settle_cycle')] ?? '未知';
             }
@@ -185,42 +178,11 @@ class PaymentChannel extends Model
         if (self::where('code', $data['code'])->exists()) {
             throw new Exception('该通道编码已被使用');
         }
+
+        $paymentChannelRow = new self();
+        self::fillPaymentChannelData($paymentChannelRow, $data);
+
         try {
-            $paymentChannelRow = new self();
-
-            // 基本字段处理
-            $paymentChannelRow->code         = strtoupper(trim($data['code'] ?? ''));
-            $paymentChannelRow->name         = trim($data['name'] ?? '');
-            $paymentChannelRow->payment_type = $data['payment_type'];
-            $paymentChannelRow->gateway      = trim($data['gateway'] ?? '');
-
-            // 成本与费率处理（百分比 → 四位小数）
-            $paymentChannelRow->costs = isset($data['costs']) ? bcdiv(bcround((string)$data['costs'], 4), '100', 4) : 0.0000;
-            $paymentChannelRow->rate  = isset($data['rate']) ? bcdiv(bcround((string)$data['rate'], 4), '100', 4) : 0.0000;
-
-            // 固定费用相关字段
-            $paymentChannelRow->fixed_costs = bcround((string)$data['fixed_costs'], 2);
-            $paymentChannelRow->fixed_fee   = bcround((string)$data['fixed_fee'], 2);
-            $paymentChannelRow->min_fee     = empty($data['min_fee']) ? null : bcround((string)$data['min_fee'], 2);
-            $paymentChannelRow->max_fee     = empty($data['max_fee']) ? null : bcround((string)$data['max_fee'], 2);
-
-            // 金额限制字段
-            $paymentChannelRow->min_amount  = empty($data['min_amount']) ? null : bcround((string)$data['min_amount'], 2);
-            $paymentChannelRow->max_amount  = empty($data['max_amount']) ? null : bcround((string)$data['max_amount'], 2);
-            $paymentChannelRow->daily_limit = empty($data['daily_limit']) ? null : bcround((string)$data['daily_limit'], 2);
-
-            // 时间段
-            $paymentChannelRow->earliest_time = $data['earliest_time'] ?? null;
-            $paymentChannelRow->latest_time   = $data['latest_time'] ?? null;
-
-            // 整型字段
-            $paymentChannelRow->roll_mode    = (int)($data['roll_mode'] ?? 0);
-            $paymentChannelRow->settle_cycle = (int)($data['settle_cycle'] ?? 0);
-
-            // 状态字段（bit(1) 类型）
-            $paymentChannelRow->status = (bool)$data['status'];
-
-            // 保存
             $paymentChannelRow->save();
         } catch (Throwable $e) {
             Log::error('创建支付通道失败: ' . $e->getMessage());
@@ -253,41 +215,7 @@ class PaymentChannel extends Model
         }
 
         try {
-            // 基本字段处理
-            if ($paymentChannel->code !== $code) {
-                $paymentChannel->code = $code;
-            }
-            $paymentChannel->name         = trim($data['name'] ?? '');
-            $paymentChannel->payment_type = $data['payment_type'];
-            $paymentChannel->gateway      = trim($data['gateway'] ?? '');
-
-            // 成本与费率处理（百分比 → 四位小数）
-            $paymentChannel->costs = isset($data['costs']) ? bcdiv(bcround((string)$data['costs'], 4), '100', 4) : 0.0000;
-            $paymentChannel->rate  = isset($data['rate']) ? bcdiv(bcround((string)$data['rate'], 4), '100', 4) : 0.0000;
-
-            // 固定费用相关字段
-            $paymentChannel->fixed_costs = bcround((string)$data['fixed_costs'], 2);
-            $paymentChannel->fixed_fee   = bcround((string)$data['fixed_fee'], 2);
-            $paymentChannel->min_fee     = empty($data['min_fee']) ? null : bcround((string)$data['min_fee'], 2);
-            $paymentChannel->max_fee     = empty($data['max_fee']) ? null : bcround((string)$data['max_fee'], 2);
-
-            // 金额限制字段
-            $paymentChannel->min_amount  = empty($data['min_amount']) ? null : bcround((string)$data['min_amount'], 2);
-            $paymentChannel->max_amount  = empty($data['max_amount']) ? null : bcround((string)$data['max_amount'], 2);
-            $paymentChannel->daily_limit = empty($data['daily_limit']) ? null : bcround((string)$data['daily_limit'], 2);
-
-            // 时间段
-            $paymentChannel->earliest_time = $data['earliest_time'] ?? null;
-            $paymentChannel->latest_time   = $data['latest_time'] ?? null;
-
-            // 整型字段
-            $paymentChannel->roll_mode    = (int)($data['roll_mode'] ?? 0);
-            $paymentChannel->settle_cycle = (int)($data['settle_cycle'] ?? 0);
-
-            // 状态字段（bit(1) 类型）
-            $paymentChannel->status = (bool)$data['status'];
-
-            // 保存
+            self::fillPaymentChannelData($paymentChannel, $data, $code);
             $paymentChannel->save();
         } catch (Throwable $e) {
             Log::error('编辑支付通道失败: ' . $e->getMessage());
@@ -295,5 +223,55 @@ class PaymentChannel extends Model
         }
 
         return true;
+    }
+
+    /**
+     * 填充支付通道数据
+     *
+     * @param PaymentChannel $paymentChannel 支付通道模型对象
+     * @param array          $data           数据
+     * @param string|null    $code           如果是更新操作，传入新的code
+     * @return void
+     */
+    private static function fillPaymentChannelData(PaymentChannel $paymentChannel, array $data, ?string $code = null): void
+    {
+        // 如果是更新操作且code需要改变，则更新code
+        if ($code !== null) {
+            $paymentChannel->code = $code;
+        } elseif (!isset($paymentChannel->code)) {
+            // 创建操作时设置code
+            $paymentChannel->code = strtoupper(trim($data['code'] ?? ''));
+        }
+
+        // 基本字段处理
+        $paymentChannel->name         = trim($data['name'] ?? '');
+        $paymentChannel->payment_type = $data['payment_type'];
+        $paymentChannel->gateway      = trim($data['gateway'] ?? '');
+
+        // 成本与费率处理（百分比 → 四位小数）
+        $paymentChannel->cost = isset($data['cost']) ? bcdiv(bcround((string)$data['cost'], 4), '100', 4) : 0.0000;
+        $paymentChannel->rate = isset($data['rate']) ? bcdiv(bcround((string)$data['rate'], 4), '100', 4) : 0.0000;
+
+        // 固定费用相关字段
+        $paymentChannel->fixed_cost = bcround((string)$data['fixed_cost'], 2);
+        $paymentChannel->fixed_fee  = bcround((string)$data['fixed_fee'], 2);
+        $paymentChannel->min_fee    = empty($data['min_fee']) ? 0.01 : bcround((string)$data['min_fee'], 2);
+        $paymentChannel->max_fee    = empty($data['max_fee']) ? null : bcround((string)$data['max_fee'], 2);
+
+        // 金额限制字段
+        $paymentChannel->min_amount  = empty($data['min_amount']) ? null : bcround((string)$data['min_amount'], 2);
+        $paymentChannel->max_amount  = empty($data['max_amount']) ? null : bcround((string)$data['max_amount'], 2);
+        $paymentChannel->daily_limit = empty($data['daily_limit']) ? null : bcround((string)$data['daily_limit'], 2);
+
+        // 时间段
+        $paymentChannel->earliest_time = $data['earliest_time'] ?? null;
+        $paymentChannel->latest_time   = $data['latest_time'] ?? null;
+
+        // 整型字段
+        $paymentChannel->roll_mode    = (int)($data['roll_mode'] ?? 0);
+        $paymentChannel->settle_cycle = (int)($data['settle_cycle'] ?? 0);
+
+        // 状态字段（bit(1) 类型）
+        $paymentChannel->status = (bool)$data['status'];
     }
 }

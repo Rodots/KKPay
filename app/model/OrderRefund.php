@@ -52,7 +52,7 @@ class OrderRefund extends Model
     const string STATUS_CANCELED   = 'CANCELED';
 
     /***
-     * 获取器【发起类型文本】
+     * 访问器【发起类型文本】
      *
      * @return Attribute
      */
@@ -72,7 +72,7 @@ class OrderRefund extends Model
     }
 
     /***
-     * 获取器【状态文本】
+     * 访问器【状态文本】
      *
      * @return Attribute
      */
