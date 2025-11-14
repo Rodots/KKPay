@@ -38,21 +38,9 @@ class OrderNotification implements Consumer
         }
 
         $tradeNo = $data['trade_no'];
-        $order   = Order::select(['trade_no', 'notify_url', 'notify_state', 'notify_retry_count', 'notify_next_retry_time'])->where('trade_no', $tradeNo)->lockForUpdate()->first();
+        $order   = Order::select(['trade_no', 'notify_url', 'notify_state', 'notify_retry_count', 'notify_next_retry_time'])->where([['trade_no', '=', $tradeNo], ['notify_state', '=', false], ['notify_retry_count', '<', 7]])->lockForUpdate()->first();
 
         if (!$order) {
-            return;
-        }
-
-        // 优先检查是否已成功通知
-        if ($order->notify_state === true) {
-            return;
-        }
-
-        // 检查是否超过最大重试次数
-        if ($order->notify_retry_count > 6) {
-            $order->notify_next_retry_time = null;
-            $order->save();
             return;
         }
 
