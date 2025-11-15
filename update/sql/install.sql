@@ -286,6 +286,7 @@ CREATE TABLE `kkpay_order`  (
   `domain` varchar(255) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT '' COMMENT '卖家域名',
   `trade_state` enum('WAIT_PAY','TRADE_CLOSED','TRADE_SUCCESS','TRADE_FINISHED','TRADE_FROZEN') CHARACTER SET ascii COLLATE ascii_bin NOT NULL DEFAULT 'WAIT_PAY' COMMENT '交易状态',
   `settle_state` enum('PENDING','PROCESSING','COMPLETED','FAILED') CHARACTER SET ascii COLLATE ascii_bin NOT NULL DEFAULT 'PENDING' COMMENT '结算状态',
+  `settle_cycle` tinyint NOT NULL DEFAULT 0 COMMENT '结算周期',
   `payment_ext` varchar(10240) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '记忆支付扩展数据',
   `notify_state` bit(1) NOT NULL DEFAULT b'0' COMMENT '通知状态 0:失败 1:成功',
   `notify_retry_count` tinyint UNSIGNED NOT NULL DEFAULT 0 COMMENT '重试次数',
@@ -305,7 +306,7 @@ CREATE TABLE `kkpay_order`  (
   INDEX `idx_settle_state_ctime`(`settle_state` ASC, `create_time` ASC) USING BTREE,
   INDEX `idx_merchant_ctime`(`merchant_id` ASC, `create_time` ASC) USING BTREE,
   INDEX `idx_merchant_state_ctime`(`merchant_id` ASC, `trade_state` ASC, `create_time` ASC) USING BTREE,
-  INDEX `idx_state_retry_nextretry`(`trade_state` ASC, `notify_state` ASC, `notify_retry_count` ASC, `notify_next_retry_time` ASC) USING BTREE
+  INDEX `idx_state_retry`(`trade_state` ASC, `notify_state` ASC, `notify_retry_count` ASC) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '订单表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
@@ -388,7 +389,7 @@ CREATE TABLE `kkpay_payment_channel`  (
   `earliest_time` char(5) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '最早可用时间',
   `latest_time` char(5) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '最晚可用时间',
   `roll_mode` tinyint UNSIGNED NOT NULL DEFAULT 0 COMMENT '子账户轮询模式',
-  `settle_cycle` tinyint UNSIGNED NOT NULL DEFAULT 0 COMMENT '结算周期',
+  `settle_cycle` tinyint NOT NULL DEFAULT 0 COMMENT '结算周期',
   `status` bit(1) NOT NULL DEFAULT b'0' COMMENT '状态',
   `created_at` timestamp NULL DEFAULT NULL COMMENT '创建时间',
   `updated_at` timestamp NULL DEFAULT NULL COMMENT '更新时间',
