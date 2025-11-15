@@ -3,6 +3,7 @@
   "require": {
     "php": ">=8.4",
     "workerman/webman-framework": "^2.1",
+    "workerman/crontab": "^1.0",
     "webman/cache": "^2.1",
     "webman/database": "^2.1",
     "webman/rate-limiter": "^1.1",
