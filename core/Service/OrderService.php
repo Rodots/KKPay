@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 namespace Core\Service;
 
+use app\model\MerchantWalletRecord;
 use app\model\Order;
 use app\model\OrderBuyer;
 use Core\Utils\SignatureUtil;
@@ -62,6 +63,18 @@ class OrderService
 
     /**
      * 处理支付成功
+     *
+     * 当订单支付成功时调用此方法，更新订单状态及相关信息
+     *
+     * @param bool            $isAsync       是否为异步通知
+     * @param string          $trade_no      系统交易号
+     * @param string|int|null $api_trade_no  API交易号
+     * @param string|int|null $bill_trade_no 账单交易号
+     * @param string|int|null $mch_trade_no  商户交易号
+     * @param string|int|null $payment_time  支付时间
+     * @param array           $buyer         买家信息
+     *
+     * @return void
      */
     public static function handlePaymentSuccess(bool $isAsync, string $trade_no, string|int|null $api_trade_no = null, string|int|null $bill_trade_no = null, string|int|null $mch_trade_no = null, string|int|null $payment_time = null, array $buyer = []): void
     {
@@ -77,6 +90,7 @@ class OrderService
             $oldStatus = $order->trade_state;
             $newStatus = Order::TRADE_STATE_SUCCESS;
 
+            // 验证订单状态转换是否有效
             if (!self::isValidStatusTransition($order['trade_state'], $newStatus)) {
                 throw new Exception("交易状态不能从 $oldStatus 转换为 $newStatus");
             }
@@ -87,8 +101,26 @@ class OrderService
             if ($mch_trade_no !== null) $order->mch_trade_no = $mch_trade_no;
 
             $order->trade_state  = $newStatus;
-            $order->settle_state = Order::SETTLE_STATE_PROCESSING;
             $order->payment_time = $payment_time === null ? time() : (is_numeric($payment_time) ? (int)$payment_time : $payment_time);
+
+            if ($order->settle_cycle <= 0) {
+                $order->settle_state = Order::SETTLE_STATE_COMPLETED;
+                // 如果结算周期为0，则直接结算；为负数的情况下表示无需结算。
+                if ($order->settle_cycle === 0) {
+                    if (!MerchantWalletRecord::change($order->merchant_id, $order->receipt_amount, '订单收益', true, $order->trade_no, '系统自动结算')) {
+                        $order->settle_state = Order::SETTLE_STATE_FAILED;
+                    }
+                }
+            } else {
+                $order->settle_state = Order::SETTLE_STATE_PROCESSING;
+                // 使用Redis队列等待订单结算
+                $queueData = ['trade_no' => $order->trade_no];
+                $delay     = $order->settle_cycle * 86400;
+                if (!SyncQueue::send('order-settle', $queueData, $delay)) {
+                    Log::error("订单延迟结算队列投递失败：" . $order->trade_no);
+                }
+            }
+
             $order->save();
 
             // 过滤并更新买家信息
@@ -99,7 +131,6 @@ class OrderService
                 'buyer_open_id' => 0,
                 'phone'         => 0
             ]);
-
             if (!empty($filteredBuyer)) {
                 OrderBuyer::where('trade_no', $order->trade_no)->update($filteredBuyer);
             }
@@ -111,7 +142,7 @@ class OrderService
             return;
         }
 
-        // 异步通知
+        // 如果是异步通知则同步通知下游
         if ($isAsync) {
             self::sendAsyncNotification($trade_no, $order);
         }
@@ -130,7 +161,7 @@ class OrderService
         }
 
         // 构建通知数据
-        $notifyData         = [
+        $queueData         = [
             'trade_no'         => $order->trade_no,
             'out_trade_no'     => $order->out_trade_no,
             'bill_trade_no'    => $order->bill_trade_no,
@@ -144,10 +175,10 @@ class OrderService
             'timestamp'        => time(),
             'sign_type'        => 'rsa2',
         ];
-        $notifyData['sign'] = SignatureUtil::buildSignature($notifyData, $notifyData['sign_type'], sys_config('payment', 'system_rsa2_private_key', 'Rodots'));
+        $queueData['sign'] = SignatureUtil::buildSignature($queueData, $queueData['sign_type'], sys_config('payment', 'system_rsa2_private_key', 'Rodots'));
 
         // 使用Redis队列发送异步通知
-        if (!SyncQueue::send($queueName, $notifyData)) {
+        if (!SyncQueue::send($queueName, $queueData)) {
             Log::error("订单异步通知队列{$queueName}投递失败：" . $tradeNo);
         }
     }

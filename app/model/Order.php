@@ -14,7 +14,7 @@ use Illuminate\Database\Eloquent\Relations\HasOneThrough;
 use support\Model;
 
 /**
- * 站点配置表
+ * 订单表
  */
 class Order extends Model
 {
@@ -61,6 +61,7 @@ class Order extends Model
             'receipt_amount'             => 'decimal:2',
             'fee_amount'                 => 'decimal:2',
             'profit_amount'              => 'decimal:2',
+            'settle_cycle'               => 'integer',
             'notify_state'               => 'boolean',
             'notify_retry_count'         => 'integer',
             'notify_next_retry_time'     => 'integer',
@@ -88,6 +89,7 @@ class Order extends Model
         'attach',
         'quit_url',
         'domain',
+        'settle_cycle',
         'close_time',
     ];
 
@@ -262,7 +264,7 @@ class Order extends Model
                 $totalSeconds = $create->diffInSeconds($payment);
 
                 // 格式化时间
-                return $this->formatDuration($totalSeconds);
+                return $this->formatPaymentDuration($totalSeconds);
             }
         );
     }
@@ -273,7 +275,7 @@ class Order extends Model
      * @param float $seconds
      * @return string
      */
-    private function formatDuration(float $seconds): string
+    private function formatPaymentDuration(float $seconds): string
     {
         if ($seconds <= 0) {
             return '异常';

@@ -111,31 +111,6 @@ class PaymentChannel extends Model
         );
     }
 
-    /***
-     * 访问器【结算周期文本】
-     *
-     * @return Attribute
-     */
-    protected function settleCycleText(): Attribute
-    {
-        return Attribute::make(
-            get: function () {
-                $enum = [
-                    0 => '【实时】笔笔结算',
-                    1 => '【测试】直接吃单，结算但不加减余额',
-                    2 => '【D0】即日结算',
-                    3 => '【D1】次日结算',
-                    4 => '【D2】隔日结算',
-                    5 => '【D3】交易后3个自然日结算',
-                    6 => '【D7】交易后7个自然日结算',
-                    7 => '【D14】交易后14个自然日结算',
-                    8 => '【D30】交易后30个自然日结算',
-                ];
-                return $enum[$this->getOriginal('settle_cycle')] ?? '未知';
-            }
-        );
-    }
-
     /**
      * 访问器：创建时间
      */

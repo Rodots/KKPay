@@ -44,8 +44,12 @@ class OrderCreationService
             // 4. 创建订单记录
             $order = self::createOrderRecord($bizContent, $merchant->id, $paymentChannelAccount);
 
-            // 5. 创建关联信息
-            $orderBuyer = self::createOrderRelatedInfo($order->trade_no, $bizContent, $clientIp);
+            // 5. 创建订单关联信息
+            $orderBuyer = OrderBuyer::create([
+                'trade_no'   => $order->trade_no,
+                'ip'         => $clientIp,
+                'user_agent' => $bizContent['user_agent'] ?? null,
+            ]);
 
             Db::commit();
         } catch (Throwable $e) {
@@ -98,16 +102,18 @@ class OrderCreationService
     }
 
     /**
-     * 创建订单记录（包含完整支付信息）
+     * 创建订单记录（初始化）
      */
     private static function createOrderRecord(array $bizContent, int $merchantId, ?PaymentChannelAccount $paymentChannelAccount = null): Order
     {
         $receiptAmount = 0;
         $feeAmount     = 0;
         $profitAmount  = 0;
+        $settleSycle   = 0;
         if ($paymentChannelAccount) {
             // 有支付通道时，使用通道信息
             $paymentType             = $paymentChannelAccount->paymentChannel->payment_type;
+            $settleSycle             = $paymentChannelAccount->paymentChannel->settle_cycle;
             $paymentChannelAccountId = $paymentChannelAccount->id;
             [$receiptAmount, $feeAmount, $profitAmount] = self::calculateOrderFees($bizContent['total_amount'], $paymentChannelAccount);
         } elseif (!empty($bizContent['payment_type'])) {
@@ -137,6 +143,7 @@ class OrderCreationService
             'attach'                     => $bizContent['attach'] ?: null,
             'quit_url'                   => $bizContent['quit_url'] ?: '',
             'domain'                     => extract_domain($bizContent['return_url']) ?: extract_domain($bizContent['notify_url']),
+            'settle_cycle'               => $settleSycle,
             'close_time'                 => $bizContent['close_time'] ?: null,
         ];
 
@@ -188,18 +195,5 @@ class OrderCreationService
         $profitAmount = bcsub($feeAmount, $costAmount, 4);
 
         return [$receiptAmount, $feeAmount, $profitAmount];
-    }
-
-    /**
-     * 创建订单关联买家信息
-     */
-    private static function createOrderRelatedInfo(string $trade_no, array $bizContent, string $clientIp): OrderBuyer
-    {
-        $data = [
-            'trade_no'   => $trade_no,
-            'ip'         => $clientIp,
-            'user_agent' => $bizContent['user_agent'] ?? null,
-        ];
-        return OrderBuyer::create($data);
     }
 }
