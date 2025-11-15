@@ -140,6 +140,9 @@ class Handler extends ExceptionHandler
         ];
 
         $resCode = $exception->getCode() ?: 500;
+        if (is_string($resCode)) {
+            $resCode = 500;
+        }
 
         return $this->renderTemplate($tpl, $vars, $resCode);
     }
