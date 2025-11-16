@@ -1,9 +1,8 @@
 /runtime
+/vendor
+/app/fake
 /.idea
 /.vscode
-/vendor
 *.log
 .env
-/tests/tmp
-/tests/.phpunit.result.cache
-/composer.lock
+composer.lock
