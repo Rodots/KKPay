@@ -41,10 +41,10 @@ class MerchantWallet extends Model
     protected function casts(): array
     {
         return [
-            'balance'        => 'decimal:2',
-            'freeze_balance' => 'decimal:2',
-            'margin'         => 'decimal:2',
-            'prepaid'        => 'decimal:2'
+            'available_balance'   => 'decimal:2',
+            'unavailable_balance' => 'decimal:2',
+            'margin'              => 'decimal:2',
+            'prepaid'             => 'decimal:2'
         ];
     }
 

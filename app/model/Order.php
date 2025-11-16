@@ -428,9 +428,7 @@ class Order extends Model
         // 根据这个订单对应支付通道的扣费模式处理商户的余额增减
         if ($this->paymentChannel()->value('mode') === 0) {
             // 【第一种模式】资金由平台代收，然后结算给商户，手续费从每笔订单直接扣除
-            if (!MerchantWalletRecord::change($user_id, $real_amount, '订单退款', 1, $trade_no)) {
-                throw new Exception("更新商户余额失败");
-            }
+            MerchantWalletRecord::changeAvailable($user_id, $real_amount, '订单退款', false, $trade_no);
         }
     }
 

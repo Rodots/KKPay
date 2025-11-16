@@ -190,8 +190,8 @@ CREATE TABLE `kkpay_merchant_security`  (
 DROP TABLE IF EXISTS `kkpay_merchant_wallet`;
 CREATE TABLE `kkpay_merchant_wallet`  (
   `merchant_id` int UNSIGNED NOT NULL COMMENT '商户ID',
-  `balance` decimal(12, 2) NOT NULL DEFAULT 0.00 COMMENT '可用余额',
-  `freeze_balance` decimal(12, 2) NOT NULL DEFAULT 0.00 COMMENT '冻结余额',
+  `available_balance`   decimal(12, 2) NOT NULL DEFAULT 0.00 COMMENT '可用余额',
+  `unavailable_balance` decimal(12, 2) NOT NULL DEFAULT 0.00 COMMENT '不可用余额',
   `margin` decimal(12, 2) NOT NULL DEFAULT 0.00 COMMENT '保证金/押金',
   `prepaid` decimal(12, 2) UNSIGNED NOT NULL DEFAULT 0.00 COMMENT '预付金',
   `created_at` timestamp NULL DEFAULT NULL COMMENT '创建时间',
@@ -207,8 +207,8 @@ DROP TABLE IF EXISTS `kkpay_merchant_wallet_prepaid_record`;
 CREATE TABLE `kkpay_merchant_wallet_prepaid_record`  (
   `id` int UNSIGNED NOT NULL AUTO_INCREMENT,
   `merchant_id` int UNSIGNED NOT NULL COMMENT '商户ID',
-  `balance` decimal(12, 2) NOT NULL COMMENT '变更金额',
   `old_balance` decimal(12, 2) UNSIGNED NOT NULL COMMENT '变更前余额',
+  `amount` decimal(12, 2) NOT NULL COMMENT '变更金额',
   `new_balance` decimal(12, 2) UNSIGNED NOT NULL COMMENT '变更后余额',
   `remark` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '备注',
   `created_at` timestamp NULL DEFAULT NULL COMMENT '操作时间',
@@ -225,17 +225,18 @@ CREATE TABLE `kkpay_merchant_wallet_record`  (
   `id` int UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'ID',
   `merchant_id` int UNSIGNED NOT NULL COMMENT '商户ID',
   `type` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '操作类型',
-  `balance` decimal(12, 2) NOT NULL COMMENT '变更金额',
-  `old_balance` decimal(12, 2) NOT NULL COMMENT '变更前余额',
-  `new_balance` decimal(12, 2) NOT NULL COMMENT '变更后余额',
-  `freeze_balance` decimal(12, 2) NOT NULL COMMENT '变更冻结金额',
-  `old_freeze_balance` decimal(12, 2) NOT NULL COMMENT '变更前冻结余额',
-  `new_freeze_balance` decimal(12, 2) NOT NULL COMMENT '变更后冻结余额',
+  `old_available_balance`   decimal(12, 2) NOT NULL COMMENT '变更前可用金额',
+  `available_amount`        decimal(12, 2) NOT NULL COMMENT '变更可用金额',
+  `new_available_balance`   decimal(12, 2) NOT NULL COMMENT '变更后可用金额',
+  `old_unavailable_balance` decimal(12, 2) NOT NULL COMMENT '变更前不可用余额',
+  `unavailable_amount`      decimal(12, 2) NOT NULL COMMENT '变更不可用金额',
+  `new_unavailable_balance` decimal(12, 2) NOT NULL COMMENT '变更后不可用余额',
   `remark` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '备注',
   `trade_no` char(24) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '关联平台订单号',
   `created_at` timestamp NULL DEFAULT NULL COMMENT '操作时间',
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `idx_merchant_wallet_id`(`merchant_id` ASC) USING BTREE,
+  INDEX `idx_trade_no` (`trade_no` ASC) USING BTREE,
   INDEX `idx_type_created`(`type` ASC, `created_at` ASC) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '商户钱包余额变动记录表' ROW_FORMAT = DYNAMIC;
 
