@@ -75,6 +75,7 @@ class OrderService
      * @param array           $buyer         买家信息
      *
      * @return void
+     * @throws Throwable
      */
     public static function handlePaymentSuccess(bool $isAsync, string $trade_no, string|int|null $api_trade_no = null, string|int|null $bill_trade_no = null, string|int|null $mch_trade_no = null, string|int|null $payment_time = null, array $buyer = []): void
     {
@@ -95,34 +96,6 @@ class OrderService
                 throw new Exception("交易状态不能从 $oldStatus 转换为 $newStatus");
             }
 
-            // 只在有值时才更新
-            if ($api_trade_no !== null) $order->api_trade_no = $api_trade_no;
-            if ($bill_trade_no !== null) $order->bill_trade_no = $bill_trade_no;
-            if ($mch_trade_no !== null) $order->mch_trade_no = $mch_trade_no;
-
-            $order->trade_state  = $newStatus;
-            $order->payment_time = $payment_time === null ? time() : (is_numeric($payment_time) ? (int)$payment_time : $payment_time);
-
-            if ($order->settle_cycle <= 0) {
-                $order->settle_state = Order::SETTLE_STATE_COMPLETED;
-                // 如果结算周期为0，则直接结算；为负数的情况下表示无需结算。
-                if ($order->settle_cycle === 0) {
-                    if (!MerchantWalletRecord::change($order->merchant_id, $order->receipt_amount, '订单收益', true, $order->trade_no, '系统自动结算')) {
-                        $order->settle_state = Order::SETTLE_STATE_FAILED;
-                    }
-                }
-            } else {
-                $order->settle_state = Order::SETTLE_STATE_PROCESSING;
-                // 使用Redis队列等待订单结算
-                $queueData = ['trade_no' => $order->trade_no];
-                $delay     = $order->settle_cycle * 86400;
-                if (!SyncQueue::send('order-settle', $queueData, $delay)) {
-                    Log::error("订单延迟结算队列投递失败：" . $order->trade_no);
-                }
-            }
-
-            $order->save();
-
             // 过滤并更新买家信息
             $filteredBuyer = array_intersect_key($buyer, [
                 'ip'            => 0,
@@ -135,16 +108,48 @@ class OrderService
                 OrderBuyer::where('trade_no', $order->trade_no)->update($filteredBuyer);
             }
 
+            // 只在有值时才更新外部交易号
+            if ($api_trade_no !== null) $order->api_trade_no = $api_trade_no;
+            if ($bill_trade_no !== null) $order->bill_trade_no = $bill_trade_no;
+            if ($mch_trade_no !== null) $order->mch_trade_no = $mch_trade_no;
+
+            $order->trade_state  = $newStatus;
+            $order->payment_time = $payment_time === null ? time() : (is_numeric($payment_time) ? (int)$payment_time : $payment_time);
+
+            // 根据结算周期处理订单结算逻辑
+            if ($order->settle_cycle <= 0) {
+                // 将订单结算状态标记为已结算
+                $order->settle_state = Order::SETTLE_STATE_COMPLETED;
+                if ($order->settle_cycle === 0) {
+                    // 增加商户可用余额
+                    MerchantWalletRecord::changeAvailable($order->merchant_id, $order->receipt_amount, '订单收益', true, $order->trade_no, '自动结算');
+                }
+            } else {
+                // 将订单结算状态标记为结算中
+                $order->settle_state = Order::SETTLE_STATE_PROCESSING;
+                // 增加商户不可用余额
+                MerchantWalletRecord::changeUnAvailable($order->merchant_id, $order->receipt_amount, '延迟结算', true, $order->trade_no);
+                // 使用Redis队列等待订单结算
+                $delay = $order->settle_cycle * 10;
+                if (!SyncQueue::send('order-settle', $order->trade_no, $delay)) {
+                    // 将订单结算状态标记为待结算
+                    $order->settle_state = Order::SETTLE_STATE_FAILED;
+                    Log::error("订单延迟结算队列投递失败：" . $order->trade_no);
+                }
+            }
+
+            $order->save();
+
             Db::commit();
+
+            // 如果是异步通知则同步通知下游
+            if ($isAsync) {
+                self::sendAsyncNotification($trade_no, $order);
+            }
         } catch (Throwable $e) {
             Db::rollBack();
             Log::error("订单状态更新失败：" . $e->getMessage());
-            return;
-        }
-
-        // 如果是异步通知则同步通知下游
-        if ($isAsync) {
-            self::sendAsyncNotification($trade_no, $order);
+            throw $e;
         }
     }
 
