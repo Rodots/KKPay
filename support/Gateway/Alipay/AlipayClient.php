@@ -25,7 +25,7 @@ readonly class AlipayClient
     /**
      * 默认 HTTP 请求超时时间（秒）
      */
-    private const int DEFAULT_TIMEOUT = 30;
+    private const int DEFAULT_TIMEOUT = 5;
 
     /**
      * 支付宝 API 版本标识，当前固定为 'v3'
