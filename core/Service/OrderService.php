@@ -155,14 +155,23 @@ class OrderService
 
     /**
      * 发送异步通知
+     *
+     * 向指定队列发送订单状态变更的异步通知消息，用于通知下游系统订单状态的更新
+     * 包括订单的基本信息、支付信息以及签名等数据
+     *
+     * @param string     $tradeNo   系统交易号，用于标识唯一订单
+     * @param Order|null $order     订单对象，如果未提供将根据$tradeNo从数据库查询
+     * @param string     $queueName 队列名称，默认为'order-notification'
+     * @return string 签名字符串
+     * @throws Exception 当签名生成过程出现错误时抛出异常
      */
-    public static function sendAsyncNotification(string $tradeNo, ?Order $order = null, string $queueName = 'order-notification'): void
+    public static function sendAsyncNotification(string $tradeNo, ?Order $order = null, string $queueName = 'order-notification'): string
     {
         if ($order === null) {
             $order = Order::where('trade_no', $tradeNo)->first();
         }
         if (!$order) {
-            return;
+            throw new Exception("订单不存在：" . $tradeNo);
         }
 
         // 构建通知数据
@@ -180,18 +189,23 @@ class OrderService
             'timestamp'        => time(),
             'sign_type'        => 'rsa2',
         ];
-        $queueData['sign'] = SignatureUtil::buildSignature($queueData, $queueData['sign_type'], sys_config('payment', 'system_rsa2_private_key', 'Rodots'));
+        $buildSignature = SignatureUtil::buildSignature($queueData, $queueData['sign_type'], sys_config('payment', 'system_rsa2_private_key', 'Rodots'));
+        $queueData['sign'] = $buildSignature['sign'];
 
         // 使用Redis队列发送异步通知
         if (!SyncQueue::send($queueName, $queueData)) {
             Log::error("订单异步通知队列{$queueName}投递失败：" . $tradeNo);
         }
+
+        return $buildSignature['sign_string'];
     }
 
     /**
      * 构建同步通知参数
      *
      * @param array $order 订单数据（包含['trade_no', 'out_trade_no', 'bill_trade_no', 'total_amount', 'attach', 'trade_state', 'return_url', 'create_time', 'payment_time']）
+     * @return string
+     * @throws Exception
      */
     public static function buildSyncNotificationParams(array $order): string
     {

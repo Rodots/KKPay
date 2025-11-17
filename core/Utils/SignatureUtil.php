@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 namespace Core\Utils;
 
+use Exception;
 use support\Log;
 use support\Rodots\Crypto\RSA2;
 use Throwable;
@@ -32,7 +33,7 @@ final class SignatureUtil
 
         ksort($signParams);
 
-        return implode(',', array_map(
+        return implode('&', array_map(
             fn($key, $value) => $key . '=' . $value,
             array_keys($signParams),
             $signParams
@@ -111,22 +112,24 @@ final class SignatureUtil
      * @param array  $params   需要签名的参数数组
      * @param string $signType 签名类型，支持 'sha3' 和 'rsa2'
      * @param string $signKey  签名密钥，根据签名类型可能是字符串或私钥对象
-     * @return string 生成的签名字符串
+     * @return array 签名参数数组（包含 'sign' 和 'sign_string' 两个键）
+     * @throws Exception
      */
-    public static function buildSignature(array $params, string $signType, string $signKey): string
+    public static function buildSignature(array $params, string $signType, string $signKey): array
     {
         try {
             $signString = self::buildSignString($params);
 
             // 根据签名类型使用对应的算法生成签名
-            return match ($signType) {
+            $sign = match ($signType) {
                 'sha3' => hash('sha3-256', $signString . $signKey),
                 'rsa2' => RSA2::fromPrivateKey($signKey)->sign($signString),
-                default => throw new \Exception('不支持的签名类型')
+                default => throw new Exception('不支持的签名类型')
             };
+            return ['sign' => $sign, 'sign_string' => $signString];
         } catch (Throwable $e) {
-            Log::error('签名异常:' . $e->getMessage());
-            return '';
+            Log::error('生成签名异常: ' . $e->getMessage());
+            throw new Exception('生成签名异常: ' . $e->getMessage());
         }
     }
 }

@@ -6,6 +6,7 @@ namespace app\api\v1\controller;
 
 use app\model\Order;
 use Core\Service\OrderService;
+use Exception;
 use support\Db;
 use support\Request;
 use support\Response;
@@ -27,7 +28,11 @@ class StandardController
                         if ($order->payment_time !== null && time() - strtotime($order->payment_time) > 300) {
                             $redirect_url = '/payok.html';
                         } else {
-                            $redirect_url = OrderService::buildSyncNotificationParams((array)$order);
+                            try {
+                                $redirect_url = OrderService::buildSyncNotificationParams((array)$order);
+                            } catch (Exception) {
+                                $redirect_url = $order->return_url;
+                            }
                         }
                         $result = [
                             'code'    => 20000,

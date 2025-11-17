@@ -76,7 +76,7 @@ class OrderController extends AdminBase
 
         // 构建查询
         $select_fields = ['trade_no', 'out_trade_no', 'merchant_id', 'payment_type', 'payment_channel_account_id', 'subject', 'total_amount', 'buyer_pay_amount', 'receipt_amount', 'create_time', 'payment_time', 'trade_state', 'settle_state', 'notify_state'];
-        $query         = Order::with(['merchant:id,merchant_number', 'paymentChannelAccount:id,name,payment_channel_id', 'paymentChannelAccount.paymentChannel:id,code'])->select($select_fields)->when($params, function ($q) use ($params) {
+        $query = Order::with(['merchant:id,merchant_number', 'paymentChannelAccount:id,name,payment_channel_id', 'paymentChannelAccount.paymentChannel:id,code'])->when($params, function ($q) use ($params) {
             foreach ($params as $key => $value) {
                 if ($value === '' || $value === null) {
                     continue;
@@ -153,7 +153,7 @@ class OrderController extends AdminBase
 
         // 获取总数和数据
         $total = $query->count();
-        $list  = $query->skip($from)->take($limit)->orderBy('create_time', 'desc')->get()->append(['payment_type_text', 'trade_state_text', 'settle_state_text', 'payment_duration']);
+        $list = $query->skip($from)->take($limit)->orderBy('create_time', 'desc')->get($select_fields)->append(['payment_type_text', 'trade_state_text', 'settle_state_text', 'payment_duration']);
 
         return $this->success(data: [
             'list'  => $list,
@@ -228,9 +228,16 @@ class OrderController extends AdminBase
             return $this->fail('该订单不存在');
         }
 
-        OrderService::sendAsyncNotification($trade_no, $order, 'order-notification-manual');
+        if ($order->trade_state !== Order::TRADE_STATE_SUCCESS) {
+            return $this->fail('该订单未支付成功，无法重新通知');
+        }
+        try {
+            $sign_string = OrderService::sendAsyncNotification($trade_no, $order, 'order-notification-manual');
+        } catch (Exception $e) {
+            return $this->fail($e->getMessage());
+        }
 
-        return $this->success('重新通知任务已提交，系统将异步处理，请留意后续状态更新');
+        return $this->success('重新通知任务已提交，系统将异步处理，请留意后续状态更新', ['sign_string' => $sign_string]);
     }
 
     public function refund(Request $request): Response
