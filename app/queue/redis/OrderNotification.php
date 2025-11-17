@@ -107,9 +107,7 @@ class OrderNotification implements Consumer
     private function sendHttp(string $url, array $params = [], array $headers = []): string
     {
         $client = new Client([
-            'timeout'         => 10,
-            'connect_timeout' => 3,
-            'read_timeout'    => 7
+            'timeout' => 8
         ]);
 
         try {
