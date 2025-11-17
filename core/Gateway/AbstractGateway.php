@@ -6,6 +6,7 @@ namespace Core\Gateway;
 
 use Core\Service\OrderService;
 use support\Db;
+use Throwable;
 
 /**
  * 抽象网关基类
@@ -95,6 +96,7 @@ abstract class AbstractGateway
      * @param string|int|null $payment_time  支付时间
      * @param array           $buyer         买家信息
      * @return void
+     * @throws Throwable
      */
     protected static function processNotify(string $trade_no, string|int|null $api_trade_no = null, string|int|null $bill_trade_no = null, string|int|null $mch_trade_no = null, string|int|null $payment_time = null, array $buyer = []): void
     {
@@ -112,25 +114,10 @@ abstract class AbstractGateway
      * @param string|int|null $payment_time  支付时间
      * @param array           $buyer         买家信息
      * @return void
+     * @throws Throwable
      */
     protected static function processReturn(string $trade_no, string|int|null $api_trade_no = null, string|int|null $bill_trade_no = null, string|int|null $mch_trade_no = null, string|int|null $payment_time = null, array $buyer = []): void
     {
         OrderService::handlePaymentSuccess(false, $trade_no, $api_trade_no, $bill_trade_no, $mch_trade_no, $payment_time, $buyer);
-    }
-
-    /**
-     * 格式化金额（元转分）
-     */
-    protected static function formatAmount(float $amount): int
-    {
-        return (int)round($amount * 100);
-    }
-
-    /**
-     * 格式化金额（分转元）
-     */
-    protected static function formatAmountToYuan(int $amount): float
-    {
-        return round($amount / 100, 2);
     }
 }
