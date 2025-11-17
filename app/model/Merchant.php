@@ -61,7 +61,7 @@ class Merchant extends Model
     }
 
     /**
-     * 获取创建时间
+     * 访问器：创建时间
      */
     protected function createdAt(): Attribute
     {

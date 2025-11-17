@@ -4,7 +4,10 @@ declare(strict_types = 1);
 
 namespace app\model;
 
+use Carbon\Carbon;
 use Exception;
+use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use support\Model;
 
 /**
@@ -15,7 +18,7 @@ class MerchantWalletRecord extends Model
     /**
      * 与模型关联的表
      *
-     * @var strings
+     * @var string
      */
     protected $table = 'merchant_wallet_record';
 
@@ -61,6 +64,24 @@ class MerchantWalletRecord extends Model
         'trade_no',
         'remark',
     ];
+
+    /**
+     * 访问器：操作时间
+     */
+    protected function createdAt(): Attribute
+    {
+        return Attribute::make(
+            get: fn(?string $value) => $value ? Carbon::parse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
+        );
+    }
+
+    /**
+     * 该订单属于这个商户
+     */
+    public function merchant(): BelongsTo
+    {
+        return $this->belongsTo(Merchant::class);
+    }
 
     /**
      * 商户可用余额变更（全程 bcmath，无分/元转换）
