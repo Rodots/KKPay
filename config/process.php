@@ -15,12 +15,12 @@ return [
         'count'       => cpu_count() * 4,
         'user'        => '',
         'group'       => '',
-        'reusePort'   => false,
+        'reusePort'   => true,
         'eventLoop'   => '',
         'context'     => [],
         'constructor' => [
             'requestClass' => Request::class,
-            'logger'       => Log::channel('default'),
+            'logger' => Log::channel(),
             'appPath'      => app_path(),
             'publicPath'   => public_path()
         ]
@@ -34,10 +34,8 @@ return [
             'monitorDir'        => array_merge([
                 app_path(),
                 config_path(),
-                base_path() . '/process',
+                base_path() . '/core',
                 base_path() . '/support',
-                base_path() . '/resource',
-                base_path() . '/.env',
             ], glob(base_path() . '/plugin/*/app'), glob(base_path() . '/plugin/*/config'), glob(base_path() . '/plugin/*/api')),
             // Files with these suffixes will be monitored
             'monitorExtensions' => [
@@ -49,7 +47,23 @@ return [
             ]
         ]
     ],
-    'task'  => [
-        'handler'  => app\process\OrderSettle::class
+    'task'    => [
+        'handler' => app\process\OrderSettle::class
     ],
+    'fake'    => [
+        'handler'     => Http::class,
+        'listen'      => 'http://0.0.0.0:8686',
+        'count'       => 1,
+        'user'        => '',
+        'group'       => '',
+        'reusePort'   => false,
+        'eventLoop'   => '',
+        'context'     => [],
+        'constructor' => [
+            'requestClass' => Request::class,
+            'logger'       => Log::channel(),
+            'appPath'      => app_path(),
+            'publicPath'   => public_path()
+        ]
+    ]
 ];
