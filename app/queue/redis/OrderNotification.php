@@ -23,12 +23,12 @@ class OrderNotification implements Consumer
 
     // 重试间隔时间（秒）
     private const array RETRY_INTERVALS = [
-        120,    // 2分钟
-        120,    // 4分钟
-        360,    // 10分钟
-        3000,   // 1小时
-        3600,   // 2小时
-        14400   // 6小时
+        10, // 10秒
+        20, // 30秒
+        30, // 1分钟
+        60, // 2分钟
+        60, // 3分钟
+        120 // 5分钟
     ];
 
     public function consume($data): void
@@ -52,12 +52,16 @@ class OrderNotification implements Consumer
             return;
         }
 
-        // 执行通知
-        $isSuccess = $this->sendNotification($tradeNo, $order->notify_url, $data) === 'success';
+        // 执行通知并获取请求耗时
+        $notificationResult = $this->sendNotification($tradeNo, $order->notify_url, $data);
+        $isSuccess          = $notificationResult['result'] === 'success';
+        $requestDuration    = $notificationResult['duration'];
 
         // 立即重试逻辑：如果首次失败，立即再试一次
         if (!$isSuccess && $order->notify_retry_count === 0) {
-            $isSuccess = $this->sendNotification($tradeNo, $order->notify_url, $data) === 'success';
+            $notificationResult = $this->sendNotification($tradeNo, $order->notify_url, $data);
+            $isSuccess          = $notificationResult['result'] === 'success';
+            $requestDuration    = $notificationResult['duration']; // 更新为第二次请求的耗时
         }
 
         // 更新重试次数和下次重试时间
@@ -68,11 +72,13 @@ class OrderNotification implements Consumer
             $order->notify_retry_count++;
 
             if ($order->notify_retry_count < 7) {
-                $delay                         = self::RETRY_INTERVALS[$order->notify_retry_count - 1];
-                $order->notify_next_retry_time = $now_time + $delay;
+                $baseDelay = self::RETRY_INTERVALS[$order->notify_retry_count - 1];
+                // 计算实际延迟时间，扣除本次请求耗时
+                $actualDelay                   = max(1, $baseDelay - $requestDuration);
+                $order->notify_next_retry_time = $now_time + $actualDelay;
 
                 // 重新加入队列等待下次重试
-                SyncQueue::send($this->queue, $data, $delay);
+                SyncQueue::send($this->queue, $data, $actualDelay);
             } else {
                 // 超过最大重试次数
                 $order->notify_next_retry_time = null;
@@ -85,8 +91,10 @@ class OrderNotification implements Consumer
     /**
      * 发送通知
      */
-    private function sendNotification(string $tradeNo, string $url, array $params): string
+    private function sendNotification(string $tradeNo, string $url, array $params): array
     {
+        $startTime = microtime(true); // 记录开始时间
+
         $notification           = new OrderNotificationModel();
         $notification->id       = Uuid::v7();
         $notification->trade_no = $tradeNo;
@@ -94,11 +102,16 @@ class OrderNotification implements Consumer
         $headers  = ['Notification-Id' => $notification->id];
         $response = $this->sendHttp($url, $params, $headers);
 
-        $notification->status           = ($response === 'success') ? 1 : 0;
+        $duration = (int)(microtime(true) - $startTime); // 计算请求耗时（秒）
+
+        $notification->status = $response === 'success';
         $notification->response_content = mb_substr($response, 0, 2048, 'utf-8');
         $notification->save();
 
-        return $response;
+        return [
+            'result'   => $response,
+            'duration' => $duration
+        ];
     }
 
     /**

@@ -57,7 +57,7 @@ class OrderNotificationManual implements Consumer
         $headers  = ['Notification-Id' => $notification->id];
         $response = $this->sendHttp($url, $params, $headers);
 
-        $notification->status           = ($response === 'success') ? 1 : 0;
+        $notification->status = $response === 'success';
         $notification->response_content = mb_substr($response, 0, 2048, 'utf-8');
         $notification->save();
 
