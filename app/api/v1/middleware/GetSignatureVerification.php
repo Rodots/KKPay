@@ -110,7 +110,7 @@ class GetSignatureVerification implements MiddlewareInterface
         if (empty($params['merchant_number'])) {
             return self::REQUIRED_PARAMS['merchant_number'];
         }
-        if (!preg_match('/^M[A-Z0-9]{23}$/', $params['merchant_number'])) {
+        if (!preg_match('/^M[A-Z0-9]{15}$/', $params['merchant_number'])) {
             return '商户编号(merchant_number)格式错误';
         }
 

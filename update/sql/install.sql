@@ -79,7 +79,7 @@ CREATE TABLE `kkpay_config`  (
 DROP TABLE IF EXISTS `kkpay_merchant`;
 CREATE TABLE `kkpay_merchant`  (
   `id` int UNSIGNED NOT NULL AUTO_INCREMENT,
-  `merchant_number` char(24) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '商户编号',
+  `merchant_number` char(16) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '商户编号',
   `email` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '邮箱',
   `phone` char(11) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '手机号',
   `remark` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT '' COMMENT '备注',
@@ -364,7 +364,7 @@ CREATE TABLE `kkpay_order_refund`  (
   `updated_at` timestamp NULL DEFAULT NULL COMMENT '更新时间',
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `idx_trade_no`(`trade_no` ASC) USING BTREE,
-  INDEX `idx_state_retry_nextretry`(`refund_state` ASC, `notify_state` ASC, `notify_retry_count` ASC, `notify_next_retry_time` ASC) USING BTREE
+  INDEX `idx_state_retry_nextretry` (`refund_state` ASC, `notify_state` ASC, `notify_retry_count` ASC) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '订单退款表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------

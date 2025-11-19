@@ -55,7 +55,7 @@ class Merchant extends Model
         static::creating(function ($merchant) {
             // 生成一个24位的随机字符串作为商户编号，并确保不重复
             do {
-                $merchant->merchant_number = 'M' . date('Y') . random(19, 'upper_and_num');
+                $merchant->merchant_number = 'M' . date('Y') . random(11, 'upper_and_num');
             } while (self::where('merchant_number', $merchant->merchant_number)->exists());
         });
     }
@@ -101,6 +101,9 @@ class Merchant extends Model
             $merchantRow->password    = password_hash(hash('xxh128', trim($data['password'])) . $merchantRow->salt, PASSWORD_BCRYPT);
             $merchantRow->status      = (int)$data['status'];
             $merchantRow->risk_status = (int)$data['risk_status'];
+            if (isset($data['competence'])) {
+                $merchantRow->competence = $data['competence'];
+            }
             $merchantRow->save();
 
             // 创建商户安全信息
@@ -111,6 +114,7 @@ class Merchant extends Model
             // 创建商户密钥
             $encryptionRow              = new MerchantEncryption();
             $encryptionRow->merchant_id = $merchantRow->id;
+            $encryptionRow->mode = 'only_sha3';
             $encryptionRow->sha3_key    = random(32);
             $encryptionRow->save();
 

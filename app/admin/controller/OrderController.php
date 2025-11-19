@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 namespace app\admin\controller;
 
+use app\model\Merchant;
 use app\model\Order;
 use app\model\PaymentChannel;
 use app\model\PaymentChannelAccount;
@@ -56,9 +57,9 @@ class OrderController extends AdminBase
                 'bill_trade_no.alphaDash'           => '交易流水号只能是字母和数字，下划线及破折号',
                 'mch_trade_no.max'                  => '渠道交易流水号长度不能超过256位',
                 'mch_trade_no.alphaDash'            => '渠道交易流水号只能是字母和数字，下划线及破折号',
-                'merchant_number.alphaNum'          => '商户编号是以M开头的24位英文+数字',
-                'merchant_number.startWith'         => '商户编号是以M开头的24位英文+数字',
-                'merchant_number.length'            => '商户编号是以M开头的24位英文+数字',
+                'merchant_number.alphaNum'  => '商户编号是以M开头的16位数字+英文组合',
+                'merchant_number.startWith' => '商户编号是以M开头的16位数字+英文组合',
+                'merchant_number.length'    => '商户编号是以M开头的16位数字+英文组合',
                 'payment_channel_code.max'          => '支付通道编码长度不能超过16位',
                 'payment_channel_code.alphaNum'     => '支付通道编码只能是大写字母和数字',
                 'payment_channel_code.upper'        => '支付通道编码只能是大写字母和数字',
@@ -75,8 +76,8 @@ class OrderController extends AdminBase
         }
 
         // 构建查询
-        $select_fields = ['trade_no', 'out_trade_no', 'merchant_id', 'payment_type', 'payment_channel_account_id', 'subject', 'total_amount', 'buyer_pay_amount', 'receipt_amount', 'create_time', 'payment_time', 'trade_state', 'settle_state', 'notify_state'];
-        $query = Order::with(['merchant:id,merchant_number', 'paymentChannelAccount:id,name,payment_channel_id', 'paymentChannelAccount.paymentChannel:id,code'])->when($params, function ($q) use ($params) {
+        $select_fields = ['trade_no', 'out_trade_no', 'merchant_id', 'payment_type', 'payment_channel_account_id', 'subject', 'total_amount', 'create_time', 'payment_time', 'trade_state', 'settle_state', 'notify_state'];
+        $query         = Order::with(['merchant:id,merchant_number', 'paymentChannelAccount:id,name,payment_channel_id', 'paymentChannelAccount.paymentChannel:id,code', 'buyerInfo:trade_no,ip'])->when($params, function ($q) use ($params) {
             foreach ($params as $key => $value) {
                 if ($value === '' || $value === null) {
                     continue;
@@ -108,7 +109,7 @@ class OrderController extends AdminBase
                         $q->where('mch_trade_no', 'like', "%$value%");
                         break;
                     case 'merchant_number':
-                        $q->where('merchant_number', trim($value));
+                        $q->where('merchant_id', Merchant::where('merchant_number', $value)->value('id'));
                         break;
                     case 'payment_type':
                         $q->where('payment_type', $value);
