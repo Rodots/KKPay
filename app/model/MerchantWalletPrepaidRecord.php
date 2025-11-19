@@ -4,6 +4,9 @@ declare(strict_types = 1);
 
 namespace app\model;
 
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Casts\Attribute;
+use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use support\Model;
 
 /**
@@ -38,5 +41,23 @@ class MerchantWalletPrepaidRecord extends Model
             'amount' => 'decimal:2',
             'new_balance' => 'decimal:2'
         ];
+    }
+
+    /**
+     * 访问器：操作时间
+     */
+    protected function createdAt(): Attribute
+    {
+        return Attribute::make(
+            get: fn(?string $value) => $value ? Carbon::parse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
+        );
+    }
+
+    /**
+     * 该订单属于这个商户
+     */
+    public function merchant(): BelongsTo
+    {
+        return $this->belongsTo(Merchant::class);
     }
 }

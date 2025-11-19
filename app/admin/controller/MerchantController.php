@@ -6,6 +6,7 @@ namespace app\admin\controller;
 
 use app\model\Merchant;
 use app\model\MerchantLog;
+use app\model\MerchantWalletPrepaidRecord;
 use app\model\MerchantWalletRecord;
 use Core\baseController\AdminBase;
 use SodiumException;
@@ -33,9 +34,9 @@ class MerchantController extends AdminBase
                 'phone'           => 'number|max:11',
                 'created_at'      => 'array'
             ], [
-                'merchant_number.alphaNum'  => '商户编号是以M开头的24位英文+数字',
-                'merchant_number.startWith' => '商户编号是以M开头的24位英文+数字',
-                'merchant_number.length'    => '商户编号是以M开头的24位英文+数字',
+                'merchant_number.alphaNum'  => '商户编号是以M开头的24位数字+英文组合',
+                'merchant_number.startWith' => '商户编号是以M开头的24位数字+英文组合',
+                'merchant_number.length'    => '商户编号是以M开头的24位数字+英文组合',
                 'email.max'                 => '邮箱长度不能超过64位',
                 'phone.number'              => '手机号码只能是纯数字',
                 'phone.max'                 => '手机号码长度不能超过11位',
@@ -349,9 +350,9 @@ class MerchantController extends AdminBase
                 'ip'              => 'max:45',
                 'created_at'      => 'array'
             ], [
-                'merchant_number.alphaNum'  => '商户编号是以M开头的24位英文+数字',
-                'merchant_number.startWith' => '商户编号是以M开头的24位英文+数字',
-                'merchant_number.length'    => '商户编号是以M开头的24位英文+数字',
+                'merchant_number.alphaNum'  => '商户编号是以M开头的24位数字+英文组合',
+                'merchant_number.startWith' => '商户编号是以M开头的24位数字+英文组合',
+                'merchant_number.length'    => '商户编号是以M开头的24位数字+英文组合',
                 'content.max'               => '操作内容不能超过1024个字符',
                 'ip.max'                    => '操作IP长度不能超过45位',
                 'created_at.array'          => '请重新选择选择时间范围'
@@ -415,16 +416,17 @@ class MerchantController extends AdminBase
                 'merchant_number' => 'alphaNum|startWith:M|length:24',
                 'type'            => 'max:32',
                 'remark'          => 'max:255',
-                'trade_no'        => ['max:24', 'alphaDash'],
+                'trade_no' => 'alphaNum|startWith:M|length:24',
                 'created_at'      => 'array'
             ], [
-                'merchant_number.alphaNum'  => '商户编号是以M开头的24位英文+数字',
-                'merchant_number.startWith' => '商户编号是以M开头的24位英文+数字',
-                'merchant_number.length'    => '商户编号是以M开头的24位英文+数字',
+                'merchant_number.alphaNum'  => '商户编号是以M开头的24位数字+英文组合',
+                'merchant_number.startWith' => '商户编号是以M开头的24位数字+英文组合',
+                'merchant_number.length'    => '商户编号是以M开头的24位数字+英文组合',
                 'type.max'                  => '操作类型不能超过32个字符',
                 'remark.max'                => '备注不能超过255个字符',
-                'trade_no.max'              => '平台订单号长度不能超过24位',
-                'trade_no.alphaDash'        => '平台订单号只能是字母和数字，下划线及破折号',
+                'trade_no.alphaNum'         => '平台订单号是以P开头的24位数字+英文组合',
+                'trade_no.startWith'        => '平台订单号是以P开头的24位数字+英文组合',
+                'trade_no.length'           => '平台订单号是以P开头的24位数字+英文组合',
                 'created_at.array'          => '请重新选择选择时间范围'
             ])->check($params);
         } catch (Throwable $e) {
@@ -454,6 +456,69 @@ class MerchantController extends AdminBase
                         break;
                     case 'trade_no':
                         $q->where('trade_no', $value);
+                        break;
+                    case 'created_at':
+                        $q->whereBetween('created_at', [$value[0], $value[1]]);
+                        break;
+                }
+            }
+            return $q;
+        });
+
+        // 获取总数和数据
+        $total = $query->count();
+        $list  = $query->skip($from)->take($limit)->orderBy($sort, $order)->get();
+
+        return $this->success(data: [
+            'list'  => $list,
+            'total' => $total,
+        ]);
+    }
+
+    /**
+     * 商户预付金变动记录
+     */
+    public function walletPrepaidRecord(Request $request): Response
+    {
+        $from   = $request->get('from', 0);
+        $limit  = $request->get('limit', 10);
+        $sort   = $request->get('sort', 'id');
+        $order  = $request->get('order', 'desc');
+        $params = $request->only(['merchant_number', 'remark', 'created_at']);
+
+        try {
+            validate([
+                'merchant_number' => 'alphaNum|startWith:M|length:24',
+                'remark'          => 'max:255',
+                'created_at'      => 'array'
+            ], [
+                'merchant_number.alphaNum'  => '商户编号是以M开头的24位数字+英文组合',
+                'merchant_number.startWith' => '商户编号是以M开头的24位数字+英文组合',
+                'merchant_number.length'    => '商户编号是以M开头的24位数字+英文组合',
+                'remark.max'                => '备注不能超过255个字符',
+                'created_at.array'          => '请重新选择选择时间范围'
+            ])->check($params);
+        } catch (Throwable $e) {
+            return $this->fail($e->getMessage());
+        }
+
+        // 检测要排序的字段是否在允许的字段列表中并检测排序顺序是否正确
+        if (!in_array($sort, ['id']) || !in_array($order, ['asc', 'desc'])) {
+            return $this->fail('排序失败，请刷新后重试');
+        }
+
+        // 构建查询
+        $query = MerchantWalletPrepaidRecord::with(['merchant:id,merchant_number'])->when($params, function ($q) use ($params) {
+            foreach ($params as $key => $value) {
+                if ($value === '' || $value === null) {
+                    continue;
+                }
+                switch ($key) {
+                    case 'merchant_number':
+                        $q->where('merchant_id', Merchant::where('merchant_number', $value)->value('id'));
+                        break;
+                    case 'remark':
+                        $q->where('remark', 'like', '%' . $value . '%');
                         break;
                     case 'created_at':
                         $q->whereBetween('created_at', [$value[0], $value[1]]);
