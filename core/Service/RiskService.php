@@ -96,7 +96,6 @@ class RiskService
     {
         $riskResult = [
             'is_risk'       => false,
-            'risk_level'    => 0,
             'risk_reasons'  => [],
             'blocked_items' => []
         ];
@@ -106,32 +105,26 @@ class RiskService
             $checkItems = [
                 'ip'                 => [
                     'method'     => 'checkIpBlacklist',
-                    'risk_level' => Blacklist::RISK_LEVEL_HIGH,
                     'reason'     => 'IP地址在黑名单中'
                 ],
                 'user_id'            => [
                     'method'     => 'checkUserIdBlacklist',
-                    'risk_level' => Blacklist::RISK_LEVEL_CRITICAL,
                     'reason'     => '用户ID在黑名单中'
                 ],
                 'mobile'             => [
                     'method'     => 'checkMobileBlacklist',
-                    'risk_level' => Blacklist::RISK_LEVEL_MEDIUM,
                     'reason'     => '手机号在黑名单中'
                 ],
                 'bank_card'          => [
                     'method'     => 'checkBankCardBlacklist',
-                    'risk_level' => Blacklist::RISK_LEVEL_HIGH,
                     'reason'     => '银行卡号在黑名单中'
                 ],
                 'id_card'            => [
                     'method'     => 'checkIdCardBlacklist',
-                    'risk_level' => Blacklist::RISK_LEVEL_HIGH,
                     'reason'     => '身份证号在黑名单中'
                 ],
                 'device_fingerprint' => [
                     'method'     => 'checkDeviceFingerprintBlacklist',
-                    'risk_level' => Blacklist::RISK_LEVEL_MEDIUM,
                     'reason'     => '设备指纹在黑名单中'
                 ]
             ];
@@ -140,7 +133,6 @@ class RiskService
             foreach ($checkItems as $key => $config) {
                 if (!empty($riskData[$key]) && self::{$config['method']}($riskData[$key])) {
                     $riskResult['is_risk']         = true;
-                    $riskResult['risk_level']      = max($riskResult['risk_level'], $config['risk_level']);
                     $riskResult['risk_reasons'][]  = $config['reason'];
                     $riskResult['blocked_items'][] = $key;
                 }
@@ -157,7 +149,6 @@ class RiskService
             // 异常情况下返回高风险
             return [
                 'is_risk'       => true,
-                'risk_level'    => Blacklist::RISK_LEVEL_CRITICAL,
                 'risk_reasons'  => ['风控系统异常'],
                 'blocked_items' => ['system']
             ];
@@ -171,7 +162,6 @@ class RiskService
         string  $entityType,
         string  $entityValue,
         string  $reason,
-        int     $riskLevel = 2,
         string  $origin = 'MANUAL_REVIEW',
         ?string $expiredAt = null
     ): bool
@@ -192,7 +182,6 @@ class RiskService
             if ($existing) {
                 // 更新现有记录
                 $existing->update([
-                    'risk_level' => $riskLevel,
                     'reason'     => $reason,
                     'origin'     => $origin,
                     'expired_at' => $expiredAt
@@ -203,7 +192,6 @@ class RiskService
                     'entity_type'  => $entityType,
                     'entity_value' => $entityValue,
                     'entity_hash'  => $entityHash,
-                    'risk_level'   => $riskLevel,
                     'reason'       => $reason,
                     'origin'       => $origin,
                     'expired_at'   => $expiredAt
@@ -257,12 +245,11 @@ class RiskService
     public static function addIpToBlacklist(
         string  $ip,
         string  $reason,
-        int     $riskLevel = Blacklist::RISK_LEVEL_MEDIUM,
         string  $origin = Blacklist::ORIGIN_MANUAL_REVIEW,
         ?string $expiredAt = null
     ): bool
     {
-        return self::addToBlacklist(Blacklist::ENTITY_TYPE_IP_ADDRESS, $ip, $reason, $riskLevel, $origin, $expiredAt);
+        return self::addToBlacklist(Blacklist::ENTITY_TYPE_IP_ADDRESS, $ip, $reason, $origin, $expiredAt);
     }
 
     /**
@@ -271,12 +258,11 @@ class RiskService
     public static function addUserIdToBlacklist(
         string  $userId,
         string  $reason,
-        int     $riskLevel = Blacklist::RISK_LEVEL_HIGH,
         string  $origin = Blacklist::ORIGIN_MANUAL_REVIEW,
         ?string $expiredAt = null
     ): bool
     {
-        return self::addToBlacklist(Blacklist::ENTITY_TYPE_USER_ID, $userId, $reason, $riskLevel, $origin, $expiredAt);
+        return self::addToBlacklist(Blacklist::ENTITY_TYPE_USER_ID, $userId, $reason, $origin, $expiredAt);
     }
 
     /**
@@ -285,12 +271,11 @@ class RiskService
     public static function addMobileToBlacklist(
         string  $mobile,
         string  $reason,
-        int     $riskLevel = Blacklist::RISK_LEVEL_MEDIUM,
         string  $origin = Blacklist::ORIGIN_MANUAL_REVIEW,
         ?string $expiredAt = null
     ): bool
     {
-        return self::addToBlacklist(Blacklist::ENTITY_TYPE_MOBILE, $mobile, $reason, $riskLevel, $origin, $expiredAt);
+        return self::addToBlacklist(Blacklist::ENTITY_TYPE_MOBILE, $mobile, $reason, $origin, $expiredAt);
     }
 
     /**
@@ -299,12 +284,11 @@ class RiskService
     public static function addBankCardToBlacklist(
         string  $bankCard,
         string  $reason,
-        int     $riskLevel = Blacklist::RISK_LEVEL_HIGH,
         string  $origin = Blacklist::ORIGIN_MANUAL_REVIEW,
         ?string $expiredAt = null
     ): bool
     {
-        return self::addToBlacklist(Blacklist::ENTITY_TYPE_BANK_CARD, $bankCard, $reason, $riskLevel, $origin, $expiredAt);
+        return self::addToBlacklist(Blacklist::ENTITY_TYPE_BANK_CARD, $bankCard, $reason, $origin, $expiredAt);
     }
 
     /**
@@ -313,12 +297,11 @@ class RiskService
     public static function addIdCardToBlacklist(
         string  $idCard,
         string  $reason,
-        int     $riskLevel = Blacklist::RISK_LEVEL_HIGH,
         string  $origin = Blacklist::ORIGIN_MANUAL_REVIEW,
         ?string $expiredAt = null
     ): bool
     {
-        return self::addToBlacklist(Blacklist::ENTITY_TYPE_ID_CARD, $idCard, $reason, $riskLevel, $origin, $expiredAt);
+        return self::addToBlacklist(Blacklist::ENTITY_TYPE_ID_CARD, $idCard, $reason, $origin, $expiredAt);
     }
 
     /**
@@ -327,12 +310,11 @@ class RiskService
     public static function addDeviceFingerprintToBlacklist(
         string  $deviceFingerprint,
         string  $reason,
-        int     $riskLevel = Blacklist::RISK_LEVEL_MEDIUM,
         string  $origin = Blacklist::ORIGIN_AUTO_DETECTION,
         ?string $expiredAt = null
     ): bool
     {
-        return self::addToBlacklist(Blacklist::ENTITY_TYPE_DEVICE_FINGERPRINT, $deviceFingerprint, $reason, $riskLevel, $origin, $expiredAt);
+        return self::addToBlacklist(Blacklist::ENTITY_TYPE_DEVICE_FINGERPRINT, $deviceFingerprint, $reason, $origin, $expiredAt);
     }
 
     /**

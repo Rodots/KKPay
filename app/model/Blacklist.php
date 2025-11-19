@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 namespace app\model;
 
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use support\Model;
 
 /**
@@ -33,7 +34,6 @@ class Blacklist extends Model
     protected function casts(): array
     {
         return [
-            'risk_level' => 'integer',
             'expired_at' => 'timestamp'
         ];
     }
@@ -49,20 +49,13 @@ class Blacklist extends Model
     public const string ENTITY_TYPE_DEVICE_FINGERPRINT = 'DEVICE_FINGERPRINT';
 
     /**
-     * 风险等级常量
-     */
-    public const int RISK_LEVEL_LOW      = 1;
-    public const int RISK_LEVEL_MEDIUM   = 2;
-    public const int RISK_LEVEL_HIGH     = 3;
-    public const int RISK_LEVEL_CRITICAL = 4;
-
-    /**
      * 黑名单来源常量
      */
     public const string ORIGIN_MANUAL_REVIEW  = 'MANUAL_REVIEW';
     public const string ORIGIN_AUTO_DETECTION = 'AUTO_DETECTION';
     public const string ORIGIN_THIRD_PARTY    = 'THIRD_PARTY';
-    public const string ORIGIN_SYSTEM_ALERT   = 'SYSTEM_ALERT';
+    public const string ORIGIN_SYSTEM_ALERT    = 'SYSTEM_ALERT';
+    public const string ORIGIN_MERCHANT_REPORT = 'MERCHANT_REPORT';
 
     /**
      * 获取所有支持的实体类型
@@ -77,5 +70,62 @@ class Blacklist extends Model
             self::ENTITY_TYPE_IP_ADDRESS,
             self::ENTITY_TYPE_DEVICE_FINGERPRINT,
         ];
+    }
+
+    /**
+     * 获取所有支持的来源
+     */
+    public static function getSupportedOrigins(): array
+    {
+        return [
+            self::ORIGIN_MANUAL_REVIEW,
+            self::ORIGIN_AUTO_DETECTION,
+            self::ORIGIN_THIRD_PARTY,
+            self::ORIGIN_SYSTEM_ALERT,
+            self::ORIGIN_MERCHANT_REPORT,
+        ];
+    }
+
+    /***
+     * 访问器：实体类型文本
+     *
+     * @return Attribute
+     */
+    protected function entityTypeText(): Attribute
+    {
+        return Attribute::make(
+            get: function () {
+                $enum = [
+                    self::ENTITY_TYPE_USER_ID            => '用户ID',
+                    self::ENTITY_TYPE_BANK_CARD          => '银行卡号',
+                    self::ENTITY_TYPE_ID_CARD            => '身份证号',
+                    self::ENTITY_TYPE_MOBILE             => '手机号',
+                    self::ENTITY_TYPE_IP_ADDRESS         => 'IP地址',
+                    self::ENTITY_TYPE_DEVICE_FINGERPRINT => '设备指纹',
+                ];
+                return $enum[$this->getOriginal('entity_type')] ?? '未知';
+            }
+        );
+    }
+
+    /***
+     * 访问器：来源文本
+     *
+     * @return Attribute
+     */
+    protected function originText(): Attribute
+    {
+        return Attribute::make(
+            get: function () {
+                $enum = [
+                    self::ORIGIN_MANUAL_REVIEW   => '人工审核',
+                    self::ORIGIN_AUTO_DETECTION  => '自动检测',
+                    self::ORIGIN_THIRD_PARTY     => '第三方',
+                    self::ORIGIN_SYSTEM_ALERT    => '系统提醒',
+                    self::ORIGIN_MERCHANT_REPORT => '商户报备',
+                ];
+                return $enum[$this->getOriginal('origin')] ?? '未知';
+            }
+        );
     }
 }
