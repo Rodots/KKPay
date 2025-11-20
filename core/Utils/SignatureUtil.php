@@ -25,19 +25,28 @@ final class SignatureUtil
     {
         $excludeKeys = ['sign', 'encryption_param'];
 
-        $signParams = array_filter(
+        // 1. 过滤：排除指定键、空字符串、null 和数组值
+        $filteredParams = array_filter(
             $params,
-            fn($value, $key) => !in_array($key, $excludeKeys) && $value !== '' && $value !== null,
+            function ($value, $key) use ($excludeKeys) {
+                return !in_array($key, $excludeKeys, true) && $value !== '' && $value !== null && !is_array($value);
+            },
             ARRAY_FILTER_USE_BOTH
         );
 
-        ksort($signParams);
+        // 2. 排序：按键名升序
+        ksort($filteredParams);
 
-        return implode('&', array_map(
-            fn($key, $value) => $key . '=' . $value,
-            array_keys($signParams),
-            $signParams
-        ));
+        // 3. 构建并连接：对键和值进行 URL 编码后拼接
+        $encodedPairs = array_map(
+            function ($key, $value) {
+                return rawurlencode($key) . '=' . (is_string($value) ? rawurlencode($value) : $value);
+            },
+            array_keys($filteredParams),
+            $filteredParams
+        );
+
+        return implode('&', $encodedPairs);
     }
 
     /**
