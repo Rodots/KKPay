@@ -20,23 +20,18 @@ class Blacklist extends Model
     protected $table = 'blacklist';
 
     /**
-     * 禁用自动写入updated_at
+     * 可批量赋值的属性
      *
-     * @var null
+     * @var array
      */
-    const null UPDATED_AT = null;
-
-    /**
-     * 获取应该转换的属性。
-     *
-     * @return array
-     */
-    protected function casts(): array
-    {
-        return [
-            'expired_at' => 'timestamp'
-        ];
-    }
+    protected $fillable = [
+        'entity_type',
+        'entity_value',
+        'entity_hash',
+        'reason',
+        'origin',
+        'expired_at',
+    ];
 
     /**
      * 实体类型常量枚举
