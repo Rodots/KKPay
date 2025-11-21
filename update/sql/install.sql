@@ -51,7 +51,7 @@ CREATE TABLE `kkpay_blacklist`  (
   `entity_value` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '实体值',
   `entity_hash` char(56) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '实体值的SHA3-224哈希',
   `reason` varchar(1024) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '封禁原因',
-  `origin` enum ('MANUAL_REVIEW','AUTO_DETECTION','THIRD_PARTY','SYSTEM_ALERT','MERCHANT_REPORT') CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '来源',
+  `origin` enum ('MANUAL_REVIEW','AUTO_DETECTION','THIRD_PARTY','MERCHANT_REPORT') CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '来源',
   `expired_at` timestamp NULL DEFAULT NULL COMMENT '过期时间',
   `created_at` timestamp NULL DEFAULT NULL COMMENT '创建时间',
   `updated_at` timestamp NULL DEFAULT NULL COMMENT '更新时间',

@@ -92,7 +92,7 @@ class RiskService
     /**
      * 通用添加到黑名单方法
      */
-    public static function addToBlacklist(string $entityType, string $entityValue, string $reason, string $origin, ?string $expiredAt = null): bool
+    public static function addToBlacklist(string $entityType, string $entityValue, string $reason, string $origin = Blacklist::ORIGIN_MANUAL_REVIEW, ?string $expiredAt = null): bool
     {
         try {
             // 验证实体类型
@@ -110,7 +110,7 @@ class RiskService
                 $existing->update([
                     'reason'     => $reason,
                     'origin'     => $origin,
-                    'expired_at' => $expiredAt
+                    'expired_at' => $expiredAt ?? null
                 ]);
             } else {
                 // 创建新记录
@@ -120,7 +120,7 @@ class RiskService
                     'entity_hash'  => $entityHash,
                     'reason'       => $reason,
                     'origin'       => $origin,
-                    'expired_at'   => $expiredAt
+                    'expired_at' => $expiredAt ?? null
                 ]);
             }
 
@@ -128,28 +128,6 @@ class RiskService
 
         } catch (Throwable $e) {
             Log::error('拉黑失败: ' . $e->getMessage());
-            return false;
-        }
-    }
-
-    /**
-     * 通用从黑名单移除方法
-     */
-    public static function removeFromBlacklist(string $entityType, string $entityValue): bool
-    {
-        try {
-            // 验证实体类型
-            if (!in_array($entityType, Blacklist::getSupportedEntityTypes())) {
-                throw new InvalidArgumentException("不支持的实体类型: $entityType");
-            }
-
-            $entityHash = hash('sha3-224', $entityValue);
-
-            $deleted = Blacklist::where('entity_hash', $entityType . $entityHash)->delete();
-
-            return $deleted > 0;
-        } catch (Throwable $e) {
-            Log::error('解除黑名单失败: ' . $e->getMessage());
             return false;
         }
     }
@@ -200,54 +178,6 @@ class RiskService
     public static function addDeviceFingerprintToBlacklist(string $deviceFingerprint, string $reason, string $origin = Blacklist::ORIGIN_AUTO_DETECTION, ?string $expiredAt = null): bool
     {
         return self::addToBlacklist(Blacklist::ENTITY_TYPE_DEVICE_FINGERPRINT, $deviceFingerprint, $reason, $origin, $expiredAt);
-    }
-
-    /**
-     * 从黑名单中移除IP
-     */
-    public static function removeIpFromBlacklist(string $ip): bool
-    {
-        return self::removeFromBlacklist(Blacklist::ENTITY_TYPE_IP_ADDRESS, $ip);
-    }
-
-    /**
-     * 从黑名单中移除用户ID
-     */
-    public static function removeUserIdFromBlacklist(string $userId): bool
-    {
-        return self::removeFromBlacklist(Blacklist::ENTITY_TYPE_USER_ID, $userId);
-    }
-
-    /**
-     * 从黑名单中移除手机号
-     */
-    public static function removeMobileFromBlacklist(string $mobile): bool
-    {
-        return self::removeFromBlacklist(Blacklist::ENTITY_TYPE_MOBILE, $mobile);
-    }
-
-    /**
-     * 从黑名单中移除银行卡号
-     */
-    public static function removeBankCardFromBlacklist(string $bankCard): bool
-    {
-        return self::removeFromBlacklist(Blacklist::ENTITY_TYPE_BANK_CARD, $bankCard);
-    }
-
-    /**
-     * 从黑名单中移除身份证号
-     */
-    public static function removeIdCardFromBlacklist(string $idCard): bool
-    {
-        return self::removeFromBlacklist(Blacklist::ENTITY_TYPE_ID_CARD, $idCard);
-    }
-
-    /**
-     * 从黑名单中移除设备指纹
-     */
-    public static function removeDeviceFingerprintFromBlacklist(string $deviceFingerprint): bool
-    {
-        return self::removeFromBlacklist(Blacklist::ENTITY_TYPE_DEVICE_FINGERPRINT, $deviceFingerprint);
     }
 
     /**

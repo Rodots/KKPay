@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 namespace app\model;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use support\Model;
 
@@ -49,7 +50,6 @@ class Blacklist extends Model
     public const string ORIGIN_MANUAL_REVIEW  = 'MANUAL_REVIEW';
     public const string ORIGIN_AUTO_DETECTION = 'AUTO_DETECTION';
     public const string ORIGIN_THIRD_PARTY    = 'THIRD_PARTY';
-    public const string ORIGIN_SYSTEM_ALERT    = 'SYSTEM_ALERT';
     public const string ORIGIN_MERCHANT_REPORT = 'MERCHANT_REPORT';
 
     /**
@@ -76,9 +76,39 @@ class Blacklist extends Model
             self::ORIGIN_MANUAL_REVIEW,
             self::ORIGIN_AUTO_DETECTION,
             self::ORIGIN_THIRD_PARTY,
-            self::ORIGIN_SYSTEM_ALERT,
             self::ORIGIN_MERCHANT_REPORT,
         ];
+    }
+
+    /**
+     * 访问器：过期时间
+     */
+    protected function expiredAtText(): Attribute
+    {
+        $value = $this->getOriginal('expired_at');
+        return Attribute::make(
+            get: fn() => $value ? Carbon::parse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : '永久封禁',
+        );
+    }
+
+    /**
+     * 访问器：创建时间
+     */
+    protected function createdAt(): Attribute
+    {
+        return Attribute::make(
+            get: fn(?string $value) => $value ? Carbon::parse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
+        );
+    }
+
+    /**
+     * 访问器：更新时间
+     */
+    protected function updatedAt(): Attribute
+    {
+        return Attribute::make(
+            get: fn(?string $value) => $value ? Carbon::parse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
+        );
     }
 
     /***
@@ -116,7 +146,6 @@ class Blacklist extends Model
                     self::ORIGIN_MANUAL_REVIEW   => '人工审核',
                     self::ORIGIN_AUTO_DETECTION  => '自动检测',
                     self::ORIGIN_THIRD_PARTY     => '第三方',
-                    self::ORIGIN_SYSTEM_ALERT    => '系统提醒',
                     self::ORIGIN_MERCHANT_REPORT => '商户报备',
                 ];
                 return $enum[$this->getOriginal('origin')] ?? '未知';
