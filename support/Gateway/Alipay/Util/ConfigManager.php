@@ -7,6 +7,7 @@ namespace Gateway\Alipay\Util;
 use Exception;
 use Gateway\Alipay\AlipayConfig;
 use Gateway\Alipay\Trait\HeaderUtilTrait;
+use Random\RandomException;
 
 /**
  * 安全编排管理器（对签名/验签/加解密/证书做统一编排）
@@ -33,7 +34,7 @@ readonly class ConfigManager
         $this->encryptionManager  = new EncryptionManager($config);
         $this->certificateManager = new CertificateManager($config);
     }
-    
+
     /**
      * 获取签名管理器实例
      */
@@ -105,6 +106,9 @@ readonly class ConfigManager
         }
     }
 
+    /**
+     * @throws Exception
+     */
     public function signV1(array $params): string
     {
         return $this->signatureManager->signParams($params);
@@ -179,6 +183,7 @@ readonly class ConfigManager
 
     /**
      * 加密请求体
+     * @throws Exception
      */
     public function encryptRequest(string $requestBody): string
     {
@@ -187,6 +192,7 @@ readonly class ConfigManager
 
     /**
      * 解密响应体
+     * @throws Exception
      */
     public function decryptResponse(string $responseBody): string
     {
@@ -195,6 +201,7 @@ readonly class ConfigManager
 
     /**
      * 生成随机 nonce
+     * @throws RandomException
      */
     private function generateNonce(): string
     {
@@ -268,6 +275,7 @@ readonly class ConfigManager
      * @param string $returnUrl  支付完成后同步跳转回商户页面的 URL
      * @param string $notifyUrl  支付结果异步通知地址（服务器回调）
      * @return array
+     * @throws Exception
      */
     public function buildRequestParams(array $params, string $methodName, string $returnUrl, string $notifyUrl): array
     {
