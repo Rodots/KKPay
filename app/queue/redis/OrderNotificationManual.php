@@ -14,7 +14,6 @@ use GuzzleHttp\Exception\ServerException;
 use support\Rodots\Functions\Uuid;
 use Throwable;
 use Webman\RedisQueue\Consumer;
-use Webman\RedisQueue\Redis as SyncQueue;
 
 class OrderNotificationManual implements Consumer
 {
@@ -54,10 +53,10 @@ class OrderNotificationManual implements Consumer
         $notification->id       = Uuid::v7();
         $notification->trade_no = $tradeNo;
 
-        $headers  = ['Notification-Id' => $notification->id];
+        $headers  = ['Notification-Type' => 'trade_status_sync', 'Notification-Id' => $notification->id];
         $response = $this->sendHttp($url, $params, $headers);
 
-        $notification->status = $response === 'success';
+        $notification->status           = $response === 'success';
         $notification->response_content = mb_substr($response, 0, 2048, 'utf-8');
         $notification->save();
 

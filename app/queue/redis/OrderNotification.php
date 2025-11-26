@@ -99,12 +99,12 @@ class OrderNotification implements Consumer
         $notification->id       = Uuid::v7();
         $notification->trade_no = $tradeNo;
 
-        $headers  = ['Notification-Id' => $notification->id];
+        $headers  = ['Notification-Type' => 'trade_status_sync', 'Notification-Id' => $notification->id];
         $response = $this->sendHttp($url, $params, $headers);
 
         $duration = (int)(microtime(true) - $startTime); // 计算请求耗时（秒）
 
-        $notification->status = $response === 'success';
+        $notification->status           = $response === 'success';
         $notification->response_content = mb_substr($response, 0, 2048, 'utf-8');
         $notification->save();
 
