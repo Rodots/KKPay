@@ -7,6 +7,7 @@ namespace Core\Service;
 use app\model\MerchantWalletRecord;
 use app\model\Order;
 use app\model\OrderBuyer;
+use Carbon\Carbon;
 use Core\Utils\SignatureUtil;
 use Exception;
 use support\Log;
@@ -184,12 +185,12 @@ class OrderService
             'receipt_amount'   => $order->receipt_amount,
             'attach'           => $order->attach,
             'trade_state'      => $order->trade_state,
-            'create_time'      => $order->create_time,
-            'payment_time'     => $order->payment_time,
+            'create_time'      => $order->create_time_with_zone,
+            'payment_time'     => $order->payment_time_with_zone,
             'timestamp'        => time(),
             'sign_type'        => 'rsa2',
         ];
-        $buildSignature = SignatureUtil::buildSignature($queueData, $queueData['sign_type'], sys_config('payment', 'system_rsa2_private_key', 'Rodots'));
+        $buildSignature    = SignatureUtil::buildSignature($queueData, $queueData['sign_type'], sys_config('payment', 'system_rsa2_private_key', 'Rodots'));
         $queueData['sign'] = $buildSignature['sign'];
 
         // 使用Redis队列发送异步通知
@@ -212,6 +213,10 @@ class OrderService
         $return_url = $order['return_url'];
         unset($order['return_url']);
 
+        // 格式化create_time与payment_time
+        $order['create_time']  = Carbon::parse($order['create_time'])->timezone(config('app.default_timezone'))->format('Y-m-d\TH:i:sP');
+        $order['payment_time'] = Carbon::parse($order['payment_time'])->timezone(config('app.default_timezone'))->format('Y-m-d\TH:i:sP');
+        // 添加时间戳与签名
         $order['timestamp'] = time();
         $order['sign_type'] = 'rsa2';
         $order['sign']      = SignatureUtil::buildSignature($order, $order['sign_type'], sys_config('payment', 'system_rsa2_private_key', 'Rodots'));

@@ -23,52 +23,55 @@ final class SignatureUtil
      */
     public static function buildSignString(array $params): string
     {
-        $excludeKeys = ['sign', 'encryption_param'];
-
-        // 1. 过滤：排除指定键、空字符串、null 和数组值
-        $filteredParams = array_filter(
-            $params,
-            function ($value, $key) use ($excludeKeys) {
-                return !in_array($key, $excludeKeys, true) && $value !== '' && $value !== null && !is_array($value);
-            },
-            ARRAY_FILTER_USE_BOTH
+        ksort($params);
+        return http_build_query(
+            data: array_filter(
+                $params,
+                fn($v, $k) => !in_array($k, ['sign', 'encryption_param'], true) && $v !== '' && $v !== null && !is_array($v),
+                ARRAY_FILTER_USE_BOTH
+            ),
+            encoding_type: PHP_QUERY_RFC3986,
         );
-
-        // 2. 排序：按键名升序
-        ksort($filteredParams);
-
-        // 3. 构建并连接：对键和值进行 URL 编码后拼接
-        $encodedPairs = array_map(
-            function ($key, $value) {
-                return rawurlencode($key) . '=' . (is_string($value) ? rawurlencode($value) : $value);
-            },
-            array_keys($filteredParams),
-            $filteredParams
-        );
-
-        return implode('&', $encodedPairs);
     }
 
     /**
-     * 验证SHA3签名
+     * 验证xxHash128哈希签名
      *
      * @param string      $signString 签名字符串
      * @param string      $signature  待验证签名
-     * @param string|null $sha3Key    SHA3密钥
+     * @param string|null $hashKey    哈希密钥
      * @return bool 验证结果
      */
-    public static function verifySha3Signature(string $signString, string $signature, ?string $sha3Key): bool
+    public static function verifyxxHash128Signature(string $signString, string $signature, ?string $hashKey): bool
     {
-        if (empty($sha3Key)) {
+        if (empty($hashKey)) {
             return false;
         }
 
-        $expectedSignature = hash('sha3-256', $signString . $sha3Key);
+        $expectedSignature = hash('xxh128', $signString . $hashKey);
         return hash_equals($expectedSignature, $signature);
     }
 
     /**
-     * 验证RSA2签名
+     * 验证SHA3-256哈希签名
+     *
+     * @param string      $signString 签名字符串
+     * @param string      $signature  待验证签名
+     * @param string|null $hashKey    哈希密钥
+     * @return bool 验证结果
+     */
+    public static function verifySha3Signature(string $signString, string $signature, ?string $hashKey): bool
+    {
+        if (empty($hashKey)) {
+            return false;
+        }
+
+        $expectedSignature = hash('sha3-256', $signString . $hashKey);
+        return hash_equals($expectedSignature, $signature);
+    }
+
+    /**
+     * 验证SHA256withRSA签名
      *
      * @param string      $signString 签名字符串
      * @param string      $signature  待验证签名
@@ -94,17 +97,18 @@ final class SignatureUtil
      *
      * @param array  $params             参数数组
      * @param string $signType           签名类型
-     * @param object $merchantEncryption 商户加密配置对象
+     * @param array  $merchantEncryption 商户加密配置对象
      * @return bool 验证结果
      */
-    public static function verifySignature(array $params, string $signType, object $merchantEncryption): bool
+    public static function verifySignature(array $params, string $signType, array $merchantEncryption): bool
     {
         try {
             $signString = self::buildSignString($params);
 
             return match ($signType) {
-                'sha3' => self::verifySha3Signature($signString, $params['sign'], $merchantEncryption->sha3_key),
-                'rsa2' => self::verifyRsa2Signature($signString, $params['sign'], $merchantEncryption->rsa2_key),
+                'xxh' => self::verifyxxHash128Signature($signString, $params['sign'], $merchantEncryption['hash_key']),
+                'sha3' => self::verifySha3Signature($signString, $params['sign'], $merchantEncryption['hash_key']),
+                'rsa2' => self::verifyRsa2Signature($signString, $params['sign'], $merchantEncryption['rsa2_key']),
                 default => false
             };
         } catch (Throwable $e) {
@@ -119,7 +123,7 @@ final class SignatureUtil
      * 根据指定的签名类型和密钥为参数数组生成相应的签名
      *
      * @param array  $params   需要签名的参数数组
-     * @param string $signType 签名类型，支持 'sha3' 和 'rsa2'
+     * @param string $signType 签名类型
      * @param string $signKey  签名密钥，根据签名类型可能是字符串或私钥对象
      * @return array 签名参数数组（包含 'sign' 和 'sign_string' 两个键）
      * @throws Exception
@@ -131,6 +135,7 @@ final class SignatureUtil
 
             // 根据签名类型使用对应的算法生成签名
             $sign = match ($signType) {
+                'xxh' => hash('xxh128', $signString . $signKey),
                 'sha3' => hash('sha3-256', $signString . $signKey),
                 'rsa2' => RSA2::fromPrivateKey($signKey)->sign($signString),
                 default => throw new Exception('不支持的签名类型')

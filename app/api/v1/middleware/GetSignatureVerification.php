@@ -30,7 +30,7 @@ class GetSignatureVerification implements MiddlewareInterface
     /**
      * 支持的签名算法
      */
-    private const array SUPPORTED_SIGN_TYPES = ['sha3', 'rsa2'];
+    private const array SUPPORTED_SIGN_TYPES = ['xxh', 'sha3', 'rsa2'];
 
     /**
      * 必需参数列表
@@ -50,7 +50,7 @@ class GetSignatureVerification implements MiddlewareInterface
     {
         try {
             // 获取并验证请求参数
-            $params       = $this->getRequestParams($request);
+            $params       = $this->getRequestParams($request->all());
             $errorMessage = $this->validateAllParams($params);
             if ($errorMessage) {
                 return $this->fail($errorMessage);
@@ -62,9 +62,13 @@ class GetSignatureVerification implements MiddlewareInterface
                 return $this->fail($merchant);
             }
 
-            // 获取商户加密配置并处理加密参数
-            $merchantEncryption = MerchantEncryption::find($merchant->id);
-            $params             = $this->processEncryptedParams($params, $merchantEncryption->aes_key ?? null);
+            // 获取商户密钥配置并处理加密参数
+            $merchantEncryption = MerchantEncryption::find($merchant->id, ['mode', 'aes_key', 'hash_key', 'rsa2_key']);
+            if ($merchantEncryption === null) {
+                return $this->fail('无法获取当前商户密钥配置');
+            }
+            $merchantEncryption = $merchantEncryption->toArray();
+            $params             = $this->processEncryptedParams($params, $merchantEncryption['aes_key']);
             if (is_string($params)) {
                 return $this->fail($params);
             }
@@ -76,7 +80,7 @@ class GetSignatureVerification implements MiddlewareInterface
             }
 
             // 将验证结果添加到请求中
-            $this->attachToRequest($request, $merchant, $merchantEncryption, $params);
+            $this->attachToRequest($request, $merchant, $params);
         } catch (Throwable $e) {
             Log::error('API签名验证异常:' . $e->getMessage());
             return $this->error('签名验证异常');
@@ -88,9 +92,8 @@ class GetSignatureVerification implements MiddlewareInterface
     /**
      * 获取请求参数
      */
-    private function getRequestParams(Request $request): array
+    private function getRequestParams(mixed $params): array
     {
-        $params = $request->all();
         return [
             'merchant_number'  => $params['merchant_number'] ?? '',
             'encryption_param' => $params['encryption_param'] ?? null,
@@ -173,7 +176,7 @@ class GetSignatureVerification implements MiddlewareInterface
     /**
      * 执行所有验证
      */
-    private function performAllValidations(array $params, MerchantEncryption $merchantEncryption): ?string
+    private function performAllValidations(array $params, array $merchantEncryption): ?string
     {
         // 验证时间戳
         if (!$this->validateTimestamp($params['timestamp'])) {
@@ -181,7 +184,7 @@ class GetSignatureVerification implements MiddlewareInterface
         }
 
         // 验证签名算法类型
-        if (!$this->validateSignType($params['sign_type'], $merchantEncryption->mode)) {
+        if (!$this->validateSignType($params['sign_type'], $merchantEncryption['mode'])) {
             return '签名算法类型不被允许';
         }
 
@@ -196,11 +199,10 @@ class GetSignatureVerification implements MiddlewareInterface
     /**
      * 将验证结果附加到请求
      */
-    private function attachToRequest(Request $request, Merchant $merchant, MerchantEncryption $merchantEncryption, array $params): void
+    private function attachToRequest(Request $request, Merchant $merchant, array $params): void
     {
-        $request->merchant           = $merchant;
-        $request->merchantEncryption = $merchantEncryption;
-        $request->verifiedParams     = $params;
+        $request->merchant       = $merchant;
+        $request->verifiedParams = $params;
     }
 
     /**
@@ -238,6 +240,7 @@ class GetSignatureVerification implements MiddlewareInterface
     private function validateSignType(string $signType, string $mode): bool
     {
         return match ($mode) {
+            'only_xxh' => $signType === 'xxh',
             'only_sha3' => $signType === 'sha3',
             'only_rsa2' => $signType === 'rsa2',
             'open' => in_array($signType, self::SUPPORTED_SIGN_TYPES),

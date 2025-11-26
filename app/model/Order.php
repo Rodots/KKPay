@@ -151,6 +151,17 @@ class Order extends Model
     }
 
     /**
+     * 访问器：交易创建时间（含时区）
+     */
+    protected function createTimeWithZone(): Attribute
+    {
+        // 遵循rfc3339标准格式: yyyy-MM-DDTHH:mm:ss+TIMEZONE
+        return Attribute::make(
+            get: fn(?string $value, array $attributes) => $attributes['create_time'] ? Carbon::rawParse($attributes['create_time'])->timezone(config('app.default_timezone'))->format('Y-m-d\TH:i:sP') : null,
+        );
+    }
+
+    /**
      * 访问器/修改器：交易付款时间
      */
     protected function paymentTime(): Attribute
@@ -158,6 +169,17 @@ class Order extends Model
         return Attribute::make(
             get: fn(?string $value) => $value ? Carbon::rawParse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
             set: fn(string|int|null $value) => $value ? Carbon::parse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
+        );
+    }
+
+    /**
+     * 访问器：交易付款时间（含时区）
+     */
+    protected function paymentTimeWithZone(): Attribute
+    {
+        // 遵循rfc3339标准格式: yyyy-MM-DDTHH:mm:ss+TIMEZONE
+        return Attribute::make(
+            get: fn(?string $value, array $attributes) => $attributes['payment_time'] ? Carbon::rawParse($attributes['payment_time'])->timezone(config('app.default_timezone'))->format('Y-m-d\TH:i:sP') : null,
         );
     }
 
@@ -250,19 +272,13 @@ class Order extends Model
     protected function paymentDuration(): Attribute
     {
         return Attribute::make(
-            get: function () {
-                $create_time  = $this->getOriginal('create_time');
-                $payment_time = $this->getOriginal('payment_time');
-
-                if (!$payment_time) {
+            get: function (?string $value, array $attributes) {
+                if (!$attributes['payment_time']) {
                     return '0秒';
                 }
-
-                $create  = Carbon::parse($create_time);
-                $payment = Carbon::parse($payment_time);
-
+                $create       = Carbon::parse($attributes['create_time']);
+                $payment      = Carbon::parse($attributes['payment_time']);
                 $totalSeconds = $create->diffInSeconds($payment);
-
                 // 格式化时间
                 return $this->formatPaymentDuration($totalSeconds);
             }

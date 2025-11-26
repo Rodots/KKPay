@@ -114,8 +114,8 @@ class Merchant extends Model
             // 创建商户密钥
             $encryptionRow              = new MerchantEncryption();
             $encryptionRow->merchant_id = $merchantRow->id;
-            $encryptionRow->mode = 'only_sha3';
-            $encryptionRow->sha3_key    = random(32);
+            $encryptionRow->mode        = 'only_sha3';
+            $encryptionRow->hash_key    = random(32);
             $encryptionRow->save();
 
             // 创建商户钱包

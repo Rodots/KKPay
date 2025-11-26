@@ -129,9 +129,9 @@ CREATE TABLE `kkpay_merchant_email_log`  (
 DROP TABLE IF EXISTS `kkpay_merchant_encryption`;
 CREATE TABLE `kkpay_merchant_encryption`  (
   `merchant_id` int UNSIGNED NOT NULL,
-  `mode` enum('open','only_sha3','only_rsa2') CHARACTER SET ascii COLLATE ascii_bin NOT NULL DEFAULT 'open' COMMENT '对接模式',
+  `mode` enum('open','only_xxh','only_sha3','only_rsa2') CHARACTER SET ascii COLLATE ascii_bin NOT NULL DEFAULT 'open' COMMENT '对接模式',
   `aes_key` char(32) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '传输密钥(AES)',
-  `sha3_key` char(32) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '对接密钥(SHA3-256)',
+  `hash_key` char(32) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '对接密钥(散列算法)',
   `rsa2_key` varchar(512) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '对接公钥(RSA-2048)',
   PRIMARY KEY (`merchant_id`) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '商户密钥表' ROW_FORMAT = DYNAMIC;
