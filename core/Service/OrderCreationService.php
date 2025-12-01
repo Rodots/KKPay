@@ -142,7 +142,6 @@ class OrderCreationService
             'return_url'                 => $bizContent['return_url'],
             'attach'                     => $bizContent['attach'] ?: null,
             'quit_url'                   => $bizContent['quit_url'] ?: '',
-            'domain'                     => extract_domain($bizContent['return_url']) ?: extract_domain($bizContent['notify_url']),
             'settle_cycle'               => $settleSycle,
             'close_time'                 => $bizContent['close_time'] ?: null,
         ];

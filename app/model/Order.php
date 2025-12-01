@@ -88,7 +88,6 @@ class Order extends Model
         'return_url',
         'attach',
         'quit_url',
-        'domain',
         'settle_cycle',
         'close_time',
     ];
