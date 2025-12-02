@@ -28,12 +28,8 @@ class OrderRefund extends Model
     protected function casts(): array
     {
         return [
-            'merchant_id'            => 'integer',
-            'amount'                 => 'decimal:2',
-            'admin_id'               => 'integer',
-            'notify_state'           => 'boolean',
-            'notify_retry_count'     => 'integer',
-            'notify_next_retry_time' => 'integer'
+            'merchant_id' => 'integer',
+            'amount'      => 'decimal:2'
         ];
     }
 
@@ -44,12 +40,9 @@ class OrderRefund extends Model
     const string INITIATE_TYPE_SYSTEM   = 'system';
 
     // 退款状态枚举
-    const string STATUS_PENDING    = 'PENDING';
     const string STATUS_PROCESSING = 'PROCESSING';
     const string STATUS_COMPLETED  = 'COMPLETED';
     const string STATUS_FAILED     = 'FAILED';
-    const string STATUS_REJECTED   = 'REJECTED';
-    const string STATUS_CANCELED   = 'CANCELED';
 
     /***
      * 访问器【发起类型文本】
@@ -81,12 +74,9 @@ class OrderRefund extends Model
         return Attribute::make(
             get: function () {
                 $enum = [
-                    self::STATUS_PENDING    => '待处理',
                     self::STATUS_PROCESSING => '处理中',
                     self::STATUS_COMPLETED  => '已完成',
-                    self::STATUS_FAILED     => '退款失败',
-                    self::STATUS_REJECTED   => '已被驳回',
-                    self::STATUS_CANCELED   => '已取消',
+                    self::STATUS_FAILED     => '退款失败'
                 ];
                 return $enum[$this->getOriginal('status')] ?? '未知';
             }

@@ -349,22 +349,18 @@ CREATE TABLE `kkpay_order_refund`  (
   `merchant_id` int UNSIGNED NOT NULL COMMENT '商户ID',
   `initiate_type` enum('admin','api','merchant','system') CHARACTER SET ascii COLLATE ascii_bin NOT NULL DEFAULT 'system' COMMENT '发起类型',
   `trade_no` char(24) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '平台订单号',
-  `out_trade_no` varchar(128) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '商户订单号',
   `api_trade_no` varchar(255) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '上游订单号',
   `out_biz_no` varchar(64) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '商家业务号',
-  `amount` decimal(12, 2) NOT NULL COMMENT '退款金额',
-  `refund_state` enum('PENDING','PROCESSING','COMPLETED','FAILED','REJECTED','CANCELED') CHARACTER SET ascii COLLATE ascii_bin NOT NULL DEFAULT 'PENDING' COMMENT '状态',
+  `amount` decimal(11, 2) NOT NULL COMMENT '退款金额',
+  `status` enum('PROCESSING','COMPLETED','FAILED') CHARACTER SET ascii COLLATE ascii_bin NOT NULL DEFAULT 'PROCESSING' COMMENT '状态',
   `reason` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '退款原因',
-  `reject_reason` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '驳回理由',
-  `admin_id` tinyint UNSIGNED NOT NULL COMMENT '操作管理员ID',
-  `notify_state` bit(1) NOT NULL DEFAULT b'1' COMMENT '通知状态 0:失败 1:成功',
-  `notify_retry_count` tinyint UNSIGNED NOT NULL DEFAULT 0 COMMENT '重试次数',
-  `notify_next_retry_time` int UNSIGNED NULL DEFAULT NULL COMMENT '通知下次重试时间',
   `created_at` timestamp NULL DEFAULT NULL COMMENT '创建时间',
   `updated_at` timestamp NULL DEFAULT NULL COMMENT '更新时间',
   PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_initiate_type` (`initiate_type` ASC) USING BTREE,
   INDEX `idx_trade_no`(`trade_no` ASC) USING BTREE,
-  INDEX `idx_state_retry_nextretry` (`refund_state` ASC, `notify_state` ASC, `notify_retry_count` ASC) USING BTREE
+  INDEX `idx_out_biz_no`(`out_biz_no` ASC) USING BTREE,
+  INDEX `idx_status` (`status` ASC) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '订单退款表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
