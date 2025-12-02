@@ -5,9 +5,11 @@ declare(strict_types = 1);
 namespace app\admin\controller;
 
 use app\model\PaymentChannel;
+use app\model\PaymentChannelAccount;
 use Core\baseController\AdminBase;
 use Core\Utils\PaymentGatewayUtil;
 use SodiumException;
+use support\Db;
 use support\Request;
 use support\Response;
 use support\Rodots\Crypto\XChaCha20;
@@ -215,6 +217,40 @@ class PaymentChannelController extends AdminBase
         }
 
         return $this->success('删除成功');
+    }
+
+    /**
+     * 复制支付通道
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function copy(Request $request): Response
+    {
+        $id     = $request->post('id');
+        $number = $request->post('number', 1);
+
+        if (empty($id)) {
+            return $this->fail('必要参数缺失');
+        }
+
+        if (!$row = PaymentChannel::find($id)) {
+            return $this->fail('该支付通道不存在');
+        }
+
+        try {
+            DB::transaction(function () use ($row, $number) {
+                for ($i = 0; $i < $number; $i++) {
+                    $newAccount = $row->replicate(); // 复制模型实例，排除主键、时间戳等
+                    $newAccount->code = $row->code . '_' . ($i + 1);
+                    $newAccount->save(); // 插入新记录
+                }
+            });
+        } catch (Throwable $e) {
+            return $this->fail($e->getMessage() ?: '复制操作失败');
+        }
+
+        return $this->success('复制成功');
     }
 
     /**
