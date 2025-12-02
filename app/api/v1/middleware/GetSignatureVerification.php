@@ -38,8 +38,8 @@ class GetSignatureVerification implements MiddlewareInterface
     private const array REQUIRED_PARAMS = [
         'merchant_number' => '商户编号(merchant_number)缺失',
         'biz_content'     => '业务参数(biz_content)缺失',
-        'timestamp'       => '请求时间戳格式错误',
-        'sign_type'       => '签名算法类型不被允许',
+        'timestamp'       => '请求时间戳(timestamp)格式错误',
+        'sign_type'       => '签名算法类型(sign_type)不被允许',
         'sign'            => '签名缺失'
     ];
 
@@ -185,7 +185,7 @@ class GetSignatureVerification implements MiddlewareInterface
 
         // 验证签名算法类型
         if (!$this->validateSignType($params['sign_type'], $merchantEncryption['mode'])) {
-            return '签名算法类型不被允许';
+            return '签名算法类型(sign_type)不被允许';
         }
 
         // 验证签名
