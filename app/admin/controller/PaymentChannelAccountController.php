@@ -78,7 +78,7 @@ class PaymentChannelAccountController extends AdminBase
 
         // 获取总数和数据
         $total = $query->count();
-        $list  = $query->skip($from)->take($limit)->orderBy($sort, $order)->get();
+        $list  = $query->skip($from)->limit($limit)->orderBy($sort, $order)->get();
 
         return $this->success(data: [
             'list'  => $list,

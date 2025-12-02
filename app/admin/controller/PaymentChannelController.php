@@ -81,7 +81,7 @@ class PaymentChannelController extends AdminBase
 
         // 获取总数和数据
         $total = $query->count();
-        $list  = $query->skip($from)->take($limit)->orderBy($sort, $order)->get()->append(['payment_type_text']);
+        $list  = $query->skip($from)->limit($limit)->orderBy($sort, $order)->get()->append(['payment_type_text']);
 
         return $this->success(data: [
             'list'  => $list,
@@ -282,8 +282,8 @@ class PaymentChannelController extends AdminBase
             'name'          => ['require', 'max:64'],
             'payment_type'  => ['require', 'in:Alipay,WechatPay,Bank,UnionPay,QQWallet,JDPay,PayPal'],
             'gateway'       => ['require', 'max:16', 'regex' => '/^[a-zA-Z0-9]+$/'],
-            'cost'         => ['require', 'float', 'between:0,100'],
-            'fixed_cost'   => ['require', 'float', 'egt:0'],
+            'cost'          => ['require', 'float', 'between:0,100'],
+            'fixed_cost'    => ['require', 'float', 'egt:0'],
             'rate'          => ['require', 'float', 'between:0,100'],
             'fixed_fee'     => ['require', 'float', 'egt:0'],
             'min_fee'       => ['float', 'egt:0'],
@@ -294,7 +294,7 @@ class PaymentChannelController extends AdminBase
             'earliest_time' => ['regex' => '/^([01]\d|2[0-3]):([0-5]\d)$/'],
             'latest_time'   => ['regex' => '/^([01]\d|2[0-3]):([0-5]\d)$/'],
             'roll_mode'     => ['integer', 'egt:0'],
-            'settle_cycle'  => ['integer', 'egt:0'],
+            'settle_cycle'  => ['integer'],
             'status'        => ['require', 'boolean'],
         ];
     }
@@ -315,12 +315,12 @@ class PaymentChannelController extends AdminBase
             'gateway.require'      => '网关代码不能为空',
             'gateway.max'          => '网关代码长度不能超过16位',
             'gateway.regex'        => '网关代码只能由字母和数字组成',
-            'cost.require'        => '费率成本不能为空',
-            'cost.float'          => '费率成本必须是数字',
-            'cost.between'        => '费率成本必须在0到100%之间',
-            'fixed_cost.require'  => '固定成本不能为空',
-            'fixed_cost.float'    => '固定成本必须是数字',
-            'fixed_cost.egt'      => '固定成本不能为负数',
+            'cost.require'         => '费率成本不能为空',
+            'cost.float'           => '费率成本必须是数字',
+            'cost.between'         => '费率成本必须在0到100%之间',
+            'fixed_cost.require'   => '固定成本不能为空',
+            'fixed_cost.float'     => '固定成本必须是数字',
+            'fixed_cost.egt'       => '固定成本不能为负数',
             'rate.require'         => '费率不能为空',
             'rate.float'           => '费率必须是数字',
             'rate.between'         => '费率必须在0到100%之间',
@@ -342,7 +342,6 @@ class PaymentChannelController extends AdminBase
             'roll_mode.integer'    => '轮询模式必须是整数',
             'roll_mode.egt'        => '轮询模式不能为负数',
             'settle_cycle.integer' => '结算周期必须是整数',
-            'settle_cycle.egt'     => '结算周期不能为负数',
             'status.require'       => '请选择状态',
             'status.boolean'       => '请选择状态',
         ];
