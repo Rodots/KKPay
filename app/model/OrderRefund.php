@@ -96,7 +96,7 @@ class OrderRefund extends Model
                 $enum = [
                     self::INITIATE_TYPE_ADMIN    => '后台操作',
                     self::INITIATE_TYPE_API      => 'API提交',
-                    self::INITIATE_TYPE_MERCHANT => '商户提交',
+                    self::INITIATE_TYPE_MERCHANT => '商户操作',
                     self::INITIATE_TYPE_SYSTEM   => '系统自动',
                 ];
                 return $enum[$this->getOriginal('initiate_type')] ?? '未知';

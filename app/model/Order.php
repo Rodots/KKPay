@@ -128,14 +128,14 @@ class Order extends Model
     {
         parent::boot();
 
-        static::creating(function ($order) {
+        static::creating(function ($row) {
             // 生成一个24位的时间序列号作为订单号，并确保不重复
             $now     = microtime(true);
             $seconds = (int)$now;
             $micros  = (int)(($now - $seconds) * 1000000); // 取微秒级后6位
             // 组合：业务类型(1) + 时间(12) + 微秒(6) + 随机字母(5) = 24位
-            $order->trade_no    = 'P' . date('ymdHis', $seconds) . str_pad((string)$micros, 6, '0', STR_PAD_LEFT) . random(5, 'upper');
-            $order->create_time = Carbon::now();
+            $row->trade_no    = 'P' . date('ymdHis', $seconds) . str_pad((string)$micros, 6, '0', STR_PAD_LEFT) . random(5, 'upper');
+            $row->create_time = Carbon::now();
         });
     }
 
@@ -346,7 +346,7 @@ class Order extends Model
     /**
      * 订单买家信息
      */
-    public function buyerInfo(): HasOne
+    public function buyer(): HasOne
     {
         return $this->hasOne(OrderBuyer::class, 'trade_no', 'trade_no');
     }
@@ -354,7 +354,7 @@ class Order extends Model
     /**
      * 一个订单可以存在多次退款
      */
-    public function OrderRefund(): HasMany
+    public function refunds(): HasMany
     {
         return $this->hasMany(OrderRefund::class, 'trade_no', 'trade_no');
     }
@@ -362,19 +362,9 @@ class Order extends Model
     /**
      * 一个订单可以进行多次通知
      */
-    public function OrderNotification(): HasMany
+    public function notifications(): HasMany
     {
         return $this->hasMany(OrderNotification::class, 'trade_no', 'trade_no');
-    }
-
-    /**
-     * 获取表名
-     *
-     * @return string
-     */
-    public static function getTableName(): string
-    {
-        return new static()->getTable();
     }
 
     /**
@@ -403,7 +393,7 @@ class Order extends Model
         }
 
         // 关联订单退款表查询
-        $orderWithRefunds = self::withSum('OrderRefund', 'amount')->withSum('OrderRefund', 'real_amount')->find($trade_no);
+        $orderWithRefunds = self::withSum('refunds', 'amount')->withSum('refunds', 'real_amount')->find($trade_no);
 
         // 订单金额
         $order_amount = $order->getAttribute('amount');
@@ -412,10 +402,10 @@ class Order extends Model
         $get_amount = $order->getAttribute('get_amount');
 
         // 已退款金额，如果没有记录则默认为0
-        $refunded_amount = $orderWithRefunds->OrderRefund_sum_amount ?? 0;
+        $refunded_amount = $orderWithRefunds->refunds_sum_amount ?? 0;
 
         // 已真实扣除金额，如果没有记录则默认为0
-        $real_refunded_amount = $orderWithRefunds->OrderRefund_sum_real_amount ?? 0;
+        $real_refunded_amount = $orderWithRefunds->refunds_sum_real_amount ?? 0;
 
         // 剩余可退款金额
         $residue_refunded_amount = $order_amount - $refunded_amount;
@@ -431,7 +421,7 @@ class Order extends Model
         $real_amount = min($residue_real_refunded_amount, $amount);
 
         // 新增订单退款记录
-        $this->OrderRefund()->create([
+        $this->refunds()->create([
             'trade_no'     => $trade_no,
             'api_trade_no' => $api_trade_no ?: null,
             'user_id'      => $user_id,

@@ -108,7 +108,7 @@ class PaymentService
             }
 
             // 检查是否已有退款记录
-            $existingRefund = $order->OrderRefund()
+            $existingRefund = $order->refunds()
                 ->where('status', 1)
                 ->sum('amount');
 
@@ -120,7 +120,7 @@ class PaymentService
             $outRefundNo = $params['out_refund_no'] ?? self::generateRefundNo();
 
             // 创建退款记录
-            $refund = $order->OrderRefund()->create([
+            $refund = $order->refunds()->create([
                 'trade_no'      => $order->trade_no,
                 'out_refund_no' => $outRefundNo,
                 'user_id'       => $order->merchant_id,
@@ -201,7 +201,7 @@ class PaymentService
             }
 
             // 查找退款记录
-            $refundQuery = $order->OrderRefund();
+            $refundQuery = $order->refunds();
             if (!empty($params['out_refund_no'])) {
                 $refundQuery->where('out_refund_no', $params['out_refund_no']);
             }
@@ -247,7 +247,7 @@ class PaymentService
      */
     private static function updateOrderRefundStatus(Order $order): void
     {
-        $totalRefunded = $order->OrderRefund()->where('status', 1)->sum('amount');
+        $totalRefunded = $order->refunds()->where('status', 1)->sum('amount');
 
         if ($totalRefunded >= $order->total_amount) {
             $order->update(['trade_state' => Order::TRADE_STATE_FINISHED]);

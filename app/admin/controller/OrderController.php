@@ -35,7 +35,7 @@ class OrderController extends AdminBase
                 'api_trade_no'               => ['max:256', 'alphaDash'],
                 'bill_trade_no'              => ['max:256', 'alphaDash'],
                 'mch_trade_no'               => ['max:256', 'alphaDash'],
-                'merchant_number'            => ['alphaNum', 'startWith:M', 'length:24'],
+                'merchant_number'            => ['alphaNum', 'startWith:M', 'length:16'],
                 'payment_channel_code'       => ['max:16', 'alphaNum', 'upper'],
                 'payment_channel_account_id' => ['number'],
                 'subject'                    => ['max:255'],
@@ -57,9 +57,9 @@ class OrderController extends AdminBase
                 'bill_trade_no.alphaDash'           => '交易流水号只能是字母和数字，下划线及破折号',
                 'mch_trade_no.max'                  => '渠道交易流水号长度不能超过256位',
                 'mch_trade_no.alphaDash'            => '渠道交易流水号只能是字母和数字，下划线及破折号',
-                'merchant_number.alphaNum'  => '商户编号是以M开头的16位数字+英文组合',
-                'merchant_number.startWith' => '商户编号是以M开头的16位数字+英文组合',
-                'merchant_number.length'    => '商户编号是以M开头的16位数字+英文组合',
+                'merchant_number.alphaNum'          => '商户编号是以M开头的16位数字+英文组合',
+                'merchant_number.startWith'         => '商户编号是以M开头的16位数字+英文组合',
+                'merchant_number.length'            => '商户编号是以M开头的16位数字+英文组合',
                 'payment_channel_code.max'          => '支付通道编码长度不能超过16位',
                 'payment_channel_code.alphaNum'     => '支付通道编码只能是大写字母和数字',
                 'payment_channel_code.upper'        => '支付通道编码只能是大写字母和数字',
@@ -77,7 +77,7 @@ class OrderController extends AdminBase
 
         // 构建查询
         $select_fields = ['trade_no', 'out_trade_no', 'merchant_id', 'payment_type', 'payment_channel_account_id', 'subject', 'total_amount', 'create_time', 'payment_time', 'trade_state', 'settle_state', 'notify_state'];
-        $query         = Order::with(['merchant:id,merchant_number', 'paymentChannelAccount:id,name,payment_channel_id', 'paymentChannelAccount.paymentChannel:id,code', 'buyerInfo:trade_no,ip'])->when($params, function ($q) use ($params) {
+        $query         = Order::with(['merchant:id,merchant_number', 'paymentChannelAccount:id,name,payment_channel_id', 'paymentChannelAccount.paymentChannel:id,code', 'buyer:trade_no,ip'])->when($params, function ($q) use ($params) {
             foreach ($params as $key => $value) {
                 if ($value === '' || $value === null) {
                     continue;
@@ -154,7 +154,7 @@ class OrderController extends AdminBase
 
         // 获取总数和数据
         $total = $query->count();
-        $list = $query->skip($from)->take($limit)->orderBy('create_time', 'desc')->get($select_fields)->append(['payment_type_text', 'trade_state_text', 'settle_state_text', 'payment_duration']);
+        $list  = $query->skip($from)->limit($limit)->orderBy('create_time', 'desc')->get($select_fields)->append(['payment_type_text', 'trade_state_text', 'settle_state_text', 'payment_duration']);
 
         return $this->success(data: [
             'list'  => $list,
@@ -170,10 +170,19 @@ class OrderController extends AdminBase
             return $this->fail('必要参数缺失');
         }
 
-        $order = Order::find($trade_no);
+        $order = Order::with(['merchant:id,merchant_number', 'paymentChannelAccount:id,name,payment_channel_id', 'paymentChannelAccount.paymentChannel:id,code', 'buyer', 'refunds' => function ($query) {
+            $query->orderBy('id', 'desc');
+        }, 'notifications' => function ($query) {
+            $query->orderBy('id', 'desc')->limit(20);
+        }])->find($trade_no)->append(['payment_type_text', 'trade_state_text', 'settle_state_text', 'payment_duration']);
 
         if (empty($order)) {
             return $this->fail('该订单不存在');
+        }
+
+        // 为已加载的 refunds 附加字段
+        if ($order->relationLoaded('refunds')) {
+            $order->refunds->each(fn ($refund) => $refund->append(['initiate_type_text', 'status_text']));
         }
 
         return $this->success('获取成功', $order->toArray());
@@ -199,9 +208,9 @@ class OrderController extends AdminBase
 
         try {
             DB::transaction(function () use ($order) {
-                $order->buyerInfo()->delete();
-                $order->OrderRefund()->delete();
-                $order->OrderNotification()->delete();
+                $order->buyer()->delete();
+                $order->refunds()->delete();
+                $order->notifications()->delete();
                 $order->delete();
             });
         } catch (Throwable $e) {

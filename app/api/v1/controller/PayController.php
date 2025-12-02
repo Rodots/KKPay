@@ -253,7 +253,7 @@ class PayController
             $items = [
                 'order'      => $orderData,
                 'channel'    => $paymentChannelAccount->config,
-                'buyer'      => $order->buyerInfo->toArray(),
+                'buyer'      => $order->buyer->toArray(),
                 'config'     => sys_config(),
                 'subject'    => $order->subject,
                 'return_url' => site_url("pay/return/$order->trade_no.html"),

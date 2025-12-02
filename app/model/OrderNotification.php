@@ -4,6 +4,8 @@ declare(strict_types = 1);
 
 namespace app\model;
 
+use Carbon\Carbon;
+use Illuminate\Database\Eloquent\Casts\Attribute;
 use support\Model;
 
 /**
@@ -49,5 +51,15 @@ class OrderNotification extends Model
         return [
             'status' => 'boolean'
         ];
+    }
+
+    /**
+     * 访问器：通知时间
+     */
+    protected function createdAt(): Attribute
+    {
+        return Attribute::make(
+            get: fn(?string $value) => $value ? Carbon::rawParse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
+        );
     }
 }
