@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 namespace app\model;
 
+use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use support\Model;
@@ -19,6 +20,20 @@ class OrderRefund extends Model
      * @var string
      */
     protected $table = 'order_refund';
+
+    /**
+     * 指示模型的 ID 是否是自动递增的。
+     *
+     * @var bool
+     */
+    public $incrementing = false;
+
+    /**
+     * 主键 ID 的数据类型。
+     *
+     * @var string
+     */
+    protected $keyType = 'string';
 
     /**
      * 获取应转换的属性。
@@ -44,6 +59,31 @@ class OrderRefund extends Model
     const string STATUS_COMPLETED  = 'COMPLETED';
     const string STATUS_FAILED     = 'FAILED';
 
+    /**
+     * 模型启动方法，用于注册模型事件
+     *
+     * @return void
+     */
+    protected static function boot(): void
+    {
+        parent::boot();
+
+        static::creating(function ($row) {
+            // 组合：业务类型(1) + 年份(2) + uniqid(13) = 16位
+            $row->id = strtoupper(uniqid('R' . date('y')));
+        });
+    }
+
+    /**
+     * 访问器：操作时间
+     */
+    protected function createdAt(): Attribute
+    {
+        return Attribute::make(
+            get: fn(?string $value) => $value ? Carbon::rawParse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
+        );
+    }
+
     /***
      * 访问器【发起类型文本】
      *
@@ -57,7 +97,7 @@ class OrderRefund extends Model
                     self::INITIATE_TYPE_ADMIN    => '后台操作',
                     self::INITIATE_TYPE_API      => 'API提交',
                     self::INITIATE_TYPE_MERCHANT => '商户提交',
-                    self::INITIATE_TYPE_SYSTEM   => '系统自动化',
+                    self::INITIATE_TYPE_SYSTEM   => '系统自动',
                 ];
                 return $enum[$this->getOriginal('initiate_type')] ?? '未知';
             }
@@ -75,7 +115,7 @@ class OrderRefund extends Model
             get: function () {
                 $enum = [
                     self::STATUS_PROCESSING => '处理中',
-                    self::STATUS_COMPLETED  => '已完成',
+                    self::STATUS_COMPLETED  => '已退款',
                     self::STATUS_FAILED     => '退款失败'
                 ];
                 return $enum[$this->getOriginal('status')] ?? '未知';

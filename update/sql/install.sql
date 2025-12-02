@@ -345,7 +345,7 @@ CREATE TABLE `kkpay_order_notification`  (
 -- ----------------------------
 DROP TABLE IF EXISTS `kkpay_order_refund`;
 CREATE TABLE `kkpay_order_refund`  (
-  `id` char(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '退款流水号',
+  `id` char(16) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '退款流水号',
   `merchant_id` int UNSIGNED NOT NULL COMMENT '商户ID',
   `initiate_type` enum('admin','api','merchant','system') CHARACTER SET ascii COLLATE ascii_bin NOT NULL DEFAULT 'system' COMMENT '发起类型',
   `trade_no` char(24) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '平台订单号',
