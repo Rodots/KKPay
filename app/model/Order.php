@@ -133,7 +133,7 @@ class Order extends Model
             $now     = microtime(true);
             $seconds = (int)$now;
             $micros  = (int)(($now - $seconds) * 1000000); // 取微秒级后6位
-            // 组合：业务类型(1) + 时间(12) + 微秒(6) + 随机字母(5) = 24位
+            // 组合：业务类型(1) + 时间(12) + 微秒(6) + 随机英文字母(5) = 24位
             $row->trade_no    = 'P' . date('ymdHis', $seconds) . str_pad((string)$micros, 6, '0', STR_PAD_LEFT) . random(5, 'upper');
             $row->create_time = Carbon::now();
         });

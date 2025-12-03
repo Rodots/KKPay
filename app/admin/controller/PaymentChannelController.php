@@ -30,16 +30,15 @@ class PaymentChannelController extends AdminBase
 
         try {
             validate([
-                'code'    => 'max:16|alphaNum|upper',
-                'name'    => 'max:64',
-                'gateway' => 'max:16|alphaNum'
+                'code'    => ['max:16', 'regex' => '/^[A-Z0-9]+$/'],
+                'name'    => ['max:64'],
+                'gateway' => ['max:16', 'alphaNum']
             ], [
                 'code.max'         => '通道编码长度不能超过16位',
-                'code.alphaNum'    => '通道编码只能是大写字母和数字',
-                'code.upper'       => '通道编码只能是大写字母和数字',
+                'code.regex'       => '通道编码只能是大写英文字母和数字',
                 'name.max'         => '通道名称长度不能超过64位',
                 'gateway.max'      => '网关代码长度不能超过16位',
-                'gateway|alphaNum' => '网关代码只能是字母和数字'
+                'gateway.alphaNum' => '网关代码只能是英文字母和数字'
             ])->check($params);
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
@@ -343,14 +342,14 @@ class PaymentChannelController extends AdminBase
         return [
             'code.require'         => '通道编码不能为空',
             'code.max'             => '通道编码长度不能超过16位',
-            'code.regex'           => '通道编码只能由大写字母和数字组成',
+            'code.regex'           => '通道编码只能由大写英文字母和数字组成',
             'name.require'         => '通道名称不能为空',
             'name.max'             => '通道名称长度不能超过64位',
             'payment_type.require' => '支付方式不能为空',
             'payment_type.in'      => '支付方式不在允许范围内',
             'gateway.require'      => '网关代码不能为空',
             'gateway.max'          => '网关代码长度不能超过16位',
-            'gateway.regex'        => '网关代码只能由字母和数字组成',
+            'gateway.regex'        => '网关代码只能由英文字母和数字组成',
             'cost.require'         => '费率成本不能为空',
             'cost.float'           => '费率成本必须是数字',
             'cost.between'         => '费率成本必须在0到100%之间',

@@ -200,8 +200,8 @@ class AccountController extends AdminBase
         try {
             // 验证参数合法性
             validate([
-                'nickname|昵称' => 'require|max:16',
-                'email|邮箱'    => 'email',
+                'nickname' => ['require', 'max:16'],
+                'email'    => ['email'],
             ], [
                 'nickname.require' => '昵称不能为空',
                 'nickname.max'     => '昵称长度不能超过16个字符',

@@ -28,10 +28,10 @@ class AdminController extends AdminBase
 
         try {
             validate([
-                'account'    => 'max:32',
-                'nickname'   => 'max:16',
-                'email'      => 'max:64',
-                'created_at' => 'array'
+                'account'    => ['max:32'],
+                'nickname'   => ['max:16'],
+                'email'      => ['max:64'],
+                'created_at' => ['array']
             ], [
                 'account.max'      => '账号长度不能超过32位',
                 'nickname.max'     => '昵称长度不能超过16位',
@@ -113,11 +113,11 @@ class AdminController extends AdminBase
 
         try {
             validate([
-                'role'     => 'require|gt:' . $this->getRole(),
-                'account'  => 'require|max:32',
-                'nickname' => 'require|max:16',
-                'email'    => 'email',
-                'password' => 'require|min:5'
+                'role'     => ['require', 'gt:' . $this->getRole()],
+                'account'  => ['require', 'max:32'],
+                'nickname' => ['require', 'max:16'],
+                'email'    => ['email'],
+                'password' => ['require', 'min:5']
             ], [
                 'role.require'     => '角色为必选项',
                 'role.gt'          => '只能创建比自己权限低的角色',
@@ -164,11 +164,11 @@ class AdminController extends AdminBase
 
         try {
             validate([
-                'role'         => 'require|gt:' . $this->getRole(),
-                'account'      => 'require|max:32',
-                'nickname'     => 'require|max:16',
-                'email'        => 'email',
-                'new_password' => 'min:5'
+                'role'         => ['require', 'gt:' . $this->getRole()],
+                'account'      => ['require', 'max:32'],
+                'nickname'     => ['require', 'max:16'],
+                'email'        => ['email'],
+                'new_password' => ['min:5']
             ], [
                 'role.require'     => '角色为必选项',
                 'role.gt'          => '只能创建比自己权限低的角色',

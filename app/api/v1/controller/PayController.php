@@ -129,7 +129,7 @@ class PayController
             return '商户订单号(out_trade_no)长度不能超过128个字符';
         }
         if (!preg_match('/^[a-zA-Z0-9_-]+$/', $bizContent['out_trade_no'])) {
-            return '商户订单号(out_trade_no)格式错误，只能包含字母、数字、下划线和横线';
+            return '商户订单号(out_trade_no)格式错误，只能包含英文字母、数字、下划线和横线';
         }
 
         // 最少1分钱，最多1亿

@@ -34,8 +34,8 @@ class PaymentChannelAccountController extends AdminBase
 
         try {
             validate([
-                'name'   => 'max:64',
-                'remark' => 'max:1024',
+                'name'   => ['max:64'],
+                'remark' => ['max:1024'],
             ], [
                 'name.max'   => '子账户名称长度不能超过64位',
                 'remark.max' => '备注长度不能超过1024位',

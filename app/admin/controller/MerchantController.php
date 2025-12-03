@@ -29,13 +29,13 @@ class MerchantController extends AdminBase
 
         try {
             validate([
-                'merchant_number' => 'alphaNum|startWith:M|length:16',
-                'email'           => 'max:64',
-                'phone'           => 'number|max:11',
-                'created_at'      => 'array'
+                'merchant_number' => ['startWith:M', 'alphaNum', 'length:16'],
+                'email'           => ['max:64'],
+                'phone'           => ['number', 'max:11'],
+                'created_at'      => ['array']
             ], [
-                'merchant_number.alphaNum'  => '商户编号是以M开头的16位数字+英文组合',
                 'merchant_number.startWith' => '商户编号是以M开头的16位数字+英文组合',
+                'merchant_number.alphaNum'  => '商户编号是以M开头的16位数字+英文组合',
                 'merchant_number.length'    => '商户编号是以M开头的16位数字+英文组合',
                 'email.max'                 => '邮箱长度不能超过64位',
                 'phone.number'              => '手机号码只能是纯数字',
@@ -118,9 +118,9 @@ class MerchantController extends AdminBase
 
         try {
             validate([
-                'email'    => 'email',
-                'phone'    => 'mobile',
-                'password' => 'require|min:6'
+                'email'    => ['email'],
+                'phone'    => ['mobile'],
+                'password' => ['require', 'min:6']
             ], [
                 'email.email'      => '邮箱格式不正确',
                 'phone.mobile'     => '手机号码格式不正确',
@@ -163,8 +163,8 @@ class MerchantController extends AdminBase
         try {
             // 验证数据
             validate([
-                'email' => 'email',
-                'phone' => 'mobile',
+                'email' => ['email'],
+                'phone' => ['mobile'],
             ], [
                 'email.email'  => '邮箱格式不正确',
                 'phone.mobile' => '手机号码格式不正确',
@@ -345,13 +345,13 @@ class MerchantController extends AdminBase
 
         try {
             validate([
-                'merchant_number' => 'alphaNum|startWith:M|length:16',
-                'content'         => 'max:1024',
-                'ip'              => 'max:45',
-                'created_at'      => 'array'
+                'merchant_number' => ['startWith:M', 'alphaNum', 'length:16'],
+                'content'         => ['max:1024'],
+                'ip'              => ['max:45'],
+                'created_at'      => ['array']
             ], [
-                'merchant_number.alphaNum'  => '商户编号是以M开头的16位数字+英文组合',
                 'merchant_number.startWith' => '商户编号是以M开头的16位数字+英文组合',
+                'merchant_number.alphaNum'  => '商户编号是以M开头的16位数字+英文组合',
                 'merchant_number.length'    => '商户编号是以M开头的16位数字+英文组合',
                 'content.max'               => '操作内容不能超过1024个字符',
                 'ip.max'                    => '操作IP长度不能超过45位',
@@ -413,19 +413,19 @@ class MerchantController extends AdminBase
 
         try {
             validate([
-                'merchant_number' => 'alphaNum|startWith:M|length:16',
-                'type'            => 'max:32',
-                'remark'          => 'max:255',
-                'trade_no'        => 'alphaNum|startWith:M|length:16',
-                'created_at'      => 'array'
+                'merchant_number' => ['startWith:M', 'alphaNum', 'length:16'],
+                'type'            => ['max:32'],
+                'remark'          => ['max:255'],
+                'trade_no'        => ['startWith:P', 'alphaNum', 'length:24'],
+                'created_at'      => ['array']
             ], [
-                'merchant_number.alphaNum'  => '商户编号是以M开头的16位数字+英文组合',
                 'merchant_number.startWith' => '商户编号是以M开头的16位数字+英文组合',
+                'merchant_number.alphaNum'  => '商户编号是以M开头的16位数字+英文组合',
                 'merchant_number.length'    => '商户编号是以M开头的16位数字+英文组合',
                 'type.max'                  => '操作类型不能超过32个字符',
                 'remark.max'                => '备注不能超过255个字符',
-                'trade_no.alphaNum'         => '平台订单号是以P开头的24位数字+英文组合',
                 'trade_no.startWith'        => '平台订单号是以P开头的24位数字+英文组合',
+                'trade_no.alphaNum'         => '平台订单号是以P开头的24位数字+英文组合',
                 'trade_no.length'           => '平台订单号是以P开头的24位数字+英文组合',
                 'created_at.array'          => '请重新选择选择时间范围'
             ])->check($params);
@@ -488,12 +488,12 @@ class MerchantController extends AdminBase
 
         try {
             validate([
-                'merchant_number' => 'alphaNum|startWith:M|length:16',
-                'remark'          => 'max:255',
-                'created_at'      => 'array'
+                'merchant_number' => ['startWith:M', 'alphaNum', 'length:16'],
+                'remark'          => ['max:255'],
+                'created_at'      => ['array']
             ], [
-                'merchant_number.alphaNum'  => '商户编号是以M开头的16位数字+英文组合',
                 'merchant_number.startWith' => '商户编号是以M开头的16位数字+英文组合',
+                'merchant_number.alphaNum'  => '商户编号是以M开头的16位数字+英文组合',
                 'merchant_number.length'    => '商户编号是以M开头的16位数字+英文组合',
                 'remark.max'                => '备注不能超过255个字符',
                 'created_at.array'          => '请重新选择选择时间范围'

@@ -30,13 +30,13 @@ class OrderController extends AdminBase
         try {
             validate([
                 'fuzzy_trade_no'             => ['max:256', 'alphaDash'],
-                'trade_no'                   => ['max:24', 'alphaDash'],
+                'trade_no'                   => ['max:24', 'alphaNum'],
                 'out_trade_no'               => ['max:128', 'alphaDash'],
                 'api_trade_no'               => ['max:256', 'alphaDash'],
                 'bill_trade_no'              => ['max:256', 'alphaDash'],
                 'mch_trade_no'               => ['max:256', 'alphaDash'],
                 'merchant_number'            => ['alphaNum', 'startWith:M', 'length:16'],
-                'payment_channel_code'       => ['max:16', 'alphaNum', 'upper'],
+                'payment_channel_code'       => ['max:16', 'regex' => '/^[A-Z0-9]+$/'],
                 'payment_channel_account_id' => ['number'],
                 'subject'                    => ['max:255'],
                 'total_amount'               => ['float'],
@@ -46,23 +46,22 @@ class OrderController extends AdminBase
                 'payment_time'               => ['array']
             ], [
                 'fuzzy_trade_no.max'                => '五合一单号长度不能超过256位',
-                'fuzzy_trade_no.alphaDash'          => '五合一单号只能是字母和数字，下划线及破折号',
+                'fuzzy_trade_no.alphaDash'          => '五合一单号只能是英文字母和数字，下划线及破折号',
                 'trade_no.max'                      => '平台订单号长度不能超过24位',
-                'trade_no.alphaDash'                => '平台订单号只能是字母和数字，下划线及破折号',
+                'trade_no.alphaNum'                 => '平台订单号只能是英文字母和数字',
                 'out_trade_no.max'                  => '商户订单号长度不能超过128位',
-                'out_trade_no.alphaDash'            => '商户订单号只能是字母和数字，下划线及破折号',
+                'out_trade_no.alphaDash'            => '商户订单号只能是英文字母和数字，下划线及破折号',
                 'api_trade_no.max'                  => '上游订单号长度不能超过256位',
-                'api_trade_no.alphaDash'            => '上游订单号只能是字母和数字，下划线及破折号',
+                'api_trade_no.alphaDash'            => '上游订单号只能是英文字母和数字，下划线及破折号',
                 'bill_trade_no.max'                 => '交易流水号长度不能超过256位',
-                'bill_trade_no.alphaDash'           => '交易流水号只能是字母和数字，下划线及破折号',
+                'bill_trade_no.alphaDash'           => '交易流水号只能是英文字母和数字，下划线及破折号',
                 'mch_trade_no.max'                  => '渠道交易流水号长度不能超过256位',
-                'mch_trade_no.alphaDash'            => '渠道交易流水号只能是字母和数字，下划线及破折号',
+                'mch_trade_no.alphaDash'            => '渠道交易流水号只能是英文字母和数字，下划线及破折号',
                 'merchant_number.alphaNum'          => '商户编号是以M开头的16位数字+英文组合',
                 'merchant_number.startWith'         => '商户编号是以M开头的16位数字+英文组合',
                 'merchant_number.length'            => '商户编号是以M开头的16位数字+英文组合',
                 'payment_channel_code.max'          => '支付通道编码长度不能超过16位',
-                'payment_channel_code.alphaNum'     => '支付通道编码只能是大写字母和数字',
-                'payment_channel_code.upper'        => '支付通道编码只能是大写字母和数字',
+                'payment_channel_code.regex'        => '支付通道编码只能是大写英文字母和数字',
                 'payment_channel_account_id.number' => '支付通道账户ID只能是数字',
                 'subject:max'                       => '商品名称长度不能超过255位',
                 'total_amount.float'                => '订单总金额格式不正确',
@@ -172,7 +171,7 @@ class OrderController extends AdminBase
 
         $order = Order::with(['merchant:id,merchant_number', 'paymentChannelAccount:id,name,payment_channel_id', 'paymentChannelAccount.paymentChannel:id,code', 'buyer', 'refunds' => function ($query) {
             $query->orderBy('id', 'desc');
-        }, 'notifications' => function ($query) {
+        }, 'notifications'                                                                                                                                                          => function ($query) {
             $query->orderBy('id', 'desc')->limit(20);
         }])->find($trade_no)->append(['payment_type_text', 'trade_state_text', 'settle_state_text', 'payment_duration']);
 
@@ -182,7 +181,7 @@ class OrderController extends AdminBase
 
         // 为已加载的 refunds 附加字段
         if ($order->relationLoaded('refunds')) {
-            $order->refunds->each(fn ($refund) => $refund->append(['initiate_type_text', 'status_text']));
+            $order->refunds->each(fn($refund) => $refund->append(['initiate_type_text', 'status_text']));
         }
 
         return $this->success('获取成功', $order->toArray());
