@@ -154,7 +154,7 @@ class OrderController extends AdminBase
 
         // 获取总数和数据
         $total = $query->count();
-        $list  = $query->skip($from)->limit($limit)->orderBy('create_time', 'desc')->get($select_fields)->append(['payment_type_text', 'trade_state_text', 'settle_state_text', 'payment_duration']);
+        $list  = $query->offset($from)->limit($limit)->orderBy('create_time', 'desc')->get($select_fields)->append(['payment_type_text', 'trade_state_text', 'settle_state_text', 'payment_duration']);
 
         return $this->success(data: [
             'list'  => $list,

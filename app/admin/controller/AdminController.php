@@ -76,7 +76,7 @@ class AdminController extends AdminBase
 
         // 获取总数和数据
         $total = $query->count();
-        $list  = $query->skip($from)->limit($limit)->orderBy($sort, $order)->get()->append(['role_name', 'totp_state']);
+        $list  = $query->offset($from)->limit($limit)->orderBy($sort, $order)->get()->append(['role_name', 'totp_state']);
 
         return $this->success(data: [
             'list'  => $list,
@@ -339,7 +339,7 @@ class AdminController extends AdminBase
 
         // 获取总数和数据
         $total = $query->count();
-        $list  = $query->skip($from)->limit($limit)->orderBy($sort, $order)->get();
+        $list  = $query->offset($from)->limit($limit)->orderBy($sort, $order)->get();
 
         return $this->success(data: [
             'list'  => $list,

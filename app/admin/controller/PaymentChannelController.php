@@ -83,7 +83,7 @@ class PaymentChannelController extends AdminBase
 
         // 获取总数和数据
         $total = $query->count();
-        $list  = $query->skip($from)->limit($limit)->orderBy($sort, $order)->get()->append(['payment_type_text']);
+        $list  = $query->offset($from)->limit($limit)->orderBy($sort, $order)->get()->append(['payment_type_text']);
 
         return $this->success(data: [
             'list'  => $list,
@@ -241,9 +241,9 @@ class PaymentChannelController extends AdminBase
         try {
             DB::transaction(function () use ($row, $number) {
                 for ($i = 0; $i < $number; $i++) {
-                    $newAccount = $row->replicate(); // 复制模型实例，排除主键、时间戳等
-                    $newAccount->code = $row->code . '_' . ($i + 1);
-                    $newAccount->save(); // 插入新记录
+                    $newRow       = $row->replicate(); // 复制模型实例，排除主键、时间戳等
+                    $newRow->code = $row->code . ($i + 1);
+                    $newRow->save(); // 插入新记录
                 }
             });
         } catch (Throwable $e) {

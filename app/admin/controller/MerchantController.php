@@ -81,7 +81,7 @@ class MerchantController extends AdminBase
 
         // 获取总数和数据
         $total = $query->count();
-        $list  = $query->skip($from)->limit($limit)->orderByDesc('id')->get();
+        $list  = $query->offset($from)->limit($limit)->orderByDesc('id')->get();
 
         return $this->success(data: [
             'list'  => $list,
@@ -392,7 +392,7 @@ class MerchantController extends AdminBase
 
         // 获取总数和数据
         $total = $query->count();
-        $list  = $query->skip($from)->limit($limit)->orderBy($sort, $order)->get();
+        $list  = $query->offset($from)->limit($limit)->orderBy($sort, $order)->get();
 
         return $this->success(data: [
             'list'  => $list,
@@ -467,7 +467,7 @@ class MerchantController extends AdminBase
 
         // 获取总数和数据
         $total = $query->count();
-        $list  = $query->skip($from)->limit($limit)->orderBy($sort, $order)->get();
+        $list  = $query->offset($from)->limit($limit)->orderBy($sort, $order)->get();
 
         return $this->success(data: [
             'list'  => $list,
@@ -530,7 +530,7 @@ class MerchantController extends AdminBase
 
         // 获取总数和数据
         $total = $query->count();
-        $list  = $query->skip($from)->limit($limit)->orderBy($sort, $order)->get();
+        $list  = $query->offset($from)->limit($limit)->orderBy($sort, $order)->get();
 
         return $this->success(data: [
             'list'  => $list,

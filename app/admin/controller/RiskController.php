@@ -62,7 +62,7 @@ class RiskController extends AdminBase
 
         // 获取总数和数据
         $total = $query->count();
-        $list  = $query->skip($from)->limit($limit)->orderBy('id', 'desc')->get()->append(['entity_type_text', 'origin_text', 'expired_at_text']);
+        $list  = $query->offset($from)->limit($limit)->orderBy('id', 'desc')->get()->append(['entity_type_text', 'origin_text', 'expired_at_text']);
 
         return $this->success(data: [
             'list'  => $list,
