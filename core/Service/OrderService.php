@@ -228,15 +228,12 @@ class OrderService
     }
 
     /**
-     * 检查订单是否可以支付
+     * 处理退款
+     *
+     * @return void
      */
-    public static function canPay(Order $order): bool
+    public static function handleRefund(string $trade_no, string $amount, string $initiate_type, string $reason, bool $refund_type = true, bool $feeBearer = true,)
     {
-        // 检查订单状态
-        if ($order->trade_state !== Order::TRADE_STATE_WAIT_PAY || $order->trade_state === Order::TRADE_STATE_CLOSED) {
-            return false;
-        }
 
-        return true;
     }
 }

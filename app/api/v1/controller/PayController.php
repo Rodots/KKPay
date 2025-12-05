@@ -8,7 +8,6 @@ use app\api\v1\middleware\GetSignatureVerification;
 use app\model\Order;
 use Carbon\Carbon;
 use Core\Exception\PaymentException;
-use Core\Service\OrderService;
 use Core\Service\PaymentService;
 use Core\Service\OrderCreationService;
 use Core\Traits\ApiResponse;
@@ -237,7 +236,8 @@ class PayController
                 return $this->$echoMethod('订单不存在');
             }
 
-            if (!OrderService::canPay($order)) {
+            // 检查订单是否可以支付
+            if ($order->trade_state !== Order::TRADE_STATE_WAIT_PAY || $order->trade_state === Order::TRADE_STATE_CLOSED) {
                 return $this->$echoMethod('当前订单已交易结束');
             }
 
