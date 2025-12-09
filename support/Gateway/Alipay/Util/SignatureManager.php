@@ -13,7 +13,6 @@ use Gateway\Alipay\AlipayConfig;
  * 职责
  * - 使用应用私钥对数据进行签名
  * - 使用支付宝公钥对数据进行验签
- * - 提供 V1/V2 参数签名/验签兼容方法
  *
  * 注意
  * - 私钥需为 PKCS#1 格式 PEM；公钥为 PEM

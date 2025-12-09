@@ -28,11 +28,6 @@ readonly class AlipayClient
     private const int DEFAULT_TIMEOUT = 5;
 
     /**
-     * 支付宝 API 版本标识，当前固定为 'v3'
-     */
-    private const string API_VERSION = 'v3';
-
-    /**
      * 配置管理器实例，用于处理签名、加密、验签等操作
      */
     private ConfigManager $configManager;
@@ -50,7 +45,7 @@ readonly class AlipayClient
     {
         $this->configManager = new ConfigManager($config);
     }
-    
+
     /**
      * 获取配置管理器实例
      */
@@ -71,9 +66,10 @@ readonly class AlipayClient
         $alipayConfig = $config instanceof AlipayConfig ? $config : AlipayConfig::fromArray($config);
 
         $client = $httpClient ?? new Client([
-            // 'base_uri' => 'https://openapi-sandbox.dl.alipaydev.com/',
-            'base_uri' => 'https://openapi.alipay.com/',
-            'timeout'  => self::DEFAULT_TIMEOUT,
+            // 'base_uri' => 'https://openapi-sandbox.dl.alipaydev.com',
+            'base_uri'    => 'https://openapi.alipay.com',
+            'timeout'     => self::DEFAULT_TIMEOUT,
+            'http_errors' => false
         ]);
 
         return new self($alipayConfig, $client);
@@ -94,7 +90,7 @@ readonly class AlipayClient
     public function execute(array $params, string $methodName): array
     {
         // 构造请求路径，将方法名中的点号替换为斜杠
-        $requestPath = self::API_VERSION . '/' . str_replace('.', '/', $methodName);
+        $requestPath = '/v3/' . str_replace('.', '/', $methodName);
         // 准备请求体，根据配置决定是否加密
         $requestBody = $this->prepareRequestBody($params);
         // 构建请求头并附加签名
@@ -155,7 +151,7 @@ readonly class AlipayClient
         $commonParams = $this->configManager->buildRequestParams($params, $methodName, $returnUrl, $notifyUrl);
 
         // 发送 POST 请求到支付宝 API
-        $response = $this->httpClient->post('gateway.do?charset=utf-8', [
+        $response = $this->httpClient->post('/gateway.do?charset=utf-8', [
             'headers'     => [
                 'Content-Type' => 'application/x-www-form-urlencoded;charset=utf-8',
                 'Accept'       => 'application/json',
@@ -209,7 +205,7 @@ readonly class AlipayClient
      * 根据是否启用加密设置 Content-Type 和 alipay-encrypt-type，
      * 并调用签名逻辑注入 Authorization 头（符合 Alipay v3 签名规范）。
      *
-     * @param string $requestPath 请求路径（不含域名），如 'v3/alipay/trade/page/pay'
+     * @param string $requestPath 请求路径（不含域名），如 '/v3/alipay/trade/page/pay'
      * @param string $requestBody 原始请求体（可能已加密）
      * @return array 包含必要头信息的关联数组
      * @throws Exception
@@ -239,6 +235,7 @@ readonly class AlipayClient
      *
      * @param ResponseInterface $response Guzzle 响应对象
      * @return array 解析后的响应数据
+     * @throws Exception 当校验响应内容非正确时抛出
      * @throws JsonException 当响应体不是合法 JSON 时抛出
      */
     private function processResponse(ResponseInterface $response): array
@@ -248,14 +245,21 @@ readonly class AlipayClient
         $statusCode      = $response->getStatusCode();
 
         // 处理加密响应
-        // 通过ConfigManager获取头部值
-        $encryptType = $this->configManager->getHeaderValue($responseHeaders, 'alipay-encrypt-type');
-        if ($this->config->isEncryptEnabled() && $statusCode >= 200 && $statusCode < 300 && !empty($encryptType)) {
-            $responseBody = $this->configManager->decryptResponse($responseBody);
+        if ($this->config->isEncryptEnabled() && $statusCode >= 200 && $statusCode < 300) {
+            $encryptType = $this->configManager->getHeaderValue($responseHeaders, 'alipay-encrypt-type');
+            if (!empty($encryptType)) {
+                $responseBody = $this->configManager->decryptResponse($responseBody);
+            }
         }
 
-        $this->configManager->verifyResponseV3($responseBody, $responseHeaders);
+        // 解析 JSON 并验证响应
+        $data = json_decode($responseBody, true, 512, JSON_THROW_ON_ERROR);
 
-        return json_decode($responseBody, true, 512, JSON_THROW_ON_ERROR);
+        if ($statusCode >= 200 && $statusCode < 300) {
+            $this->configManager->verifyResponseV3($responseBody, $responseHeaders);
+            return $data;
+        }
+
+        throw new Exception("[{$data['code']}] {$data['message']}");
     }
 }
