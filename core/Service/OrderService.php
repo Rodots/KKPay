@@ -155,18 +155,27 @@ class OrderService
     }
 
     /**
-     * 发送异步通知
+     * 发送订单状态变更的异步通知
      *
-     * 向指定队列发送订单状态变更的异步通知消息，用于通知下游系统订单状态的更新
-     * 包括订单的基本信息、支付信息以及签名等数据
+     * 本方法用于将订单状态更新信息以异步消息的形式发送至指定的消息队列（默认为 'order-notification'），
+     * 供下游系统消费处理。通知数据包含订单核心字段、时间信息、金额信息及基于 RSA2 算法生成的签名。
+     * 根据 $isServer 参数决定行为模式。
      *
-     * @param string     $tradeNo   系统交易号，用于标识唯一订单
-     * @param Order|null $order     订单对象，如果未提供将根据$tradeNo从数据库查询
-     * @param string     $queueName 队列名称，默认为'order-notification'
-     * @return string 签名字符串
-     * @throws Exception 当签名生成过程出现错误时抛出异常
+     * 若传入的 $order 为 null，将根据 $tradeNo 自动从数据库加载订单。
+     * 若未找到对应订单，将抛出异常。
+     *
+     * @param string     $tradeNo   系统内部交易号，唯一标识一笔订单
+     * @param Order|null $order     可选的订单模型实例；若未提供，则根据 $tradeNo 查询数据库
+     * @param string     $queueName 目标队列名称，默认为 'order-notification'
+     * @param bool       $isServer  是否以服务端模式运行：
+     *                              - true：发送消息到队列，并返回签名原始字符串；
+     *                              - false：不发送队列，返回完整 JSON 数据（含签名），用于模拟请求体
+     *
+     * @return string
+     *
+     * @throws Exception 当订单不存在或签名生成失败时抛出异常
      */
-    public static function sendAsyncNotification(string $tradeNo, ?Order $order = null, string $queueName = 'order-notification'): string
+    public static function sendAsyncNotification(string $tradeNo, ?Order $order = null, string $queueName = 'order-notification', bool $isServer = true): string
     {
         if ($order === null) {
             $order = Order::where('trade_no', $tradeNo)->first();
@@ -193,12 +202,16 @@ class OrderService
         $buildSignature    = SignatureUtil::buildSignature($queueData, $queueData['sign_type'], sys_config('payment', 'system_rsa2_private_key', 'Rodots'));
         $queueData['sign'] = $buildSignature['sign'];
 
-        // 使用Redis队列发送异步通知
-        if (!SyncQueue::send($queueName, $queueData)) {
-            Log::error("订单异步通知队列{$queueName}投递失败：" . $tradeNo);
+        if ($isServer) {
+            // 使用Redis队列发送异步通知
+            if (!SyncQueue::send($queueName, $queueData)) {
+                Log::error("订单异步通知队列{$queueName}投递失败：" . $tradeNo);
+            }
+
+            return $buildSignature['sign_string'];
         }
 
-        return $buildSignature['sign_string'];
+        return json_encode($queueData);
     }
 
     /**
@@ -210,6 +223,8 @@ class OrderService
      */
     public static function buildSyncNotificationParams(array $order): string
     {
+        // 过滤$order数组，只保留必要参数
+        $order      = array_intersect_key($order, ['trade_no' => 0, 'out_trade_no' => 0, 'bill_trade_no' => 0, 'total_amount' => 0, 'attach' => 0, 'trade_state' => 0, 'return_url' => 0, 'create_time' => 0, 'payment_time' => 0]);
         $return_url = $order['return_url'];
         unset($order['return_url']);
 

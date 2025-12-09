@@ -232,25 +232,33 @@ class OrderController extends AdminBase
     public function reNotification(Request $request): Response
     {
         $trade_no = $request->input('trade_no');
+        $type     = $request->input('type', 'server');
 
         if (empty($trade_no)) {
             return $this->fail('必要参数缺失');
         }
-
         if (!$order = Order::find($trade_no)) {
             return $this->fail('该订单不存在');
         }
-
         if ($order->trade_state !== Order::TRADE_STATE_SUCCESS) {
-            return $this->fail('该订单未支付成功，无法重新通知');
+            return $this->fail('该订单非交易成功状态，无法重新通知');
         }
+
         try {
+            if ($type === 'manual') {
+                $sign_string = OrderService::sendAsyncNotification($trade_no, $order, isServer: false);
+                $curlCommand = "curl -X POST '" . $order->notify_url . "' -H 'Notification-Type: trade_state_sync' -H 'Notification-Id: manual' -H 'Content-Type: application/json' -d '" . $sign_string . "'";
+                return $this->success('异步通知cURL命令已生成', ['curl_command' => $curlCommand, 'sign_string' => $sign_string]);
+            } elseif ($type === 'sync') {
+                $redirect_url = OrderService::buildSyncNotificationParams($order->toArray());
+                return $this->success('同步通知链接已生成', ['redirect_url' => $redirect_url]);
+            }
+
             $sign_string = OrderService::sendAsyncNotification($trade_no, $order, 'order-notification-manual');
+            return $this->success('重新通知任务已提交，系统将异步处理', ['sign_string' => $sign_string]);
         } catch (Exception $e) {
             return $this->fail($e->getMessage());
         }
-
-        return $this->success('重新通知任务已提交，系统将异步处理，请留意后续状态更新', ['sign_string' => $sign_string]);
     }
 
     public function refund(Request $request): Response

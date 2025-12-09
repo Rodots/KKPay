@@ -240,7 +240,7 @@ class Order extends Model
                     self::TRADE_STATE_WAIT_PAY => '等待付款',
                     self::TRADE_STATE_CLOSED   => '交易关闭',
                     self::TRADE_STATE_SUCCESS  => '交易成功',
-                    self::TRADE_STATE_FINISHED => '交易完成',
+                    self::TRADE_STATE_FINISHED => '交易完结',
                     self::TRADE_STATE_FROZEN   => '交易冻结',
                 ];
                 return $enum[$this->getOriginal('trade_state')] ?? '未知';

@@ -99,7 +99,7 @@ class OrderNotification implements Consumer
 
         $startTime = microtime(true); // 记录开始时间
 
-        $headers  = ['Notification-Type' => 'trade_status_sync', 'Notification-Id' => $notification->id];
+        $headers  = ['Notification-Type' => 'trade_state_sync', 'Notification-Id' => $notification->id];
         $response = $this->sendHttp($url, $params, $headers);
 
         $duration = (int)((microtime(true) - $startTime) * 1000); // 计算请求耗时（毫秒）
@@ -135,17 +135,8 @@ class OrderNotification implements Consumer
             ]);
 
             return trim($response->getBody()->getContents());
-        } catch (ClientException $e) {
-            $msg = sprintf('HTTP %d: %s', $e->getCode(), $e->getResponse()->getBody());
-            return "ClientError: $msg";
-        } catch (ServerException $e) {
-            return "ServerError ({$e->getCode()}): " . $e->getMessage();
-        } catch (RequestException $e) {
-            return "NetworkError: " . ($e->getMessage() ?: 'Unknown network issue');
-        } catch (GuzzleException $e) {
-            return "GuzzleError: " . $e->getMessage();
         } catch (Throwable $e) {
-            return "SystemError: " . $e->getMessage();
+            return $e->getMessage();
         }
     }
 }
