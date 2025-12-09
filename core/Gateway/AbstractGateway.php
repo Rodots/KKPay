@@ -51,11 +51,6 @@ abstract class AbstractGateway
     abstract public static function notify(array $items): array;
 
     /**
-     * 核心退款方法 - 必须实现
-     */
-    abstract public static function refund(array $items): array;
-
-    /**
      * 加锁设置订单扩展数据
      *
      * @param string   $trade_no 订单号
