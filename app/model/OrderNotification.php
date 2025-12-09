@@ -49,8 +49,8 @@ class OrderNotification extends Model
     protected function casts(): array
     {
         return [
-            'status'              => 'boolean',
-            'request_duration_ms' => 'integer'
+            'status'           => 'boolean',
+            'request_duration' => 'integer'
         ];
     }
 

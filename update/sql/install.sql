@@ -334,7 +334,7 @@ CREATE TABLE `kkpay_order_notification`  (
   `id` char(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '通知校验ID',
   `trade_no` char(24) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '平台订单号',
   `status` bit(1) NOT NULL DEFAULT b'0' COMMENT '状态 0:失败 1:成功',
-  `request_duration_ms` int unsigned NOT NULL DEFAULT '0' COMMENT '请求耗时（毫秒）',
+  `request_duration` int UNSIGNED NOT NULL DEFAULT '0' COMMENT '请求耗时（毫秒）',
   `response_content` varchar(2048) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT '' COMMENT '返回内容',
   `created_at` timestamp NULL DEFAULT NULL COMMENT '创建时间',
   PRIMARY KEY (`id`) USING BTREE,

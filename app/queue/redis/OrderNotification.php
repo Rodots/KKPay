@@ -93,18 +93,19 @@ class OrderNotification implements Consumer
      */
     private function sendNotification(string $tradeNo, string $url, array $params): array
     {
-        $startTime = microtime(true); // 记录开始时间
-
         $notification           = new OrderNotificationModel();
         $notification->id       = Uuid::v7();
         $notification->trade_no = $tradeNo;
 
+        $startTime = microtime(true); // 记录开始时间
+
         $headers  = ['Notification-Type' => 'trade_status_sync', 'Notification-Id' => $notification->id];
         $response = $this->sendHttp($url, $params, $headers);
 
-        $duration = (int)(microtime(true) - $startTime); // 计算请求耗时（秒）
+        $duration = (int)((microtime(true) - $startTime) * 1000); // 计算请求耗时（毫秒）
 
         $notification->status           = $response === 'success';
+        $notification->request_duration = $duration;
         $notification->response_content = mb_substr($response, 0, 2048, 'utf-8');
         $notification->save();
 
