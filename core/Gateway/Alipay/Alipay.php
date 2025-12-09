@@ -44,7 +44,7 @@ class Alipay extends AbstractGateway
                 'field'       => 'alipay_public_key',
                 'type'        => 'textarea',
                 'label'       => '支付宝公钥',
-                'placeholder' => '请输入支付宝公钥，填错也可以支付成功但会导致无法回调，如果用公钥证书模式此处可留空不填',
+                'placeholder' => '请输入支付宝公钥，填错也可以支付成功但会导致无法回调，如果用【证书模式】对接此处可留空不填',
                 'maxlength'   => 2048
             ],
             [
@@ -246,30 +246,27 @@ class Alipay extends AbstractGateway
         }
     }
 
-    /**
-     * 异步通知处理
-     * @param array $items
-     * @return array
-     */
-    public static function notifytest(array $items): array
-    {
-        $order = $items['order'];
-        $post  = request()->post();
-
-        // 买家支付宝信息
-        $buyer = [
-            'user_id'       => empty($post['buyer_id']) ? null : $post['buyer_id'],
-            'buyer_open_id' => empty($post['buyer_open_id']) ? null : $post['buyer_open_id'],
-        ];
-        // 处理支付异步通知
-        self::processNotify(trade_no: $order['trade_no'], api_trade_no: $post['trade_no'], bill_trade_no: $post['trade_no'], payment_time: $post['gmt_payment'] ?? null, buyer: $buyer);
-
-        return ['type' => 'html', 'data' => 'success'];
-    }
-
     public static function refund(array $items): array
     {
-        return ['type' => 'html', 'data' => 'ok'];
+        $order         = $items['order'];
+        $refund_record = $items['refund_record'];
+
+        $alipay = Factory::createFromArray(self::formatConfig($items['channel']));
+
+        $params = [
+            'refund_amount'  => $refund_record['amount'],
+            'out_trade_no'   => $order['trade_no'],
+            'trade_no'       => $order['api_trade_no'],
+            'refund_reason'  => $refund_record['reason'],
+            'out_request_no' => $refund_record['id']
+        ];
+
+        try {
+            $result = $alipay->execute($params, 'alipay.trade.refund');
+        } catch (Throwable $e) {
+            return ['state' => false, 'message' => $e->getMessage()];
+        }
+        return ['state' => true, 'api_refund_no' => $result['trade_no'], 'refund_fee' => $result['refund_fee'], 'buyer' => (empty($result['buyer_user_id']) ? $result['buyer_open_id'] : $result['buyer_user_id'])];
     }
 
     /*
@@ -292,8 +289,6 @@ class Alipay extends AbstractGateway
 
     protected static function validateConfig(array $config): bool
     {
-        return !empty($config['app_id']) &&
-            !empty($config['app_private_key']) &&
-            !empty($config['alipay_public_key']);
+        return !empty($config['app_id']) && !empty($config['app_private_key']) && !empty($config['alipay_public_key']);
     }
 }
