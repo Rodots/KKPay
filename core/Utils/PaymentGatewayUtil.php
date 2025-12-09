@@ -64,6 +64,25 @@ final class PaymentGatewayUtil
     }
 
     /**
+     * 检查支付网关中是否存在指定方法
+     *
+     * @param string $gateway 网关名称
+     * @param string $method  方法名称
+     * @return bool 当网关类和方法都存在时返回false，否则返回true
+     */
+    public static function existMethod(string $gateway, string $method): bool
+    {
+        $fqcn = "\\Core\\Gateway\\$gateway\\$gateway";
+
+        // 检查类和方法是否存在
+        if (class_exists($fqcn, false) && method_exists($fqcn, $method)) {
+            return false;
+        }
+
+        return true;
+    }
+
+    /**
      * 从缓存中获取数据
      *
      * @param string $gateway 网关类名
@@ -77,6 +96,29 @@ final class PaymentGatewayUtil
         }
 
         return self::$infoCache[$gateway][$key];
+    }
+
+    /**
+     * 通过反射读取支付网关的描述
+     *
+     * @param string $gateway 网关类名
+     * @return array|null 返回网关描述，如果读取失败则返回null
+     */
+    private static function readStaticInfo(string $gateway): ?array
+    {
+        try {
+            $fqcn = self::loadGateway($gateway);
+
+            $reflection = new ReflectionClass($fqcn);
+            if (!$reflection->hasProperty('info')) {
+                return null;
+            }
+
+            $property = $reflection->getProperty('info');
+            return $property->isStatic() ? $property->getValue() : null;
+        } catch (ReflectionException|PaymentException) {
+            return null;
+        }
     }
 
     /**
@@ -102,28 +144,5 @@ final class PaymentGatewayUtil
         // 缓存并返回
         self::$infoCache[$gateway] = $info;
         return self::getFromCache($gateway, $key);
-    }
-
-    /**
-     * 通过反射读取支付网关的描述
-     *
-     * @param string $gateway 网关类名
-     * @return array|null 返回网关描述，如果读取失败则返回null
-     */
-    private static function readStaticInfo(string $gateway): ?array
-    {
-        try {
-            $fqcn = self::loadGateway($gateway);
-
-            $reflection = new ReflectionClass($fqcn);
-            if (!$reflection->hasProperty('info')) {
-                return null;
-            }
-
-            $property = $reflection->getProperty('info');
-            return $property->isStatic() ? $property->getValue() : null;
-        } catch (ReflectionException|PaymentException) {
-            return null;
-        }
     }
 }

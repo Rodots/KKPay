@@ -222,6 +222,8 @@ class PayController
 
         if ($method === 'notify') {
             Log::channel('pay_notify')->info('orderNo: ' . $orderNo, $request->all());
+        } elseif ($method === 'refund' || $method === 'close') {
+            return $this->$echoMethod('参数错误');
         }
 
         try {
@@ -254,7 +256,6 @@ class PayController
                 'order'      => $orderData,
                 'channel'    => $paymentChannelAccount->config,
                 'buyer'      => $order->buyer->toArray(),
-                'config'     => sys_config(),
                 'subject'    => $order->subject,
                 'return_url' => site_url("pay/return/$order->trade_no.html"),
                 'notify_url' => site_url("pay/notify/$order->trade_no.html"),

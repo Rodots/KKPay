@@ -6,14 +6,18 @@ namespace app\admin\controller;
 
 use app\model\Merchant;
 use app\model\Order;
+use app\model\OrderRefund;
 use app\model\PaymentChannel;
 use app\model\PaymentChannelAccount;
 use Core\baseController\AdminBase;
 use Core\Service\OrderService;
+use Core\Service\RefundService;
+use Core\Utils\PaymentGatewayUtil;
 use Exception;
 use support\Db;
 use support\Request;
 use support\Response;
+use support\Rodots\Crypto\XChaCha20;
 use Throwable;
 
 class OrderController extends AdminBase
@@ -251,12 +255,23 @@ class OrderController extends AdminBase
 
     public function refund(Request $request): Response
     {
-        // 订单号
-        $trade_no = $request->input('trade_no');
-        // 退款金额
-        $amount = $request->input('amount');
+        $payload = $request->post('payload');
+        if (empty($payload)) {
+            return $this->fail('非法请求');
+        }
 
-        if (empty($trade_no) || empty($amount)) {
+        $params = new XChaCha20(config('kkpay.api_crypto_key', ''))->get($payload);
+
+        // 退款金额
+        $amount = $params['amount'];
+        // 退款类型
+        $refund_type = $params['refund_type'] === 'auto';
+        // 退款手续费承担方
+        $fee_bearer = $params['fee_bearer'] === 'platform';
+        // 退款原因
+        $reason = $params['reason'] ?: null;
+
+        if (empty($params['trade_no']) || empty($amount)) {
             return $this->fail('必要参数缺失');
         }
 
@@ -264,16 +279,53 @@ class OrderController extends AdminBase
             return $this->fail('退款金额必须为数字');
         }
 
-        try {
-            DB::transaction(function () use ($trade_no, $amount) {
-                // 在这里执行你的数据库操作
-                $order = Order::find($trade_no);
-                $order->refundProcessing((float)$amount);
-            });
-        } catch (Exception $e) {
-            return $this->fail($e->getMessage());
+        $result = RefundService::handle($params['trade_no'], $amount, OrderRefund::INITIATE_TYPE_ADMIN, $refund_type, $fee_bearer, null, $reason);
+
+        if ($result['state']) {
+            $msg = "退款成功！本次退款金额: {$amount}元";
+            if ($fee_bearer) {
+                $msg .= "并退回商户平台手续费: {$result['refund_record']['refund_fee_amount']}元";
+            }
+            if ($refund_type) {
+                $msg .= "，接口退款流水号: {$result['gateway_return']['api_refund_no']}";
+            }
+            return $this->success($msg);
         }
 
-        return $this->success('退款成功');
+        return $this->fail('退款失败: ' . $result['msg'] ?? '未知原因');
+    }
+
+    public function refundInfo(Request $request): Response
+    {
+        // 订单号
+        $trade_no = $request->input('trade_no');
+
+        if (empty($trade_no)) {
+            return $this->fail('必要参数缺失');
+        }
+
+        $order = Order::with([
+            'paymentChannelAccount' => function ($query) {
+                $query->select(['id', 'payment_channel_id'])->with('paymentChannel:id,gateway');
+            }
+        ])->where('trade_no', $trade_no)->selectRaw('`kkpay_order`.`trade_no`, `out_trade_no`, `payment_channel_account_id`, `buyer_pay_amount`,`trade_state`,(select sum(`kkpay_order_refund`.`amount`)  from `kkpay_order_refund`  where `kkpay_order`.`trade_no` = `kkpay_order_refund`.`trade_no`) as `refunds_sum_amount`')->first();
+        if (empty($order)) {
+            return $this->fail('订单不存在，请刷新页面后重试');
+        }
+
+        // 该订单已退款金额
+        $refunded_amount = $order->refunds_sum_amount ?? '0';
+        // 剩余可退款金额 = 实付金额 - 已退款金额
+        $remaining_amount = bcsub($order->getOriginal('buyer_pay_amount'), $refunded_amount, 2);
+        // 是否允许自动退款
+        $allow_auto_refund = PaymentGatewayUtil::existMethod($order->paymentChannelAccount->paymentChannel->gateway, 'refund');
+        $data              = array_merge($order->toArray(), [
+            'allow_auto_refund' => $allow_auto_refund,
+            'refunded_amount'   => $refunded_amount,
+            'remaining_amount'  => $remaining_amount,
+        ]);
+        unset($data['payment_channel_account'], $data['payment_channel_account_id']);
+
+        return $this->success('获取成功', $data);
     }
 }

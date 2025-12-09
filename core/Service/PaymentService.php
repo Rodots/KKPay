@@ -4,7 +4,6 @@ declare(strict_types = 1);
 
 namespace Core\Service;
 
-use app\model\Order;
 use app\model\OrderBuyer;
 use app\model\PaymentChannelAccount;
 use Core\Exception\PaymentException;
@@ -37,7 +36,6 @@ class PaymentService
                 'order'      => $order,
                 'channel'    => $paymentChannelAccount->config,
                 'buyer'      => $orderBuyer->toArray(),
-                'config'     => sys_config(),
                 'subject'    => $order['subject'],
                 'return_url' => site_url("pay/return/{$order['trade_no']}.html"),
                 'notify_url' => site_url("pay/notify/{$order['trade_no']}.html"),
@@ -57,215 +55,8 @@ class PaymentService
     }
 
     /**
-     * 查询订单状态
-     */
-    public static function queryOrderStatus(Order $order): array
-    {
-        try {
-            if (!$order->paymentChannelAccount) {
-                throw new PaymentException('订单未绑定支付通道');
-            }
-
-            // TODO: 实现网关查询逻辑
-            return [
-                'success'      => true,
-                'trade_status' => $order->trade_state,
-                'message'      => '查询成功'
-            ];
-
-        } catch (Throwable $e) {
-            Log::error('订单状态查询失败', [
-                'trade_no' => $order->trade_no,
-                'error'    => $e->getMessage()
-            ]);
-
-            throw new PaymentException('订单状态查询失败：' . $e->getMessage());
-        }
-    }
-
-    /**
-     * 处理退款申请
-     */
-    public static function processRefund(array $params): array
-    {
-        try {
-            // 查找订单
-            $order = Order::where('merchant_id', $params['merchant_id'])
-                ->where('out_trade_no', $params['out_trade_no'])
-                ->first();
-
-            if (!$order) {
-                throw new PaymentException('订单不存在');
-            }
-
-            if ($order->trade_state !== Order::TRADE_STATE_SUCCESS) {
-                throw new PaymentException('订单状态不支持退款');
-            }
-
-            // 验证退款金额
-            if ($params['refund_amount'] > $order->total_amount) {
-                throw new PaymentException('退款金额不能超过订单金额');
-            }
-
-            // 检查是否已有退款记录
-            $existingRefund = $order->refunds()
-                ->where('status', 1)
-                ->sum('amount');
-
-            if (($existingRefund + $params['refund_amount']) > $order->total_amount) {
-                throw new PaymentException('退款总金额不能超过订单金额');
-            }
-
-            // 生成退款单号
-            $outRefundNo = $params['out_refund_no'] ?? self::generateRefundNo();
-
-            // 创建退款记录
-            $refund = $order->refunds()->create([
-                'trade_no'      => $order->trade_no,
-                'out_refund_no' => $outRefundNo,
-                'user_id'       => $order->merchant_id,
-                'amount'        => $params['refund_amount'],
-                'real_amount'   => $params['refund_amount'],
-                'reason'        => $params['refund_reason'] ?? '',
-                'status'        => 0, // 0-处理中
-                'notify_url'    => $params['notify_url'] ?? null,
-            ]);
-
-            // TODO: 调用网关退款接口
-            // 这里需要根据实际的网关实现来处理退款
-            $refundResult = [
-                'success'       => true,
-                'refund_status' => 'SUCCESS',
-                'api_trade_no'  => 'REFUND_' . time(),
-                'message'       => '退款成功'
-            ];
-
-            if ($refundResult['success']) {
-                // 更新退款状态
-                $refund->update([
-                    'status'        => $refundResult['refund_status'] === 'SUCCESS' ? 1 : 0,
-                    'api_refund_no' => $refundResult['api_trade_no'] ?? null,
-                ]);
-
-                // 如果退款成功，更新订单状态
-                if ($refundResult['refund_status'] === 'SUCCESS') {
-                    self::updateOrderRefundStatus($order);
-                }
-
-                Log::info('退款申请成功', [
-                    'trade_no'  => $order->trade_no,
-                    'refund_id' => $refund->id,
-                    'amount'    => $params['refund_amount']
-                ]);
-
-                return [
-                    'success'       => true,
-                    'refund_id'     => $refund->id,
-                    'out_refund_no' => $outRefundNo,
-                    'refund_status' => $refund->status === 1 ? 'success' : 'processing',
-                    'refund_amount' => $params['refund_amount'],
-                ];
-            } else {
-                // 退款失败，更新状态
-                $refund->update(['status' => 2]); // 2-失败
-
-                throw new PaymentException('退款申请失败：' . ($refundResult['message'] ?? '未知错误'));
-            }
-
-        } catch (PaymentException $e) {
-            Log::error('退款申请异常', [
-                'params' => $params,
-                'error'  => $e->getMessage()
-            ]);
-
-            return ['success' => false, 'message' => $e->getMessage()];
-        }
-    }
-
-    /**
-     * 查询退款状态
-     */
-    public static function queryRefund(array $params): array
-    {
-        try {
-            // 构建查询条件
-            $query = Order::where('merchant_id', $params['merchant_id']);
-
-            if (!empty($params['out_trade_no'])) {
-                $query->where('out_trade_no', $params['out_trade_no']);
-            }
-
-            $order = $query->first();
-            if (!$order) {
-                throw new PaymentException('订单不存在');
-            }
-
-            // 查找退款记录
-            $refundQuery = $order->refunds();
-            if (!empty($params['out_refund_no'])) {
-                $refundQuery->where('out_refund_no', $params['out_refund_no']);
-            }
-
-            $refund = $refundQuery->latest()->first();
-            if (!$refund) {
-                throw new PaymentException('退款记录不存在');
-            }
-
-            // TODO: 如果退款状态为处理中，查询网关状态
-            // 这里需要根据实际的网关实现来查询退款状态
-
-            // 状态文本映射
-            $statusText = match ($refund->status) {
-                0 => 'processing',
-                1 => 'success',
-                2 => 'failed',
-                default => 'unknown'
-            };
-
-            return [
-                'success'       => true,
-                'refund_id'     => $refund->id,
-                'out_trade_no'  => $order->trade_no,
-                'out_refund_no' => $refund->out_refund_no,
-                'refund_status' => $statusText,
-                'refund_amount' => $refund->amount,
-                'refund_reason' => $refund->reason ?? '',
-            ];
-
-        } catch (PaymentException $e) {
-            Log::error('退款查询异常', [
-                'params' => $params,
-                'error'  => $e->getMessage()
-            ]);
-
-            return ['success' => false, 'message' => $e->getMessage()];
-        }
-    }
-
-    /**
-     * 更新订单退款状态
-     */
-    private static function updateOrderRefundStatus(Order $order): void
-    {
-        $totalRefunded = $order->refunds()->where('status', 1)->sum('amount');
-
-        if ($totalRefunded >= $order->total_amount) {
-            $order->update(['trade_state' => Order::TRADE_STATE_FINISHED]);
-        } else {
-            // 部分退款状态，可以根据业务需要定义新的状态
-            $order->update(['trade_state' => Order::TRADE_STATE_SUCCESS]);
-        }
-    }
-
-    /**
-     * 生成退款单号
-     */
-    private static function generateRefundNo(): string
-    {
-        return 'RF' . date('YmdHis') . mt_rand(1000, 9999);
-    }
-
-    /**
+     * 响应提交结果
+     *
      * @throws PaymentException
      */
     public static function echoSubmit(array $result, array $order): Response
@@ -306,6 +97,14 @@ class PaymentService
         }
     }
 
+    /**
+     * 跳转页面模板
+     *
+     * @param string $title
+     * @param string $html_text
+     *
+     * @return Response
+     */
     private static function redirectTemplate(string $title, string $html_text): Response
     {
         $html = <<<HTML

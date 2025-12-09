@@ -226,14 +226,4 @@ class OrderService
 
         return $return_url . $separator . $queryString;
     }
-
-    /**
-     * 处理退款
-     *
-     * @return void
-     */
-    public static function handleRefund(string $trade_no, string $amount, string $initiate_type, string $reason, bool $refund_type = true, bool $feeBearer = true,)
-    {
-
-    }
 }
