@@ -268,6 +268,12 @@ class Order extends Model
         );
     }
 
+
+    /**
+     * 访问器：付款耗时
+     *
+     * @return Attribute
+     */
     protected function paymentDuration(): Attribute
     {
         return Attribute::make(
@@ -365,76 +371,6 @@ class Order extends Model
     public function notifications(): HasMany
     {
         return $this->hasMany(OrderNotification::class, 'trade_no', 'trade_no');
-    }
-
-    /**
-     * 退款处理
-     *
-     * @param float      $amount
-     * @param int|string $api_trade_no
-     * @return void
-     * @throws Exception
-     */
-    public function refundProcessing(float $amount, int|string $api_trade_no = ''): void
-    {
-        // 刷新数据
-        $order = $this->refresh();
-
-        $trade_no = $order->getAttribute('trade_no');
-        $user_id  = $order->getAttribute('user_id');
-
-        if (in_array($order->getOriginal('status'), [
-            self::TRADE_STATE_WAIT_PAY,
-            self::TRADE_STATE_CLOSED,
-            self::TRADE_STATE_FINISHED,
-            self::TRADE_STATE_FROZEN
-        ])) {
-            throw new Exception("订单号 $trade_no 的状态不支持退款");
-        }
-
-        // 关联订单退款表查询
-        $orderWithRefunds = self::withSum('refunds', 'amount')->withSum('refunds', 'real_amount')->find($trade_no);
-
-        // 订单金额
-        $order_amount = $order->getAttribute('amount');
-
-        // 商户分成金额
-        $get_amount = $order->getAttribute('get_amount');
-
-        // 已退款金额，如果没有记录则默认为0
-        $refunded_amount = $orderWithRefunds->refunds_sum_amount ?? 0;
-
-        // 已真实扣除金额，如果没有记录则默认为0
-        $real_refunded_amount = $orderWithRefunds->refunds_sum_real_amount ?? 0;
-
-        // 剩余可退款金额
-        $residue_refunded_amount = $order_amount - $refunded_amount;
-
-        // 剩余可扣除金额
-        $residue_real_refunded_amount = $get_amount - $real_refunded_amount;
-
-        // 使用 bccomp 进行精确比较
-        if (bccomp((string)$amount, (string)$residue_refunded_amount, 2) > 0) {
-            throw new Exception("订单号 $trade_no 的退款金额不能超过剩余可退款金额");
-        }
-
-        $real_amount = min($residue_real_refunded_amount, $amount);
-
-        // 新增订单退款记录
-        $this->refunds()->create([
-            'trade_no'     => $trade_no,
-            'api_trade_no' => $api_trade_no ?: null,
-            'user_id'      => $user_id,
-            'amount'       => $amount,
-            'real_amount'  => $real_amount,
-            'status'       => 1
-        ]);
-
-        // 根据这个订单对应支付通道的扣费模式处理商户的余额增减
-        if ($this->paymentChannel()->value('mode') === 0) {
-            // 【第一种模式】资金由平台代收，然后结算给商户，手续费从每笔订单直接扣除
-            MerchantWalletRecord::changeAvailable($user_id, $real_amount, '订单退款', false, $trade_no);
-        }
     }
 
     /**

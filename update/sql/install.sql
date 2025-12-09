@@ -334,6 +334,7 @@ CREATE TABLE `kkpay_order_notification`  (
   `id` char(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '通知校验ID',
   `trade_no` char(24) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '平台订单号',
   `status` bit(1) NOT NULL DEFAULT b'0' COMMENT '状态 0:失败 1:成功',
+  `request_duration_ms` int unsigned NOT NULL DEFAULT '0' COMMENT '请求耗时（毫秒）',
   `response_content` varchar(2048) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT '' COMMENT '返回内容',
   `created_at` timestamp NULL DEFAULT NULL COMMENT '创建时间',
   PRIMARY KEY (`id`) USING BTREE,
@@ -348,19 +349,19 @@ CREATE TABLE `kkpay_order_refund`  (
   `id` char(16) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '退款流水号',
   `merchant_id` int UNSIGNED NOT NULL COMMENT '商户ID',
   `initiate_type` enum('admin','api','merchant','system') CHARACTER SET ascii COLLATE ascii_bin NOT NULL DEFAULT 'system' COMMENT '发起类型',
+  `refund_type` bit(1) NOT NULL DEFAULT b'0' COMMENT '退款类型 0:平台 1:商户',
   `trade_no` char(24) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '平台订单号',
-  `api_trade_no` varchar(255) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '上游订单号',
   `out_biz_no` varchar(64) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '商家业务号',
+  `api_refund_no` varchar(255) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '接口退款流水号',
   `amount` decimal(11, 2) NOT NULL COMMENT '退款金额',
-  `status` enum('PROCESSING','COMPLETED','FAILED') CHARACTER SET ascii COLLATE ascii_bin NOT NULL DEFAULT 'PROCESSING' COMMENT '状态',
-  `reason` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '退款原因',
+  `refund_fee_amount` decimal(11, 2) NULL DEFAULT 0.00 COMMENT '退还手续费金额',
+  `fee_bearer` bit(1) NOT NULL DEFAULT b'0' COMMENT '手续费承担方 0:平台 1:商户',
+  `reason` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '退款原因',
   `created_at` timestamp NULL DEFAULT NULL COMMENT '创建时间',
-  `updated_at` timestamp NULL DEFAULT NULL COMMENT '更新时间',
   PRIMARY KEY (`id`) USING BTREE,
-  INDEX `idx_initiate_type` (`initiate_type` ASC) USING BTREE,
+  INDEX `idx_initiate_type`(`initiate_type` ASC) USING BTREE,
   INDEX `idx_trade_no`(`trade_no` ASC) USING BTREE,
-  INDEX `idx_out_biz_no`(`out_biz_no` ASC) USING BTREE,
-  INDEX `idx_status` (`status` ASC) USING BTREE
+  INDEX `idx_merchant_out_biz_no`(`merchant_id`, `out_biz_no` ASC) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '订单退款表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------

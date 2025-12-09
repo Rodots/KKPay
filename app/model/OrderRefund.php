@@ -36,6 +36,13 @@ class OrderRefund extends Model
     protected $keyType = 'string';
 
     /**
+     * 禁用自动写入updated_at
+     *
+     * @var null
+     */
+    const null UPDATED_AT = null;
+
+    /**
      * 获取应转换的属性。
      *
      * @return array
@@ -43,8 +50,11 @@ class OrderRefund extends Model
     protected function casts(): array
     {
         return [
-            'merchant_id' => 'integer',
-            'amount'      => 'decimal:2'
+            'merchant_id'       => 'integer',
+            'refund_type'       => 'boolean',
+            'amount'            => 'decimal:2',
+            'refund_fee_amount' => 'decimal:2',
+            'fee_bearer'        => 'boolean',
         ];
     }
 
@@ -53,11 +63,6 @@ class OrderRefund extends Model
     const string INITIATE_TYPE_API      = 'api';
     const string INITIATE_TYPE_MERCHANT = 'merchant';
     const string INITIATE_TYPE_SYSTEM   = 'system';
-
-    // 退款状态枚举
-    const string STATUS_PROCESSING = 'PROCESSING';
-    const string STATUS_COMPLETED  = 'COMPLETED';
-    const string STATUS_FAILED     = 'FAILED';
 
     /**
      * 模型启动方法，用于注册模型事件
@@ -113,12 +118,7 @@ class OrderRefund extends Model
     {
         return Attribute::make(
             get: function () {
-                $enum = [
-                    self::STATUS_PROCESSING => '处理中',
-                    self::STATUS_COMPLETED  => '已退款',
-                    self::STATUS_FAILED     => '退款失败'
-                ];
-                return $enum[$this->getOriginal('status')] ?? '未知';
+                return $this->status ? '成功' : '失败';
             }
         );
     }
