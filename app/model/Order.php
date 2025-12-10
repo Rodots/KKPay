@@ -62,7 +62,6 @@ class Order extends Model
             'fee_amount'                 => 'decimal:2',
             'profit_amount'              => 'decimal:2',
             'settle_cycle'               => 'integer',
-            'notify_state'               => 'boolean',
             'notify_retry_count'         => 'integer',
             'notify_next_retry_time'     => 'integer',
         ];
@@ -118,6 +117,11 @@ class Order extends Model
     const string SETTLE_STATE_PROCESSING = 'PROCESSING';
     const string SETTLE_STATE_COMPLETED  = 'COMPLETED';
     const string SETTLE_STATE_FAILED     = 'FAILED';
+
+    // 通知状态枚举
+    const string NOTIFY_STATE_WAITING = 'WAITING';
+    const string NOTIFY_STATE_SUCCESS = 'SUCCESS';
+    const string NOTIFY_STATE_FAILED  = 'FAILED';
 
     /**
      * 模型启动方法，用于注册模型事件
@@ -268,6 +272,24 @@ class Order extends Model
         );
     }
 
+    /**
+     * 访问器：通知状态文本
+     *
+     * @return Attribute
+     */
+    protected function notifyStateText(): Attribute
+    {
+        return Attribute::make(
+            get: function () {
+                $enum = [
+                    self::NOTIFY_STATE_WAITING => '等待通知',
+                    self::NOTIFY_STATE_SUCCESS => '通知成功',
+                    self::NOTIFY_STATE_FAILED  => '通知失败',
+                ];
+                return $enum[$this->getOriginal('notify_state')] ?? '未知';
+            }
+        );
+    }
 
     /**
      * 访问器：付款耗时

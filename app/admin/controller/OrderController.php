@@ -149,7 +149,7 @@ class OrderController extends AdminBase
                         $q->where('settle_state', $value);
                         break;
                     case 'notify_state':
-                        $q->where('notify_state', (bool)$value);
+                        $q->where('notify_state', $value);
                         break;
                 }
             }
@@ -158,7 +158,7 @@ class OrderController extends AdminBase
 
         // 获取总数和数据
         $total = $query->count();
-        $list  = $query->offset($from)->limit($limit)->orderBy('create_time', 'desc')->get($select_fields)->append(['payment_type_text', 'trade_state_text', 'settle_state_text', 'payment_duration']);
+        $list  = $query->offset($from)->limit($limit)->orderBy('create_time', 'desc')->get($select_fields)->append(['payment_type_text', 'trade_state_text', 'settle_state_text', 'notify_state_text', 'payment_duration']);
 
         return $this->success(data: [
             'list'  => $list,
@@ -178,7 +178,7 @@ class OrderController extends AdminBase
             $query->orderBy('id', 'desc');
         }, 'notifications'                                                                                                                                                          => function ($query) {
             $query->orderBy('id', 'desc')->limit(20);
-        }])->find($trade_no)->append(['payment_type_text', 'trade_state_text', 'settle_state_text', 'payment_duration']);
+        }])->find($trade_no)->append(['payment_type_text', 'trade_state_text', 'settle_state_text', 'notify_state_text', 'payment_duration']);
 
         if (empty($order)) {
             return $this->fail('该订单不存在');

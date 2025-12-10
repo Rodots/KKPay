@@ -38,10 +38,12 @@ class OrderNotificationManual implements Consumer
 
         // 更新状态
         if ($isSuccess) {
-            $order->notify_state           = true;
+            $order->notify_state           = Order::NOTIFY_STATE_SUCCESS;
             $order->notify_next_retry_time = null;
-            $order->save();
+        } else {
+            $order->notify_state = Order::NOTIFY_STATE_FAILED;
         }
+        $order->save();
     }
 
     /**
