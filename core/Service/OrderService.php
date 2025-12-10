@@ -29,13 +29,13 @@ class OrderService
      *
      * @param string $fromStatus 订单当前状态
      * @param string $toStatus   订单目标状态
-     * @param bool   $admin      是否为管理员操作，默认为false
+     * @param bool   $isAdmin    是否为管理员操作，默认为false
      * @return bool              状态转换是否合法，合法返回true，否则返回false
      */
-    private static function isValidStatusTransition(string $fromStatus, string $toStatus, bool $admin = false): bool
+    private static function isValidStatusTransition(string $fromStatus, string $toStatus, bool $isAdmin = false): bool
     {
         // 如果为管理员操作则不限制
-        if ($admin) {
+        if ($isAdmin) {
             return true;
         }
 
@@ -74,11 +74,12 @@ class OrderService
      * @param string|int|null $mch_trade_no  商户交易号
      * @param string|int|null $payment_time  支付时间
      * @param array           $buyer         买家信息
+     * @param bool            $isAdmin       是否为管理员操作，默认为false
      *
      * @return void
      * @throws Throwable
      */
-    public static function handlePaymentSuccess(bool $isAsync, string $trade_no, string|int|null $api_trade_no = null, string|int|null $bill_trade_no = null, string|int|null $mch_trade_no = null, string|int|null $payment_time = null, array $buyer = []): void
+    public static function handlePaymentSuccess(bool $isAsync, string $trade_no, string|int|null $api_trade_no = null, string|int|null $bill_trade_no = null, string|int|null $mch_trade_no = null, string|int|null $payment_time = null, array $buyer = [], bool $isAdmin = false): void
     {
         $order = Order::where('trade_no', $trade_no)->first();
 
@@ -93,7 +94,7 @@ class OrderService
             $newStatus = Order::TRADE_STATE_SUCCESS;
 
             // 验证订单状态转换是否有效
-            if (!self::isValidStatusTransition($order['trade_state'], $newStatus)) {
+            if (!self::isValidStatusTransition($order['trade_state'], $newStatus, $isAdmin)) {
                 throw new Exception("交易状态不能从 $oldStatus 转换为 $newStatus");
             }
 

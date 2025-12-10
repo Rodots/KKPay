@@ -14,6 +14,7 @@ use Core\Service\OrderService;
 use Core\Service\RefundService;
 use Core\Utils\PaymentGatewayUtil;
 use Exception;
+use SodiumException;
 use support\Db;
 use support\Request;
 use support\Response;
@@ -261,6 +262,53 @@ class OrderController extends AdminBase
         }
     }
 
+    /**
+     * 退款前置
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function refundInfo(Request $request): Response
+    {
+        // 订单号
+        $trade_no = $request->input('trade_no');
+
+        if (empty($trade_no)) {
+            return $this->fail('必要参数缺失');
+        }
+
+        $order = Order::with([
+            'paymentChannelAccount' => function ($query) {
+                $query->select(['id', 'payment_channel_id'])->with('paymentChannel:id,gateway');
+            }
+        ])->where('trade_no', $trade_no)->selectRaw('`kkpay_order`.`trade_no`, `out_trade_no`, `payment_channel_account_id`, `buyer_pay_amount`,`trade_state`,(select sum(`kkpay_order_refund`.`amount`)  from `kkpay_order_refund`  where `kkpay_order`.`trade_no` = `kkpay_order_refund`.`trade_no`) as `refunds_sum_amount`')->first();
+        if (empty($order)) {
+            return $this->fail('订单不存在，请刷新页面后重试');
+        }
+
+        // 该订单已退款金额
+        $refunded_amount = $order->refunds_sum_amount ?? '0';
+        // 剩余可退款金额 = 实付金额 - 已退款金额
+        $remaining_amount = bcsub($order->getOriginal('buyer_pay_amount'), $refunded_amount, 2);
+        // 是否允许自动退款
+        $allow_auto_refund = PaymentGatewayUtil::existMethod($order->paymentChannelAccount->paymentChannel->gateway, 'refund');
+        $data              = array_merge($order->toArray(), [
+            'allow_auto_refund' => $allow_auto_refund,
+            'refunded_amount'   => $refunded_amount,
+            'remaining_amount'  => $remaining_amount,
+        ]);
+        unset($data['payment_channel_account'], $data['payment_channel_account_id']);
+
+        return $this->success('获取成功', $data);
+    }
+
+    /**
+     * 退款
+     *
+     * @param Request $request
+     * @return Response
+     * @throws SodiumException
+     */
     public function refund(Request $request): Response
     {
         $payload = $request->post('payload');
@@ -303,7 +351,13 @@ class OrderController extends AdminBase
         return $this->fail('退款失败: ' . $result['msg'] ?? '未知原因');
     }
 
-    public function refundInfo(Request $request): Response
+    /**
+     * 补单
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function repair(Request $request): Response
     {
         // 订单号
         $trade_no = $request->input('trade_no');
@@ -311,29 +365,18 @@ class OrderController extends AdminBase
         if (empty($trade_no)) {
             return $this->fail('必要参数缺失');
         }
-
-        $order = Order::with([
-            'paymentChannelAccount' => function ($query) {
-                $query->select(['id', 'payment_channel_id'])->with('paymentChannel:id,gateway');
-            }
-        ])->where('trade_no', $trade_no)->selectRaw('`kkpay_order`.`trade_no`, `out_trade_no`, `payment_channel_account_id`, `buyer_pay_amount`,`trade_state`,(select sum(`kkpay_order_refund`.`amount`)  from `kkpay_order_refund`  where `kkpay_order`.`trade_no` = `kkpay_order_refund`.`trade_no`) as `refunds_sum_amount`')->first();
-        if (empty($order)) {
-            return $this->fail('订单不存在，请刷新页面后重试');
+        if (!$order = Order::where('trade_no', $trade_no)->first(['trade_no', 'trade_state'])) {
+            return $this->fail('该订单不存在');
+        }
+        if ($order->trade_state !== Order::TRADE_STATE_WAIT_PAY && $order->trade_state !== Order::TRADE_STATE_CLOSED) {
+            return $this->fail('该订单已被冻结或无需补单');
         }
 
-        // 该订单已退款金额
-        $refunded_amount = $order->refunds_sum_amount ?? '0';
-        // 剩余可退款金额 = 实付金额 - 已退款金额
-        $remaining_amount = bcsub($order->getOriginal('buyer_pay_amount'), $refunded_amount, 2);
-        // 是否允许自动退款
-        $allow_auto_refund = PaymentGatewayUtil::existMethod($order->paymentChannelAccount->paymentChannel->gateway, 'refund');
-        $data              = array_merge($order->toArray(), [
-            'allow_auto_refund' => $allow_auto_refund,
-            'refunded_amount'   => $refunded_amount,
-            'remaining_amount'  => $remaining_amount,
-        ]);
-        unset($data['payment_channel_account'], $data['payment_channel_account_id']);
-
-        return $this->success('获取成功', $data);
+        try {
+            OrderService::handlePaymentSuccess(true, $order->trade_no, isAdmin: true);
+        } catch (Throwable $e) {
+            return $this->fail($e->getMessage());
+        }
+        return $this->success('补单成功');
     }
 }
