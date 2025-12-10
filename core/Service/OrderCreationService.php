@@ -152,7 +152,7 @@ class OrderCreationService
     /**
      * 计算订单服务费、商户实收金额和利润
      *
-     * @param float                 $total_amount          订单总金额
+     * @param float                 $total_amount          订单金额
      * @param PaymentChannelAccount $paymentChannelAccount 支付渠道账户配置
      * @return array [商户实收金额, 服务费金额, 利润金额]
      */
@@ -180,7 +180,7 @@ class OrderCreationService
             $feeAmount = bccomp($feeAmount, $maxFee, 4) > 0 ? $maxFee : $feeAmount;
         }
 
-        // 确保服务费不超过订单总金额
+        // 确保服务费不超过订单金额
         $feeAmount = bccomp($feeAmount, $total_amount, 4) > 0 ? $total_amount : $feeAmount;
 
         // 5. 计算成本

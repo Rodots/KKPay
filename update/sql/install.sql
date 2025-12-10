@@ -275,7 +275,7 @@ CREATE TABLE `kkpay_order`  (
   `payment_type` enum('None','Alipay','WechatPay','Bank','UnionPay','QQWallet','JDPay','PayPal') CHARACTER SET ascii COLLATE ascii_bin NOT NULL DEFAULT 'None' COMMENT '支付方式',
   `payment_channel_account_id` int UNSIGNED NOT NULL COMMENT '支付通道子账户ID',
   `subject` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '商品名称',
-  `total_amount` decimal(11, 2) NOT NULL COMMENT '订单总金额',
+  `total_amount` decimal(11, 2) NOT NULL COMMENT '订单金额',
   `buyer_pay_amount` decimal(11, 2) NULL DEFAULT NULL COMMENT '用户在交易中支付的金额',
   `receipt_amount` decimal(11, 2) NULL DEFAULT NULL COMMENT '商户实收金额(分成后)',
   `fee_amount` decimal(11, 2) NULL DEFAULT NULL COMMENT '平台服务费金额',

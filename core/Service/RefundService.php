@@ -50,7 +50,7 @@ class RefundService
                 throw new Exception('订单未完成结算，无法进行退款');
             }
 
-            // 订单总金额
+            // 订单金额
             $total_amount = $order->getOriginal('total_amount');
             // 用户在交易中支付的金额（实付金额）
             $buyer_pay_amount = $order->getOriginal('buyer_pay_amount');
@@ -73,7 +73,6 @@ class RefundService
             $refund_fee_amount = '0';
             if ($fee_bearer && bccomp($fee_amount, '0', 2) > 0) {
                 $refund_fee_amount = self::calculateRefundFee($total_amount, $fee_amount, $amount);
-                // 实付金额不大于订单总金额，退还服务费
                 MerchantWalletRecord::changeAvailable($order->merchant_id, $refund_fee_amount, '订单服务费退款', true, $order->trade_no, '退款退回平台扣除的订单服务费');
             }
 
@@ -133,7 +132,7 @@ class RefundService
     /**
      * 计算应退还的平台服务费
      *
-     * @param string $total_amount  订单总金额
+     * @param string $total_amount  订单金额
      * @param string $fee_amount    平台服务费
      * @param string $refund_amount 退款金额
      * @return string 应退还的平台服务费
@@ -145,7 +144,7 @@ class RefundService
             return '0.00';
         }
 
-        // 计算退款比例 = 退款金额 / 订单总金额
+        // 计算退款比例 = 退款金额 / 订单金额
         $refund_ratio = bcdiv($refund_amount, $total_amount, 8);
 
         // 计算应退还的服务费 = 平台服务费 × 退款比例

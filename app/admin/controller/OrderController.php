@@ -69,7 +69,7 @@ class OrderController extends AdminBase
                 'payment_channel_code.regex'        => '支付通道编码只能是大写英文字母和数字',
                 'payment_channel_account_id.number' => '支付通道账户ID只能是数字',
                 'subject:max'                       => '商品名称长度不能超过255位',
-                'total_amount.float'                => '订单总金额格式不正确',
+                'total_amount.float'                => '订单金额格式不正确',
                 'buyer_pay_amount.float'            => '用户付款金额格式不正确',
                 'receipt_amount.float'              => '商户实收金额格式不正确',
                 'create_time.array'                 => '请重新选择选择时间范围',
