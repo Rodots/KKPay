@@ -322,7 +322,7 @@ class OrderController extends AdminBase
         $amount = $params['amount'];
         // 退款类型
         $refund_type = $params['refund_type'] === 'auto';
-        // 退款手续费承担方
+        // 退款服务费承担方
         $fee_bearer = $params['fee_bearer'] === 'platform';
         // 退款原因
         $reason = $params['reason'] ?: null;
@@ -340,7 +340,7 @@ class OrderController extends AdminBase
         if ($result['state']) {
             $msg = "退款成功！本次退款金额: {$amount}元";
             if ($fee_bearer) {
-                $msg .= "并退回商户平台手续费: {$result['refund_record']['refund_fee_amount']}元";
+                $msg .= "并退回商户平台服务费: {$result['refund_record']['refund_fee_amount']}元";
             }
             if ($refund_type) {
                 $msg .= "，接口退款流水号: {$result['gateway_return']['api_refund_no']}";

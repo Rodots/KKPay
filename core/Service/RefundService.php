@@ -19,7 +19,7 @@ class RefundService
      * @param string      $amount        退款金额
      * @param string      $initiate_type 退款发起方式
      * @param bool        $refund_type   退款类型 (false: 手动, true: 自动)
-     * @param bool        $fee_bearer    退款手续费承担方 (false: 商户承担, true: 平台承担)
+     * @param bool        $fee_bearer    退款服务费承担方 (false: 商户承担, true: 平台承担)
      * @param string|null $out_biz_no    商家业务号
      * @param string|null $reason        退款原因
      * @return array
@@ -54,7 +54,7 @@ class RefundService
             $total_amount = $order->getOriginal('total_amount');
             // 用户在交易中支付的金额（实付金额）
             $buyer_pay_amount = $order->getOriginal('buyer_pay_amount');
-            // 平台手续费金额
+            // 平台服务费金额
             $fee_amount = $order->getOriginal('fee_amount');
 
             // 该订单已退款金额
@@ -69,12 +69,12 @@ class RefundService
             // 执行商户钱包金额变更操作（扣除商户实收金额）
             MerchantWalletRecord::changeAvailable($order->merchant_id, $amount, '订单退款', false, $order->trade_no, '退款扣除收益');
 
-            // 计算应退还的平台手续费（如果平台承担手续费）
+            // 计算应退还的平台服务费（如果平台承担服务费）
             $refund_fee_amount = '0';
             if ($fee_bearer && bccomp($fee_amount, '0', 2) > 0) {
                 $refund_fee_amount = self::calculateRefundFee($total_amount, $fee_amount, $amount);
-                // 实付金额不大于订单总金额，退还手续费
-                MerchantWalletRecord::changeAvailable($order->merchant_id, $refund_fee_amount, '订单手续费退款', true, $order->trade_no, '退款退回平台扣除的订单手续费');
+                // 实付金额不大于订单总金额，退还服务费
+                MerchantWalletRecord::changeAvailable($order->merchant_id, $refund_fee_amount, '订单服务费退款', true, $order->trade_no, '退款退回平台扣除的订单服务费');
             }
 
             // 新增退款记录
@@ -131,12 +131,12 @@ class RefundService
     }
 
     /**
-     * 计算应退还的平台手续费
+     * 计算应退还的平台服务费
      *
      * @param string $total_amount  订单总金额
-     * @param string $fee_amount    平台手续费
+     * @param string $fee_amount    平台服务费
      * @param string $refund_amount 退款金额
-     * @return string 应退还的平台手续费
+     * @return string 应退还的平台服务费
      */
     private static function calculateRefundFee(string $total_amount, string $fee_amount, string $refund_amount): string
     {
@@ -148,10 +148,10 @@ class RefundService
         // 计算退款比例 = 退款金额 / 订单总金额
         $refund_ratio = bcdiv($refund_amount, $total_amount, 8);
 
-        // 计算应退还的手续费 = 平台手续费 × 退款比例
+        // 计算应退还的服务费 = 平台服务费 × 退款比例
         $refund_fee = bcmul($fee_amount, $refund_ratio, 8);
 
-        // 保留两位小数并确保不超过原手续费
+        // 保留两位小数并确保不超过原服务费
         $refund_fee = number_format($refund_fee, 2, '.', '');
 
         return bccomp($refund_fee, $fee_amount, 2) > 0 ? $fee_amount : $refund_fee;

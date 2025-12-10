@@ -67,7 +67,7 @@ class MerchantWithdrawalRecord extends Model
     }
 
     /***
-     * 访问器【手续费收取方式文本】
+     * 访问器【服务费收取方式文本】
      *
      * @return Attribute
      */
