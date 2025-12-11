@@ -1,7 +1,7 @@
 {
   "license": "proprietary",
   "require": {
-    "php": ">=8.4",
+    "php": ">=8.5",
     "workerman/webman-framework": "^2.1",
     "workerman/crontab": "^1.0",
     "webman/cache": "^2.1",
