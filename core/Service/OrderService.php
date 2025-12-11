@@ -51,8 +51,7 @@ class OrderService
                 Order::TRADE_STATE_FROZEN
             ],
             Order::TRADE_STATE_FROZEN   => [
-                Order::TRADE_STATE_SUCCESS,
-                Order::TRADE_STATE_FINISHED
+                Order::TRADE_STATE_SUCCESS
             ],
             Order::TRADE_STATE_CLOSED   => [], // 交易关闭的订单不能再转换
             Order::TRADE_STATE_FINISHED => [] // 交易结束的订单不能再转换
@@ -87,17 +86,15 @@ class OrderService
             return;
         }
 
+        $oldStatus = $order->trade_state;
+        $newStatus = Order::TRADE_STATE_SUCCESS;
+        // 验证订单状态转换是否有效
+        if (!self::isValidStatusTransition($order['trade_state'], $newStatus, $isAdmin)) {
+            throw new Exception("交易状态不能从 $oldStatus 转换为 $newStatus");
+        }
+
         Db::beginTransaction();
-
         try {
-            $oldStatus = $order->trade_state;
-            $newStatus = Order::TRADE_STATE_SUCCESS;
-
-            // 验证订单状态转换是否有效
-            if (!self::isValidStatusTransition($order['trade_state'], $newStatus, $isAdmin)) {
-                throw new Exception("交易状态不能从 $oldStatus 转换为 $newStatus");
-            }
-
             // 过滤并更新买家信息
             $filteredBuyer = array_intersect_key($buyer, [
                 'ip'            => 0,
@@ -150,7 +147,7 @@ class OrderService
             }
         } catch (Throwable $e) {
             Db::rollBack();
-            Log::error("订单状态更新失败：" . $e->getMessage());
+            Log::error("订单处理交易成功失败：" . $e->getMessage(), ['trade_no' => $trade_no]);
             throw $e;
         }
     }
@@ -241,5 +238,73 @@ class OrderService
         $queryString = http_build_query($order);
 
         return $return_url . $separator . $queryString;
+    }
+
+    /**
+     * 根据指定目标状态对订单执行冻结或解冻操作，并同步更新商户钱包余额。
+     *
+     * - 若目标状态为冻结（TRADE_STATE_FROZEN）：
+     *   - 仅当订单已结算（SETTLE_STATE_COMPLETED）时，将订单金额从商户可用余额转移至不可用余额。
+     *
+     * - 若目标状态为解冻（非冻结状态）：
+     *   - 若订单已结算，则将冻结金额释放回商户可用余额；
+     *   - 若订单结算状态为失败（SETTLE_STATE_FAILED），则视为因冻结导致未结算，
+     *     此时执行补偿性结算：将订单金额计入商户可用余额，并更新结算状态为已完成。
+     *
+     * 本操作在数据库事务中执行，确保状态变更与钱包记录的一致性。
+     *
+     * @param string $tradeNo     订单号，用于定位唯一订单
+     * @param string $targetState 目标交易状态，应为 Order::TRADE_STATE_FROZEN 或其他有效解冻状态
+     *
+     * @return void
+     * @throws Throwable 当数据库操作或钱包变更过程中发生异常时抛出
+     */
+    public static function handleFreezeOrThaw(string $tradeNo, string $targetState): void
+    {
+        $order = Order::where('trade_no', $tradeNo)->first();
+
+        if (!$order) {
+            throw new Exception('订单不存在');
+        }
+
+        // 验证订单状态转换是否有效
+        if (!self::isValidStatusTransition($order->trade_state, $targetState)) {
+            throw new Exception("交易状态不能从 $order->trade_state 转换为 $targetState");
+        }
+
+        // 验证订单金额
+        if ($order->receipt_amount <= 0) {
+            throw new Exception("订单金额无效: $order->receipt_amount");
+        }
+
+        Db::beginTransaction();
+        try {
+            $order->trade_state = $targetState;
+
+            // 根据目标状态处理对应的操作
+            if ($targetState === Order::TRADE_STATE_FROZEN) {
+                // 冻结操作，判断该订单已经结算了才冻结可用余额
+                if ($order->settle_state === Order::SETTLE_STATE_COMPLETED) {
+                    MerchantWalletRecord::changeUnAvailable($order->merchant_id, $order->receipt_amount, '订单冻结', true, $order->trade_no, '订单已结算，需冻结可用余额', true);
+                }
+            } else {
+                // 解冻操作
+                if ($order->settle_state === Order::SETTLE_STATE_COMPLETED) {
+                    MerchantWalletRecord::changeAvailable($order->merchant_id, $order->receipt_amount, '订单解冻', true, $order->trade_no, '将原冻结的可用余额释放', true);
+                } elseif ($order->settle_state === Order::SETTLE_STATE_FAILED) {
+                    // 验证当前订单的结算状态是否为失败（可能是因为冻结而导致应结算时未结算），如果是则立即执行结算
+                    // 执行商户钱包金额变更操作
+                    MerchantWalletRecord::changeAvailable($order->merchant_id, $order->receipt_amount, '订单收益', true, $order->trade_no, '补偿结算(订单原为冻结状态，解冻后恢复结算)', true);
+                    $order->settle_state = Order::SETTLE_STATE_COMPLETED;
+                }
+            }
+            $order->save();
+
+            Db::commit();
+        } catch (Throwable $e) {
+            Db::rollBack();
+            Log::error("订单冻结/解冻失败：" . $e->getMessage(), ['trade_no' => $tradeNo, 'target_state' => $targetState]);
+            throw $e;
+        }
     }
 }

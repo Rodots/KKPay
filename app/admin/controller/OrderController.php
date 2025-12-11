@@ -80,7 +80,7 @@ class OrderController extends AdminBase
         }
 
         // 构建查询
-        $select_fields = ['trade_no', 'out_trade_no', 'merchant_id', 'payment_type', 'payment_channel_account_id', 'subject', 'total_amount', 'create_time', 'payment_time', 'trade_state', 'settle_state', 'notify_state'];
+        $select_fields = ['trade_no', 'out_trade_no', 'merchant_id', 'payment_type', 'payment_channel_account_id', 'subject', 'total_amount', 'buyer_pay_amount', 'create_time', 'payment_time', 'trade_state', 'settle_state', 'notify_state'];
         $query         = Order::with(['merchant:id,merchant_number', 'paymentChannelAccount:id,name,payment_channel_id', 'paymentChannelAccount.paymentChannel:id,code', 'buyer:trade_no,ip'])->when($params, function ($q) use ($params) {
             foreach ($params as $key => $value) {
                 if ($value === '' || $value === null) {
@@ -241,8 +241,8 @@ class OrderController extends AdminBase
         if (!$order = Order::find($trade_no)) {
             return $this->fail('该订单不存在');
         }
-        if ($order->trade_state !== Order::TRADE_STATE_SUCCESS) {
-            return $this->fail('该订单非交易成功状态，无法重新通知');
+        if (!in_array($order->trade_state, [Order::TRADE_STATE_SUCCESS, Order::TRADE_STATE_FINISHED], true)) {
+            return $this->fail('该订单非交易成功或交易完结状态，无法重新通知');
         }
 
         try {
@@ -270,7 +270,6 @@ class OrderController extends AdminBase
      */
     public function refundInfo(Request $request): Response
     {
-        // 订单号
         $trade_no = $request->input('trade_no');
 
         if (empty($trade_no)) {
@@ -359,7 +358,6 @@ class OrderController extends AdminBase
      */
     public function repair(Request $request): Response
     {
-        // 订单号
         $trade_no = $request->input('trade_no');
 
         if (empty($trade_no)) {
@@ -378,5 +376,36 @@ class OrderController extends AdminBase
             return $this->fail($e->getMessage());
         }
         return $this->success('补单成功');
+    }
+
+    /**
+     * 冻结或解冻
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function freezeOrThaw(Request $request): Response
+    {
+        $trade_no    = $request->input('trade_no');
+        $targetState = $request->input('target_state');
+
+        if (empty($trade_no) || empty($targetState)) {
+            return $this->fail('必要参数缺失');
+        }
+        if (!in_array($targetState, [Order::TRADE_STATE_FROZEN, Order::TRADE_STATE_SUCCESS], true)) {
+            return $this->fail('参数异常');
+        }
+        if (!$order = Order::where('trade_no', $trade_no)->first(['trade_no', 'trade_state'])) {
+            return $this->fail('该订单不存在');
+        }
+
+        try {
+            OrderService::handleFreezeOrThaw($order->trade_no, $targetState);
+        } catch (Throwable $e) {
+            return $this->fail($e->getMessage());
+        }
+
+        $operation = $targetState === Order::TRADE_STATE_FROZEN ? '冻结' : '解冻';
+        return $this->success("订单{$operation}成功");
     }
 }
