@@ -27,7 +27,7 @@ class OrderSettle implements Consumer
      */
     public function consume($data): void
     {
-        $order = Order::select(['trade_no', 'merchant_id', 'receipt_amount', 'settle_state'])->where('trade_no', $data)->first();
+        $order = Order::where('trade_no', $data)->first(['trade_no', 'merchant_id', 'receipt_amount', 'trade_state', 'settle_state']);
         if (!$order) {
             return;
         }
@@ -35,6 +35,11 @@ class OrderSettle implements Consumer
         // 检查订单结算状态，避免重复处理
         if ($order->settle_state !== Order::SETTLE_STATE_PROCESSING) {
             return;
+        }
+        // 当订单交易状态为冻结时，将结算状态直接标记为失败
+        if ($order->trade_state === Order::TRADE_STATE_FROZEN) {
+            $order->settle_state = Order::SETTLE_STATE_FAILED;
+            $order->save();
         }
 
         // 执行商户钱包金额变更操作

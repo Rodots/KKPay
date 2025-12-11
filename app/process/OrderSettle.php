@@ -20,7 +20,7 @@ class OrderSettle
             $now = Carbon::now()->timezone(config('app.default_timezone'));
 
             // 用 chunk 分批处理，每批 200 条数据
-            Order::select(['trade_no', 'merchant_id', 'receipt_amount', 'settle_state', 'settle_cycle', 'payment_time'])->where([['settle_state', '=', Order::SETTLE_STATE_FAILED], ['create_time', '>=', $now->copy()->subDays(7)]])->chunkById(200, function ($rows) use ($now) {
+            Order::select(['trade_no', 'merchant_id', 'receipt_amount', 'settle_state', 'settle_cycle', 'payment_time'])->where([['settle_state', '=', Order::SETTLE_STATE_FAILED], ['create_time', '>=', $now->copy()->subDays(7)]])->whereIn('trade_state', [Order::TRADE_STATE_SUCCESS, Order::TRADE_STATE_FINISHED])->chunkById(200, function ($rows) use ($now) {
                 foreach ($rows as $row) {
                     // 计算原本应该结算的时间
                     $originalSettleTime = Carbon::Parse($row->getOriginal('payment_time'))->addDays($row->settle_cycle);
