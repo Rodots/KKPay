@@ -40,6 +40,17 @@ class RiskLog extends Model
         ];
     }
 
+    /**
+     * 可批量赋值的属性。
+     *
+     * @var array
+     */
+    protected $fillable = [
+        'merchant_id',
+        'type',
+        'content',
+    ];
+
     const int TYPE_BLACKLIST          = 0; // 命中黑名单
     const int TYPE_SUBJECT_KEYWORD    = 1; // 命中禁售商品关键词
     const int TYPE_ORDER_SUCCESS_RATE = 2; // 订单成功率过低

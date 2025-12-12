@@ -5,6 +5,7 @@ declare(strict_types = 1);
 namespace Core\Service;
 
 use app\model\Blacklist;
+use app\model\RiskLog;
 use InvalidArgumentException;
 use support\Log;
 use Carbon\Carbon;
@@ -21,72 +22,107 @@ class RiskService
      */
     private static function checkBlacklist(string $entityType, string $entityValue): bool
     {
-        try {
-            $entityHash = hash('sha3-224', $entityType . $entityValue);
-
-            return Blacklist::where('entity_hash', $entityHash)
-                ->where(function ($query) {
-                    $query->whereNull('expired_at')
-                        ->orWhere('expired_at', '>', Carbon::now()->timezone(config('app.default_timezone')));
-                })
-                ->exists();
-        } catch (Throwable $e) {
-            Log::error('黑名单检查异常', [
-                'entity_type'  => $entityType,
-                'entity_value' => $entityValue,
-                'error'        => $e->getMessage()
-            ]);
-            // 异常情况下为了安全考虑，返回true（拒绝访问）
-            return true;
-        }
+        $entityHash = hash('sha3-224', $entityType . $entityValue);
+        return Blacklist::where('entity_hash', $entityHash)->where(function ($query) {
+            $query->whereNull('expired_at')
+                ->orWhere('expired_at', '>', Carbon::now()->timezone(config('app.default_timezone')));
+        })->exists();
     }
 
     /**
      * 检查IP是否在黑名单中
      */
-    public static function checkIpBlacklist(string $ip): bool
+    public static function checkIpBlacklist(string $ip, int $merchantId): bool
     {
-        return self::checkBlacklist(Blacklist::ENTITY_TYPE_IP_ADDRESS, $ip);
+        $isBlack = self::checkBlacklist(Blacklist::ENTITY_TYPE_IP_ADDRESS, $ip);
+        if ($isBlack) {
+            RiskLog::create([
+                'merchant_id' => $merchantId,
+                'type'        => RiskLog::TYPE_BLACKLIST,
+                'content'     => "经系统校验，IP地址“{$ip}”已被列入管控名单，已成功拦截该用户创建订单。"
+            ]);
+        }
+        return $isBlack;
     }
 
     /**
      * 检查用户ID是否在黑名单中
      */
-    public static function checkUserIdBlacklist(string $userId): bool
+    public static function checkUserIdBlacklist(string $userId, int $merchantId, ?string $tradeNo = null): bool
     {
-        return self::checkBlacklist(Blacklist::ENTITY_TYPE_USER_ID, $userId);
+        $isBlack = self::checkBlacklist(Blacklist::ENTITY_TYPE_USER_ID, $userId);
+        if ($isBlack) {
+            RiskLog::create([
+                'merchant_id' => $merchantId,
+                'type'        => RiskLog::TYPE_BLACKLIST,
+                'content'     => "发现用户ID“{$userId}”为高风险用户，已成功拦截该用户" . ($tradeNo ? "对订单{$tradeNo}进行付款。" : '创建订单。')
+            ]);
+        }
+        return $isBlack;
     }
 
     /**
      * 检查手机号是否在黑名单中
      */
-    public static function checkMobileBlacklist(string $mobile): bool
+    public static function checkMobileBlacklist(string $mobile, int $merchantId, ?string $tradeNo = null): bool
     {
-        return self::checkBlacklist(Blacklist::ENTITY_TYPE_MOBILE, $mobile);
+        $isBlack = self::checkBlacklist(Blacklist::ENTITY_TYPE_MOBILE, $mobile);
+        if ($isBlack) {
+            RiskLog::create([
+                'merchant_id' => $merchantId,
+                'type'        => RiskLog::TYPE_BLACKLIST,
+                'content'     => "发现手机号“{$mobile}”为高风险用户，已成功拦截该用户" . ($tradeNo ? "对订单{$tradeNo}进行付款。" : '创建订单。')
+            ]);
+        }
+        return $isBlack;
     }
 
     /**
      * 检查银行卡号是否在黑名单中
      */
-    public static function checkBankCardBlacklist(string $bankCard): bool
+    public static function checkBankCardBlacklist(string $bankCard, int $merchantId, ?string $tradeNo = null): bool
     {
-        return self::checkBlacklist(Blacklist::ENTITY_TYPE_BANK_CARD, $bankCard);
+        $isBlack = self::checkBlacklist(Blacklist::ENTITY_TYPE_BANK_CARD, $bankCard);
+        if ($isBlack) {
+            RiskLog::create([
+                'merchant_id' => $merchantId,
+                'type'        => RiskLog::TYPE_BLACKLIST,
+                'content'     => "发现银行卡号“{$bankCard}”为高风险用户，已成功拦截该用户" . ($tradeNo ? "对订单{$tradeNo}进行付款。" : '创建订单。')
+            ]);
+        }
+        return $isBlack;
     }
 
     /**
      * 检查身份证号是否在黑名单中
      */
-    public static function checkIdCardBlacklist(string $idCard): bool
+    public static function checkIdCardBlacklist(string $idCard, int $merchantId, ?string $tradeNo = null): bool
     {
-        return self::checkBlacklist(Blacklist::ENTITY_TYPE_ID_CARD, $idCard);
+        $isBlack = self::checkBlacklist(Blacklist::ENTITY_TYPE_ID_CARD, $idCard);
+        if ($isBlack) {
+            RiskLog::create([
+                'merchant_id' => $merchantId,
+                'type'        => RiskLog::TYPE_BLACKLIST,
+                'content'     => "发现身份证号“{$idCard}”为高风险用户，已成功拦截该用户" . ($tradeNo ? "对订单{$tradeNo}进行付款。" : '创建订单。')
+            ]);
+        }
+        return $isBlack;
     }
 
     /**
      * 检查设备指纹是否在黑名单中
      */
-    public static function checkDeviceFingerprintBlacklist(string $deviceFingerprint): bool
+    public static function checkDeviceFingerprintBlacklist(string $deviceFingerprint, int $merchantId): bool
     {
-        return self::checkBlacklist(Blacklist::ENTITY_TYPE_DEVICE_FINGERPRINT, $deviceFingerprint);
+        $isBlack = self::checkBlacklist(Blacklist::ENTITY_TYPE_DEVICE_FINGERPRINT, $deviceFingerprint);
+        if ($isBlack) {
+            RiskLog::create([
+                'merchant_id' => $merchantId,
+                'type'        => RiskLog::TYPE_BLACKLIST,
+                'content'     => "经系统校验，设备“{$deviceFingerprint}”已被列入管控名单，已成功拦截访问。"
+            ]);
+        }
+        return $isBlack;
     }
 
     /**
@@ -120,7 +156,7 @@ class RiskService
                     'entity_hash'  => $entityHash,
                     'reason'       => $reason,
                     'origin'       => $origin,
-                    'expired_at' => $expiredAt ?? null
+                    'expired_at'   => $expiredAt ?? null
                 ]);
             }
 
