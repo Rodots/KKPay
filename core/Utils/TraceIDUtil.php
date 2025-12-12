@@ -15,7 +15,7 @@ final class TraceIDUtil
 
     /**
      * 获取当前请求的跟踪ID
-     * 
+     *
      * @return string|null
      */
     public static function getTraceID(): ?string
@@ -25,7 +25,7 @@ final class TraceIDUtil
 
     /**
      * 设置当前请求的跟踪ID
-     * 
+     *
      * @param string $traceId
      * @return void
      */

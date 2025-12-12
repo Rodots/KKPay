@@ -18,7 +18,9 @@
             <button class="order-toggle" onclick="toggleOrderInfo()">
                 <span class="order-toggle-text">
                     <svg class="toggle-icon" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd" d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z" clip-rule="evenodd" />
+                        <path fill-rule="evenodd"
+                              d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                              clip-rule="evenodd"/>
                     </svg>
                     订单详情
                 </span>
@@ -54,7 +56,8 @@
                 <div id="qrcode" title="<?php echo htmlspecialchars($url); ?>"></div>
             </div>
             <div class="button-container">
-                <button class="payment-button alipay-button" id="alipayButton" onclick="handleAlipayRedirect()" style="display: none;">
+                <button class="payment-button alipay-button" id="alipayButton" onclick="handleAlipayRedirect()"
+                        style="display: none;">
                     <span class="button-text">打开支付宝(Alipay App)</span>
                 </button>
             </div>
@@ -71,7 +74,9 @@
 
 <script>
     const paymentUrl = '<?php echo htmlspecialchars($url); ?>';
-    const tradeNo = '<?php echo $order['trade_no']; ?>';
+    const tradeNo = '<?php echo $order['
+    trade_no
+    ']; ?>';
 </script>
 <script src="/assets/pay_page/common/js/qrcode.js"></script>
 <script src="/assets/pay_page/alipay_qrcode/js/main.js"></script>

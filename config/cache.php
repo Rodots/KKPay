@@ -3,7 +3,7 @@
 return [
     'default' => 'redis',
     'stores' => [
-        'file' => [
+        'file'  => [
             'driver' => 'file',
             'path' => runtime_path('cache')
         ],

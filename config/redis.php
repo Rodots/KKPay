@@ -1,45 +1,45 @@
 <?php
 
 return [
-    'default' => [
+    'default'      => [
         'password' => '',
-        'host' => '127.0.0.1',
-        'port' => 6379,
+        'host'   => '127.0.0.1',
+        'port'   => 6379,
         'database' => 0,
         'prefix' => 'KKPay:',
-        'pool' => [
+        'pool'   => [
             'max_connections' => 5,
             'min_connections' => 1,
-            'wait_timeout' => 3,
-            'idle_timeout' => 60,
+            'wait_timeout'    => 3,
+            'idle_timeout'    => 60,
             'heartbeat_interval' => 50,
         ],
     ],
-    'cache' => [
+    'cache'        => [
         'password' => '',
-        'host' => '127.0.0.1',
-        'port' => 6379,
+        'host'   => '127.0.0.1',
+        'port'   => 6379,
         'database' => 0,
         'prefix' => 'KKPay:Cache:',
-        'pool' => [
+        'pool'   => [
             'max_connections' => 5,
             'min_connections' => 1,
-            'wait_timeout' => 3,
-            'idle_timeout' => 60,
+            'wait_timeout'    => 3,
+            'idle_timeout'    => 60,
             'heartbeat_interval' => 50,
         ],
     ],
     'rate_limiter' => [
         'password' => '',
-        'host' => '127.0.0.1',
-        'port' => 6379,
+        'host'   => '127.0.0.1',
+        'port'   => 6379,
         'database' => 0,
         'prefix' => 'KKPay:RateLimiter:',
-        'pool' => [
+        'pool'   => [
             'max_connections' => 5,
             'min_connections' => 1,
-            'wait_timeout' => 3,
-            'idle_timeout' => 60,
+            'wait_timeout'    => 3,
+            'idle_timeout'    => 60,
             'heartbeat_interval' => 50,
         ],
     ]

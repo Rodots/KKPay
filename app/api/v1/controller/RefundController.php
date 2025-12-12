@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types=1);
+declare(strict_types = 1);
 
 namespace app\api\v1\controller;
 
@@ -37,35 +37,35 @@ class RefundController
     {
         try {
             $params = $request->post();
-            
+
             // 参数验证
             $this->validateRefundParams($params);
 
             Log::info('收到退款申请', [
                 'params' => $params,
-                'ip' => $request->getRealIp(),
+                'ip'     => $request->getRealIp(),
                 'merchant_id' => $request->merchant_id ?? null
             ]);
 
             // 处理退款申请
             $result = $this->paymentService->processRefund([
-                'merchant_id' => $request->merchant_id,
+                'merchant_id'  => $request->merchant_id,
                 'out_trade_no' => $params['out_trade_no'],
                 'refund_amount' => $params['refund_amount'],
                 'refund_reason' => $params['refund_reason'] ?? '商户申请退款',
                 'out_refund_no' => $params['out_refund_no'] ?? null,
-                'notify_url' => $params['notify_url'] ?? null,
+                'notify_url'   => $params['notify_url'] ?? null,
             ]);
 
             if ($result['success']) {
                 Log::info('退款申请成功', [
                     'out_trade_no' => $params['out_trade_no'],
                     'refund_amount' => $params['refund_amount'],
-                    'refund_id' => $result['refund_id'] ?? null
+                    'refund_id'    => $result['refund_id'] ?? null
                 ]);
 
                 return $this->success([
-                    'refund_id' => $result['refund_id'],
+                    'refund_id'   => $result['refund_id'],
                     'out_refund_no' => $result['out_refund_no'],
                     'refund_status' => $result['refund_status'],
                     'refund_amount' => $result['refund_amount'],
@@ -90,8 +90,8 @@ class RefundController
             Log::error('退款申请系统异常', [
                 'params' => $request->post(),
                 'error' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine()
+                'file'  => $e->getFile(),
+                'line'  => $e->getLine()
             ]);
             return $this->error('系统异常，请稍后重试');
         }
@@ -104,7 +104,7 @@ class RefundController
     {
         try {
             $params = $request->post();
-            
+
             // 参数验证
             if (empty($params['out_trade_no']) && empty($params['out_refund_no'])) {
                 return $this->fail('订单号或退款单号不能为空');
@@ -117,19 +117,19 @@ class RefundController
 
             // 查询退款状态
             $result = $this->paymentService->queryRefund([
-                'merchant_id' => $request->merchant_id,
+                'merchant_id'  => $request->merchant_id,
                 'out_trade_no' => $params['out_trade_no'] ?? null,
                 'out_refund_no' => $params['out_refund_no'] ?? null,
             ]);
 
             if ($result['success']) {
                 return $this->success([
-                    'refund_id' => $result['refund_id'],
+                    'refund_id'    => $result['refund_id'],
                     'out_trade_no' => $result['out_trade_no'],
                     'out_refund_no' => $result['out_refund_no'],
                     'refund_status' => $result['refund_status'],
                     'refund_amount' => $result['refund_amount'],
-                    'refund_time' => $result['refund_time'],
+                    'refund_time'  => $result['refund_time'],
                     'refund_reason' => $result['refund_reason'],
                 ], '查询成功');
             } else {
@@ -140,14 +140,12 @@ class RefundController
             Log::error('退款查询系统异常', [
                 'params' => $request->get(),
                 'error' => $e->getMessage(),
-                'file' => $e->getFile(),
-                'line' => $e->getLine()
+                'file'  => $e->getFile(),
+                'line'  => $e->getLine()
             ]);
             return $this->error('系统异常，请稍后重试');
         }
     }
-
-
 
     /**
      * 验证退款参数

@@ -1,6 +1,6 @@
 <?php
 return [
-    'consumer'  => [
+    'consumer' => [
         'handler'     => Webman\RedisQueue\Process\Consumer::class,
         'count'       => 8, // 可以设置多进程同时消费
         'constructor' => [
