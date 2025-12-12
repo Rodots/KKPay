@@ -7,7 +7,7 @@ use Random\RandomException;
 
 final class AES
 {
-    private const int IV_BYTES = 16;
+    private const int    IV_BYTES      = 16;
     private const string CIPHER_METHOD = 'AES-128-CBC';
     private string $key;
 
@@ -44,12 +44,12 @@ final class AES
     {
         $data = base64_decode($b64, true);
         if ($data === false) return null;
-        
+
         if (strlen($data) < self::IV_BYTES) return null;
-        
+
         $iv = substr($data, 0, self::IV_BYTES);
         $ct = substr($data, self::IV_BYTES);
-        
+
         $pt = openssl_decrypt(
             $ct,
             self::CIPHER_METHOD,
@@ -57,7 +57,7 @@ final class AES
             OPENSSL_RAW_DATA,
             $iv
         );
-        
+
         return $pt === false ? null : $pt;
     }
 
