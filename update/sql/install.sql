@@ -19,12 +19,12 @@ CREATE TABLE `kkpay_admin`  (
   `updated_at` timestamp NULL DEFAULT NULL COMMENT '更新时间',
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `idx_account`(`account` ASC) USING BTREE COMMENT '账号是唯一的'
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '管理员表' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 2 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '管理员表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Records of kkpay_admin
 -- ----------------------------
-INSERT INTO `kkpay_admin` VALUES (1, 0, 'admin', 'Boss', NULL, b'1', '$2y$12$s63FU4x70ro2rPIGxB6eS.Fah8nNpHStHhSWmLgWC/M5ap4KzB1c2', 'do9V', NULL, '2025-08-01 00:00:00', '2025-08-01 00:00:00');
+INSERT INTO `kkpay_admin` VALUES (1, 0, 'admin', 'Boss', NULL, b'1', '$2y$12$QLP94tIcr.6zH8OrqcdvA.TD1ilYWJ5DJvNn5xCKMlnn7N7i2Nmfe', 'uAhX', NULL, '2026-01-01 00:00:00', '2026-01-01 00:00:00');
 
 -- ----------------------------
 -- Table structure for kkpay_admin_log
@@ -51,7 +51,7 @@ CREATE TABLE `kkpay_blacklist`  (
   `entity_value` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '实体值',
   `entity_hash` char(56) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '实体值的SHA3-224哈希',
   `reason` varchar(1024) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '封禁原因',
-  `origin` enum ('MANUAL_REVIEW','AUTO_DETECTION','THIRD_PARTY','MERCHANT_REPORT') CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '来源',
+  `origin` enum('MANUAL_REVIEW','AUTO_DETECTION','THIRD_PARTY','MERCHANT_REPORT') CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '来源',
   `expired_at` timestamp NULL DEFAULT NULL COMMENT '过期时间',
   `created_at` timestamp NULL DEFAULT NULL COMMENT '创建时间',
   `updated_at` timestamp NULL DEFAULT NULL COMMENT '更新时间',
@@ -190,7 +190,7 @@ CREATE TABLE `kkpay_merchant_security`  (
 DROP TABLE IF EXISTS `kkpay_merchant_wallet`;
 CREATE TABLE `kkpay_merchant_wallet`  (
   `merchant_id` int UNSIGNED NOT NULL COMMENT '商户ID',
-  `available_balance`   decimal(12, 2) NOT NULL DEFAULT 0.00 COMMENT '可用余额',
+  `available_balance` decimal(12, 2) NOT NULL DEFAULT 0.00 COMMENT '可用余额',
   `unavailable_balance` decimal(12, 2) NOT NULL DEFAULT 0.00 COMMENT '不可用余额',
   `margin` decimal(12, 2) NOT NULL DEFAULT 0.00 COMMENT '保证金/押金',
   `prepaid` decimal(12, 2) UNSIGNED NOT NULL DEFAULT 0.00 COMMENT '预付金',
@@ -225,18 +225,18 @@ CREATE TABLE `kkpay_merchant_wallet_record`  (
   `id` int UNSIGNED NOT NULL AUTO_INCREMENT COMMENT 'ID',
   `merchant_id` int UNSIGNED NOT NULL COMMENT '商户ID',
   `type` varchar(32) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '操作类型',
-  `old_available_balance`   decimal(12, 2) NOT NULL COMMENT '变更前可用金额',
-  `available_amount`        decimal(12, 2) NOT NULL COMMENT '变更可用金额',
-  `new_available_balance`   decimal(12, 2) NOT NULL COMMENT '变更后可用金额',
+  `old_available_balance` decimal(12, 2) NOT NULL COMMENT '变更前可用金额',
+  `available_amount` decimal(12, 2) NOT NULL COMMENT '变更可用金额',
+  `new_available_balance` decimal(12, 2) NOT NULL COMMENT '变更后可用金额',
   `old_unavailable_balance` decimal(12, 2) NOT NULL COMMENT '变更前不可用余额',
-  `unavailable_amount`      decimal(12, 2) NOT NULL COMMENT '变更不可用金额',
+  `unavailable_amount` decimal(12, 2) NOT NULL COMMENT '变更不可用金额',
   `new_unavailable_balance` decimal(12, 2) NOT NULL COMMENT '变更后不可用余额',
   `remark` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '备注',
   `trade_no` char(24) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '关联平台订单号',
   `created_at` timestamp NULL DEFAULT NULL COMMENT '操作时间',
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `idx_merchant_wallet_id`(`merchant_id` ASC) USING BTREE,
-  INDEX `idx_trade_no` (`trade_no` ASC) USING BTREE,
+  INDEX `idx_trade_no`(`trade_no` ASC) USING BTREE,
   INDEX `idx_type_created`(`type` ASC, `created_at` ASC) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '商户钱包余额变动记录表' ROW_FORMAT = DYNAMIC;
 
@@ -270,7 +270,7 @@ CREATE TABLE `kkpay_order`  (
   `out_trade_no` varchar(128) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '商户订单号',
   `api_trade_no` varchar(255) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '上游订单号',
   `bill_trade_no` varchar(255) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '真实交易流水号',
-  `mch_trade_no` varchar(255) CHARACTER SET ascii COLLATE ascii_bin DEFAULT NULL COMMENT '渠道交易流水号',
+  `mch_trade_no` varchar(255) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '渠道交易流水号',
   `merchant_id` int UNSIGNED NOT NULL COMMENT '商户ID',
   `payment_type` enum('None','Alipay','WechatPay','Bank','UnionPay','QQWallet','JDPay','PayPal') CHARACTER SET ascii COLLATE ascii_bin NOT NULL DEFAULT 'None' COMMENT '支付方式',
   `payment_channel_account_id` int UNSIGNED NOT NULL COMMENT '支付通道子账户ID',
@@ -318,7 +318,7 @@ CREATE TABLE `kkpay_order_buyer`  (
   `ip` varchar(45) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT 'IP地址',
   `user_agent` varchar(1024) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '浏览器标识',
   `user_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '付款人',
-  `buyer_open_id` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci DEFAULT NULL COMMENT '买家用户唯一标识',
+  `buyer_open_id` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '买家用户唯一标识',
   `phone` char(11) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '手机号码',
   `created_at` timestamp NULL DEFAULT NULL COMMENT '创建时间',
   `updated_at` timestamp NULL DEFAULT NULL COMMENT '更新时间',
@@ -334,7 +334,7 @@ CREATE TABLE `kkpay_order_notification`  (
   `id` char(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '通知校验ID',
   `trade_no` char(24) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '平台订单号',
   `status` bit(1) NOT NULL DEFAULT b'0' COMMENT '状态 0:失败 1:成功',
-  `request_duration` int UNSIGNED NOT NULL DEFAULT '0' COMMENT '请求耗时（毫秒）',
+  `request_duration` int UNSIGNED NOT NULL DEFAULT 0 COMMENT '请求耗时（毫秒）',
   `response_content` varchar(2048) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT '' COMMENT '返回内容',
   `created_at` timestamp NULL DEFAULT NULL COMMENT '创建时间',
   PRIMARY KEY (`id`) USING BTREE,
@@ -361,7 +361,7 @@ CREATE TABLE `kkpay_order_refund`  (
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `idx_initiate_type`(`initiate_type` ASC) USING BTREE,
   INDEX `idx_trade_no`(`trade_no` ASC) USING BTREE,
-  INDEX `idx_merchant_out_biz_no`(`merchant_id`, `out_biz_no` ASC) USING BTREE
+  INDEX `idx_merchant_out_biz_no`(`merchant_id` ASC, `out_biz_no` ASC) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '订单退款表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
@@ -424,5 +424,20 @@ CREATE TABLE `kkpay_payment_channel_account`  (
   INDEX `payment_channel_id`(`payment_channel_id` ASC) USING BTREE,
   INDEX `idx_softdelete`(`deleted_at` ASC) USING BTREE COMMENT '软删除'
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '支付通道子账户表' ROW_FORMAT = DYNAMIC;
+
+-- ----------------------------
+-- Table structure for kkpay_risk_log
+-- ----------------------------
+DROP TABLE IF EXISTS `kkpay_risk_log`;
+CREATE TABLE `kkpay_risk_log`  (
+  `id` int UNSIGNED NOT NULL AUTO_INCREMENT,
+  `merchant_id` int UNSIGNED NOT NULL COMMENT '商户ID',
+  `type` tinyint UNSIGNED NOT NULL DEFAULT 0 COMMENT '风控类型',
+  `content` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '风控内容',
+  `created_at` timestamp NULL DEFAULT NULL COMMENT '操作时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  INDEX `idx_merchant_id`(`merchant_id` ASC) USING BTREE,
+  INDEX `idx_created`(`created_at` ASC) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '风控日志表' ROW_FORMAT = DYNAMIC;
 
 SET FOREIGN_KEY_CHECKS = 1;
