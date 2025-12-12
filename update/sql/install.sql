@@ -434,10 +434,10 @@ CREATE TABLE `kkpay_risk_log`  (
   `merchant_id` int UNSIGNED NOT NULL COMMENT '商户ID',
   `type` tinyint UNSIGNED NOT NULL DEFAULT 0 COMMENT '风控类型',
   `content` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '风控内容',
-  `created_at` timestamp NULL DEFAULT NULL COMMENT '操作时间',
+  `created_at` timestamp NULL DEFAULT NULL COMMENT '触发时间',
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `idx_merchant_id`(`merchant_id` ASC) USING BTREE,
   INDEX `idx_created`(`created_at` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '风控日志表' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '风控预警日志表' ROW_FORMAT = DYNAMIC;
 
 SET FOREIGN_KEY_CHECKS = 1;
