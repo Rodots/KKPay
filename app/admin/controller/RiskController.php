@@ -5,6 +5,8 @@ declare(strict_types = 1);
 namespace app\admin\controller;
 
 use app\model\Blacklist;
+use app\model\Merchant;
+use app\model\RiskLog;
 use Core\baseController\AdminBase;
 use Core\Service\RiskService;
 use SodiumException;
@@ -104,9 +106,9 @@ class RiskController extends AdminBase
             return $this->fail($e->getMessage());
         }
         if (RiskService::addToBlacklist(trim($params['entity_type']), trim($params['entity_value']), trim($params['reason']), expiredAt: $params['expired_at'])) {
-            return $this->success('新增成功');
+            return $this->success('新增或更新黑名单成功');
         }
-        return $this->fail('新增失败');
+        return $this->fail('新增或更新黑名单失败');
     }
 
     /**
@@ -149,5 +151,66 @@ class RiskController extends AdminBase
             return $this->fail($e->getMessage());
         }
         return $this->success('解除成功');
+    }
+
+    /**
+     * 风控日志
+     */
+    public function log(Request $request): Response
+    {
+        $from   = $request->get('from', 0);
+        $limit  = $request->get('limit', 10);
+        $params = $request->only(['merchant_number', 'type', 'content', 'created_at']);
+
+        try {
+            validate([
+                'merchant_number' => ['startWith:M', 'alphaNum', 'length:16'],
+                'type'            => ['number'],
+                'content'         => ['max:512'],
+                'created_at'      => ['array']
+            ], [
+                'merchant_number.startWith' => '商户编号是以M开头的16位数字+英文组合',
+                'merchant_number.alphaNum'  => '商户编号是以M开头的16位数字+英文组合',
+                'merchant_number.length'    => '商户编号是以M开头的16位数字+英文组合',
+                'type.number'               => '风控类型不正确',
+                'content.max'               => '风控内容不能超过512个字符',
+                'created_at.array'          => '请重新选择选择时间范围'
+            ])->check($params);
+        } catch (Throwable $e) {
+            return $this->fail($e->getMessage());
+        }
+
+        // 构建查询
+        $query = RiskLog::with(['merchant:id,merchant_number'])->when($params, function ($q) use ($params) {
+            foreach ($params as $key => $value) {
+                if ($value === '' || $value === null) {
+                    continue;
+                }
+                switch ($key) {
+                    case 'merchant_number':
+                        $q->where('merchant_id', Merchant::where('merchant_number', $value)->value('id'));
+                        break;
+                    case 'type':
+                        $q->where('type', $value);
+                        break;
+                    case 'content':
+                        $q->where('content', 'like', '%' . $value . '%');
+                        break;
+                    case 'created_at':
+                        $q->whereBetween('created_at', [$value[0], $value[1]]);
+                        break;
+                }
+            }
+            return $q;
+        });
+
+        // 获取总数和数据
+        $total = $query->count();
+        $list  = $query->offset($from)->limit($limit)->get()->append(['type_text']);
+
+        return $this->success(data: [
+            'list'  => $list,
+            'total' => $total,
+        ]);
     }
 }
