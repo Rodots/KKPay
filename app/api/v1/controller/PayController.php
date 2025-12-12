@@ -10,6 +10,7 @@ use Carbon\Carbon;
 use Core\Exception\PaymentException;
 use Core\Service\PaymentService;
 use Core\Service\OrderCreationService;
+use Core\Service\RiskService;
 use Core\Traits\ApiResponse;
 use Core\Utils\PaymentGatewayUtil;
 use support\annotation\Middleware;
@@ -33,17 +34,23 @@ class PayController
     #[Middleware(GetSignatureVerification::class)]
     public function submit(Request $request): Response
     {
+        // 中间件已经验证了签名和商户信息
+        $merchant = $request->merchant;
+        $params   = $request->verifiedParams;
+
+        // 解析业务参数
+        $bizContent = $this->parseBizContent($params['biz_content']);
+        if (is_string($bizContent)) {
+            return $this->pageMsg($bizContent);
+        }
+
+        $clientIp = $request->getRealIp();
+        // 风控检查
+        if (RiskService::checkIpBlacklist($clientIp, $merchant->id)) {
+            return $this->pageMsg('系统异常，无法完成付款');
+        }
+
         try {
-            // 中间件已经验证了签名和商户信息
-            $merchant = $request->merchant;
-            $params   = $request->verifiedParams;
-
-            // 解析业务参数
-            $bizContent = $this->parseBizContent($params['biz_content']);
-            if (is_string($bizContent)) {
-                return $this->pageMsg($bizContent);
-            }
-
             // 验证业务参数
             $validationResult = $this->validateBizContent($bizContent);
             if ($validationResult !== true) {
@@ -51,7 +58,7 @@ class PayController
             }
 
             // 创建订单
-            [$order, $paymentChannelAccount, $orderBuyer] = OrderCreationService::createOrder($bizContent, $merchant, $request->getRealIp());
+            [$order, $paymentChannelAccount, $orderBuyer] = OrderCreationService::createOrder($bizContent, $merchant, $clientIp);
             $order = $order->toArray();
 
             // 如果没有指定支付方式，跳转到收银台
@@ -90,9 +97,8 @@ class PayController
         if ($decoded === false) {
             return '业务参数base64解码失败';
         }
-
         if (!json_validate($decoded)) {
-            return '业务参数JSON格式错误';
+            return '业务参数非JSON格式';
         }
 
         $data = json_decode($decoded, true);

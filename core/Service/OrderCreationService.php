@@ -30,21 +30,16 @@ class OrderCreationService
         Db::beginTransaction();
 
         try {
-            // 1. 风控检查
-            if (RiskService::checkIpBlacklist($clientIp)) {
-                throw new PaymentException('系统异常');
-            }
+            // 业务验证
+            self::validateBusinessRules($merchant->id, $bizContent);
 
-            // 2. 业务验证
-            // self::validateBusinessRules($merchant->id, $bizContent);
-
-            // 3. 选择支付通道收款账户
+            // 选择支付通道收款账户
             $paymentChannelAccount = self::selectPaymentChannel($bizContent);
 
-            // 4. 创建订单记录
+            // 创建订单记录
             $order = self::createOrderRecord($bizContent, $merchant->id, $paymentChannelAccount);
 
-            // 5. 创建订单关联信息
+            // 创建订单关联信息
             $orderBuyer = OrderBuyer::create([
                 'trade_no'   => $order->trade_no,
                 'ip'         => $clientIp,
