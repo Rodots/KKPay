@@ -142,8 +142,9 @@ final class SignatureUtil
             };
             return ['sign' => $sign, 'sign_string' => $signString];
         } catch (Throwable $e) {
-            Log::error('生成签名异常: ' . $e->getMessage());
-            throw new Exception('生成签名异常: ' . $e->getMessage());
+            $msg = "[$signType]生成签名异常: " . $e->getMessage();
+            Log::error($msg);
+            throw new Exception($msg);
         }
     }
 }

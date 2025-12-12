@@ -136,18 +136,17 @@ class OrderService
                     Log::error("订单延迟结算队列投递失败：" . $order->trade_no);
                 }
             }
-
             $order->save();
-
-            Db::commit();
 
             // 如果是异步通知则同步通知下游
             if ($isAsync) {
                 self::sendAsyncNotification($trade_no, $order);
             }
+
+            Db::commit();
         } catch (Throwable $e) {
             Db::rollBack();
-            Log::error("订单处理交易成功失败：" . $e->getMessage(), ['trade_no' => $trade_no]);
+            Log::error("订单处理交易成功时出现异常：" . $e->getMessage(), ['trade_no' => $trade_no]);
             throw $e;
         }
     }
@@ -197,7 +196,7 @@ class OrderService
             'timestamp'        => time(),
             'sign_type'        => 'rsa2',
         ];
-        $buildSignature    = SignatureUtil::buildSignature($queueData, $queueData['sign_type'], sys_config('payment', 'system_rsa2_private_key', 'Rodots'));
+        $buildSignature    = SignatureUtil::buildSignature($queueData, $queueData['sign_type'], sys_config('payment', 'system_rsa2_private_key', ''));
         $queueData['sign'] = $buildSignature['sign'];
 
         if ($isServer) {
@@ -205,7 +204,6 @@ class OrderService
             if (!SyncQueue::send($queueName, $queueData)) {
                 Log::error("订单异步通知队列{$queueName}投递失败：" . $tradeNo);
             }
-
             return $buildSignature['sign_string'];
         }
 
@@ -232,7 +230,7 @@ class OrderService
         // 添加时间戳与签名
         $order['timestamp'] = time();
         $order['sign_type'] = 'rsa2';
-        $order['sign']      = SignatureUtil::buildSignature($order, $order['sign_type'], sys_config('payment', 'system_rsa2_private_key', 'Rodots'));
+        $order['sign']      = SignatureUtil::buildSignature($order, $order['sign_type'], sys_config('payment', 'system_rsa2_private_key', ''));
 
         $separator   = str_contains($return_url, '?') ? '&' : '?';
         $queryString = http_build_query($order);
