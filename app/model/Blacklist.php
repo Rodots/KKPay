@@ -47,9 +47,9 @@ class Blacklist extends Model
     /**
      * 黑名单来源常量
      */
-    public const string ORIGIN_MANUAL_REVIEW  = 'MANUAL_REVIEW';
-    public const string ORIGIN_AUTO_DETECTION = 'AUTO_DETECTION';
-    public const string ORIGIN_THIRD_PARTY    = 'THIRD_PARTY';
+    public const string ORIGIN_MANUAL_REVIEW   = 'MANUAL_REVIEW';
+    public const string ORIGIN_AUTO_DETECTION  = 'AUTO_DETECTION';
+    public const string ORIGIN_THIRD_PARTY     = 'THIRD_PARTY';
     public const string ORIGIN_MERCHANT_REPORT = 'MERCHANT_REPORT';
 
     /**

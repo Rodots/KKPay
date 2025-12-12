@@ -24,7 +24,7 @@ class MerchantSecurity extends Model
      * @var string
      */
     protected $primaryKey = 'merchant_id';
-    
+
     /**
      * 指示模型的 ID 是否是自动递增的。
      *

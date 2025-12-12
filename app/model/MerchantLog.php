@@ -46,7 +46,7 @@ class MerchantLog extends Model
     protected function createdAt(): Attribute
     {
         return Attribute::make(
-            get: fn (?string $value) => $value ? Carbon::parse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
+            get: fn(?string $value) => $value ? Carbon::parse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
         );
     }
 
