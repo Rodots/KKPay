@@ -271,10 +271,10 @@ final readonly class RSA2
      */
     private static function normalizePem(string $key, string $prefix): string
     {
-        $key = trim($key);
-        if ($key === '') {
+        if (empty($key)) {
             throw new InvalidArgumentException("密钥不能为空");
         }
+        $key = trim($key);
 
         // 修复字面量 \n 和 \r
         $key = str_replace('\n', "\n", $key);
