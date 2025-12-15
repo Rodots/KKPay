@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 namespace Core\Service;
 
+use app\model\MerchantEncryption;
 use app\model\MerchantWalletRecord;
 use app\model\Order;
 use app\model\OrderBuyer;
@@ -182,7 +183,7 @@ class OrderService
         }
 
         // 构建通知数据
-        $queueData         = [
+        $queueData = [
             'trade_no'         => $order->trade_no,
             'out_trade_no'     => $order->out_trade_no,
             'bill_trade_no'    => $order->bill_trade_no,
@@ -194,9 +195,12 @@ class OrderService
             'create_time'      => $order->create_time_with_zone,
             'payment_time'     => $order->payment_time_with_zone,
             'timestamp'        => time(),
-            'sign_type'        => 'rsa2',
+            'sign_type'        => $order->sign_type,
         ];
-        $buildSignature    = SignatureUtil::buildSignature($queueData, $queueData['sign_type'], sys_config('payment', 'system_rsa2_private_key', ''));
+
+        // 签名密钥获取
+        $signKey           = $order['sign_type'] === MerchantEncryption::SIGN_TYPE_SHA256withRSA ? sys_config('payment', 'system_rsa2_private_key', '') : MerchantEncryption::where('merchant_id', $order->merchant_id)->value('hash_key');
+        $buildSignature    = SignatureUtil::buildSignature($queueData, $queueData['sign_type'], $signKey);
         $queueData['sign'] = $buildSignature['sign'];
 
         if ($isServer) {
@@ -213,29 +217,32 @@ class OrderService
     /**
      * 构建同步通知参数
      *
-     * @param array $order 订单数据（包含['trade_no', 'out_trade_no', 'bill_trade_no', 'total_amount', 'attach', 'trade_state', 'return_url', 'create_time', 'payment_time']）
+     * @param array $order 订单数据（包含['trade_no', 'out_trade_no', 'bill_trade_no', 'merchant_id', 'total_amount', 'attach', 'trade_state', 'return_url', 'create_time', 'payment_time', 'sign_type']）
      * @return string
      * @throws Exception
      */
     public static function buildSyncNotificationParams(array $order): string
     {
         // 过滤$order数组，只保留必要参数
-        $order      = array_intersect_key($order, ['trade_no' => 0, 'out_trade_no' => 0, 'bill_trade_no' => 0, 'total_amount' => 0, 'attach' => 0, 'trade_state' => 0, 'return_url' => 0, 'create_time' => 0, 'payment_time' => 0]);
-        $return_url = $order['return_url'];
-        unset($order['return_url']);
+        $params = array_intersect_key($order, ['trade_no' => 0, 'out_trade_no' => 0, 'bill_trade_no' => 0, 'total_amount' => 0, 'attach' => 0, 'trade_state' => 0, 'create_time' => 0, 'payment_time' => 0, 'sign_type' => 0]);
 
-        // 格式化create_time与payment_time
-        $order['create_time']  = Carbon::parse($order['create_time'])->timezone(config('app.default_timezone'))->format('Y-m-d\TH:i:sP');
-        $order['payment_time'] = Carbon::parse($order['payment_time'])->timezone(config('app.default_timezone'))->format('Y-m-d\TH:i:sP');
-        // 添加时间戳与签名
-        $order['timestamp'] = time();
-        $order['sign_type'] = 'rsa2';
-        $order['sign']      = SignatureUtil::buildSignature($order, $order['sign_type'], sys_config('payment', 'system_rsa2_private_key', ''));
+        // 添加当前请求时间戳
+        $params['timestamp'] = time();
+        // 统一时区转换逻辑
+        $timezone               = config('app.default_timezone');
+        $params['create_time']  = Carbon::parse($params['create_time'])->timezone($timezone)->format('Y-m-d\TH:i:sP');
+        $params['payment_time'] = Carbon::parse($params['payment_time'])->timezone($timezone)->format('Y-m-d\TH:i:sP');
 
-        $separator   = str_contains($return_url, '?') ? '&' : '?';
-        $queryString = http_build_query($order);
+        // 签名密钥获取
+        $signKey = $order['sign_type'] === MerchantEncryption::SIGN_TYPE_SHA256withRSA ? sys_config('payment', 'system_rsa2_private_key', '') : MerchantEncryption::where('merchant_id', $order['merchant_id'])->value('hash_key');
+        // 生成签名
+        $params['sign'] = SignatureUtil::buildSignature($params, $params['sign_type'], $signKey)['sign'];
 
-        return $return_url . $separator . $queryString;
+        // 构建返回URL
+        $returnUrl = $order['return_url'];
+        $separator = str_contains($returnUrl, '?') ? '&' : '?';
+
+        return $returnUrl . $separator . http_build_query($params);
     }
 
     /**

@@ -24,7 +24,7 @@ class OrderCreationService
      *
      * @throws PaymentException
      */
-    public static function createOrder(array $bizContent, Merchant $merchant, string $clientIp): array
+    public static function createOrder(array $bizContent, Merchant $merchant): array
     {
         // 开启事务
         Db::beginTransaction();
@@ -42,8 +42,8 @@ class OrderCreationService
             // 创建订单关联信息
             $orderBuyer = OrderBuyer::create([
                 'trade_no'   => $order->trade_no,
-                'ip'         => $clientIp,
-                'user_agent' => $bizContent['user_agent'] ?? null,
+                'ip'         => $bizContent['buyer']['ip'],
+                'user_agent' => $bizContent['buyer']['user_agent'],
             ]);
 
             Db::commit();
@@ -54,7 +54,7 @@ class OrderCreationService
                 'merchant_id'  => $merchant->id,
                 'out_trade_no' => $bizContent['out_trade_no'] ?? '',
                 'error'        => $e->getMessage(),
-                'ip'           => $clientIp
+                'ip'           => $bizContent['buyer']['ip']
             ]);
 
             if ($e instanceof PaymentException) {
@@ -138,6 +138,7 @@ class OrderCreationService
             'attach'                     => $bizContent['attach'] ?: null,
             'quit_url'                   => $bizContent['quit_url'] ?: '',
             'settle_cycle'               => $settleSycle,
+            'sign_type'                  => $bizContent['sign_type'],
             'close_time'                 => $bizContent['close_time'] ?: null,
         ];
 

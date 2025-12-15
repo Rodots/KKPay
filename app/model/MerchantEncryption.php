@@ -31,4 +31,13 @@ class MerchantEncryption extends Model
      * @var bool
      */
     public $timestamps = false;
+
+    const string SIGN_TYPE_SHA256withRSA = 'rsa2';
+    const string SIGN_TYPE_SHA3_256      = 'sha3';
+    const string SIGN_TYPE_XXH128        = 'xxh';
+
+    /**
+     * 支持的签名算法
+     */
+    public const array SUPPORTED_SIGN_TYPES = [MerchantEncryption::SIGN_TYPE_XXH128, MerchantEncryption::SIGN_TYPE_SHA3_256, MerchantEncryption::SIGN_TYPE_SHA256withRSA];
 }

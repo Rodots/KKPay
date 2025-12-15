@@ -28,11 +28,6 @@ class GetSignatureVerification implements MiddlewareInterface
     private const int OFFSET_VALID_TIME = 600; // 10分钟
 
     /**
-     * 支持的签名算法
-     */
-    private const array SUPPORTED_SIGN_TYPES = ['xxh', 'sha3', 'rsa2'];
-
-    /**
      * 必需参数列表
      */
     private const array REQUIRED_PARAMS = [
@@ -68,7 +63,9 @@ class GetSignatureVerification implements MiddlewareInterface
                 return $this->fail('无法获取当前商户密钥配置');
             }
             $merchantEncryption = $merchantEncryption->toArray();
-            $params             = $this->processEncryptedParams($params, $merchantEncryption['aes_key']);
+            if (!empty($params['encryption_param'])) {
+                $params = $this->processEncryptedParams($params, $merchantEncryption['aes_key']);
+            }
             if (is_string($params)) {
                 return $this->fail($params);
             }
@@ -105,6 +102,27 @@ class GetSignatureVerification implements MiddlewareInterface
     }
 
     /**
+     * 验证必需参数
+     */
+    private function validateRequiredParams(array $params): ?string
+    {
+        $validations = [
+            'biz_content' => fn($v) => !empty($v),
+            'timestamp'   => fn($v) => !empty($v) && is_numeric($v),
+            'sign_type'   => fn($v) => !empty($v) && in_array($v, MerchantEncryption::SUPPORTED_SIGN_TYPES),
+            'sign'        => fn($v) => !empty($v)
+        ];
+
+        foreach ($validations as $field => $validator) {
+            if (!$validator($params[$field] ?? '')) {
+                return self::REQUIRED_PARAMS[$field];
+            }
+        }
+
+        return null;
+    }
+
+    /**
      * 验证所有参数
      */
     private function validateAllParams(array $params): ?string
@@ -126,11 +144,19 @@ class GetSignatureVerification implements MiddlewareInterface
     }
 
     /**
+     * 检查商户状态
+     */
+    private function checkMerchantStatus(Merchant $merchant): bool
+    {
+        return $merchant->status === true && $merchant->risk_status === false && in_array('pay', $merchant->competence);
+    }
+
+    /**
      * 获取并验证商户信息
      */
     private function getMerchantAndValidate(string $merchantNumber): Merchant|string
     {
-        $merchant = Merchant::where('merchant_number', $merchantNumber)->select(['id', 'merchant_number', 'diy_order_subject', 'status', 'risk_status', 'competence'])->first();
+        $merchant = Merchant::where('merchant_number', $merchantNumber)->first(['id', 'merchant_number', 'diy_order_subject', 'status', 'risk_status', 'competence']);
         if (!$merchant) {
             return '该商户不可用';
         }
@@ -147,10 +173,6 @@ class GetSignatureVerification implements MiddlewareInterface
      */
     private function processEncryptedParams(array $params, ?string $aesKey): array|string
     {
-        if (empty($params['encryption_param'])) {
-            return $params;
-        }
-
         if (empty($aesKey)) {
             return '商户未配置请求内容加密密钥';
         }
@@ -168,9 +190,34 @@ class GetSignatureVerification implements MiddlewareInterface
             unset($mergedParams['encryption_param']);
             return $mergedParams;
         } catch (Throwable $e) {
-            Log::error('参数解密失败:' . $e->getMessage());
-            return '参数解密失败';
+            Log::error('参数AES解密失败:' . $e->getMessage());
+            return '参数AES解密失败';
         }
+    }
+
+    /**
+     * 验证时间戳
+     */
+    private function validateTimestamp(string $timestamp): bool
+    {
+        if (!is_numeric($timestamp)) {
+            return false;
+        }
+
+        return abs(time() - (int)$timestamp) <= self::OFFSET_VALID_TIME;
+    }
+
+    /**
+     * 验证签名算法类型
+     */
+    private function validateSignType(string $signType, string $mode): bool
+    {
+        return match ($mode) {
+            'only_xxh' => $signType === MerchantEncryption::SIGN_TYPE_XXH128,
+            'only_sha3' => $signType === MerchantEncryption::SIGN_TYPE_SHA3_256,
+            'only_rsa2' => $signType === MerchantEncryption::SIGN_TYPE_SHA256withRSA,
+            default => false
+        };
     }
 
     /**
@@ -203,60 +250,5 @@ class GetSignatureVerification implements MiddlewareInterface
     {
         $request->merchant       = $merchant;
         $request->verifiedParams = $params;
-    }
-
-    /**
-     * 验证必需参数
-     */
-    private function validateRequiredParams(array $params): ?string
-    {
-        $validations = [
-            'biz_content' => fn($v) => !empty($v),
-            'timestamp'   => fn($v) => !empty($v) && is_numeric($v),
-            'sign_type'   => fn($v) => !empty($v) && in_array($v, self::SUPPORTED_SIGN_TYPES),
-            'sign'        => fn($v) => !empty($v)
-        ];
-
-        foreach ($validations as $field => $validator) {
-            if (!$validator($params[$field] ?? '')) {
-                return self::REQUIRED_PARAMS[$field];
-            }
-        }
-
-        return null;
-    }
-
-    /**
-     * 检查商户状态
-     */
-    private function checkMerchantStatus(Merchant $merchant): bool
-    {
-        return $merchant->status === true && $merchant->risk_status === false && in_array('pay', $merchant->competence);
-    }
-
-    /**
-     * 验证签名算法类型
-     */
-    private function validateSignType(string $signType, string $mode): bool
-    {
-        return match ($mode) {
-            'only_xxh' => $signType === 'xxh',
-            'only_sha3' => $signType === 'sha3',
-            'only_rsa2' => $signType === 'rsa2',
-            'open' => in_array($signType, self::SUPPORTED_SIGN_TYPES),
-            default => false
-        };
-    }
-
-    /**
-     * 验证时间戳
-     */
-    private function validateTimestamp(string $timestamp): bool
-    {
-        if (!is_numeric($timestamp)) {
-            return false;
-        }
-
-        return abs(time() - (int)$timestamp) <= self::OFFSET_VALID_TIME;
     }
 }
