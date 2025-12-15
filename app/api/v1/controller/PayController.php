@@ -34,19 +34,14 @@ class PayController
     #[Middleware(GetSignatureVerification::class)]
     public function submit(Request $request): Response
     {
-        // 中间件已经验证了签名和商户信息
-        $merchant = $request->merchant;
-        $params   = $request->verifiedParams;
-
         // 解析业务参数
-        $bizContent = $this->parseBizContent($params['biz_content']);
+        $bizContent = $this->parseBizContent($request);
         if (is_string($bizContent)) {
             return $this->pageMsg($bizContent);
         }
 
-        $clientIp = $request->getRealIp();
         // 风控检查
-        if (RiskService::checkIpBlacklist($clientIp, $merchant->id)) {
+        if (RiskService::checkIpBlacklist($bizContent['buyer']['ip'], $request->merchant->id)) {
             return $this->pageMsg('系统异常，无法完成付款');
         }
 
@@ -58,15 +53,15 @@ class PayController
             }
 
             // 创建订单
-            [$order, $paymentChannelAccount, $orderBuyer] = OrderCreationService::createOrder($bizContent, $merchant, $clientIp);
-            $order = $order->toArray();
+            [$order, $paymentChannelAccount, $orderBuyer] = OrderCreationService::createOrder($bizContent, $request->merchant);
 
             // 如果没有指定支付方式，跳转到收银台
             if ($paymentChannelAccount === null) {
-                return redirect('/checkout/' . $order['trade_no']);
+                return redirect('/checkout/' . $order->trade_no);
             }
 
             // 发起支付
+            $order = $order->toArray();
             $paymentResult = PaymentService::initiatePayment($order, $paymentChannelAccount, $orderBuyer);
             // 处理网关支付数据
             return PaymentService::echoSubmit($paymentResult, $order);
@@ -91,9 +86,9 @@ class PayController
     /**
      * 解析业务参数
      */
-    private function parseBizContent(string $bizContent): array|string
+    private function parseBizContent(Request $request): array|string
     {
-        $decoded = base64_decode($bizContent, true);
+        $decoded = base64_decode($request->verifiedParams['biz_content'], true);
         if ($decoded === false) {
             return '业务参数base64解码失败';
         }
@@ -104,6 +99,7 @@ class PayController
         $data = json_decode($decoded, true);
 
         return [
+            'sign_type'            => $request->verifiedParams['sign_type'],
             'out_trade_no'         => filter((string)$data['out_trade_no'] ?? null),
             'total_amount'         => (float)($data['total_amount'] ?? 0),
             'subject'              => filter((string)$data['subject'] ?? null),
@@ -116,8 +112,8 @@ class PayController
             'close_time'           => !empty($data['close_time']) ? (is_numeric($data['close_time']) ? (int)$data['close_time'] : filter($data['close_time'])) : null,
             'buyer'                => [
                 'phone'      => !empty($data['buyer']['phone']) ? filter((string)$data['buyer']['phone']) : null,
-                'ip'         => !empty($data['buyer']['ip']) ? filter((string)$data['buyer']['ip']) : null,
-                'user_agent' => !empty($data['buyer']['user_agent']) ? filter((string)$data['buyer']['user_agent']) : null,
+                'ip'         => !empty($data['buyer']['ip']) ? filter((string)$data['buyer']['ip']) : $request->getRealIp(),
+                'user_agent' => !empty($data['buyer']['user_agent']) ? filter((string)$data['buyer']['user_agent']) : $request->header('user-agent'),
             ]
         ];
     }
