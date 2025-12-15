@@ -22,19 +22,15 @@ class OrderNotificationManual implements Consumer
 
     public function consume($data): void
     {
-        if (!isset($data['trade_no'])) {
+        if (!isset($data['params']['trade_no'])) {
             return;
         }
-
-        $tradeNo = $data['trade_no'];
-        $order   = Order::select(['trade_no', 'notify_url', 'notify_state', 'notify_next_retry_time'])->where('trade_no', $tradeNo)->lockForUpdate()->first();
-
-        if (!$order) {
+        if (!$order = Order::where('trade_no', $data['params']['trade_no'])->lockForUpdate()->first(['trade_no', 'notify_url', 'notify_state', 'notify_next_retry_time'])) {
             return;
         }
 
         // 执行通知
-        $isSuccess = $this->sendNotification($tradeNo, $order->notify_url, $data) === 'success';
+        $isSuccess = $this->sendNotification($data, $order->notify_url) === 'success';
 
         // 更新状态
         if ($isSuccess) {
@@ -49,16 +45,16 @@ class OrderNotificationManual implements Consumer
     /**
      * 发送通知
      */
-    private function sendNotification(string $tradeNo, string $url, array $params): string
+    private function sendNotification(array $data, string $url): string
     {
         $notification           = new OrderNotificationModel();
         $notification->id       = Uuid::v7();
-        $notification->trade_no = $tradeNo;
+        $notification->trade_no = $data['params']['trade_no'];
 
         $startTime = microtime(true); // 记录开始时间
 
-        $headers  = ['Notification-Type' => 'trade_state_sync', 'Notification-Id' => $notification->id];
-        $response = $this->sendHttp($url, $params, $headers);
+        $headers  = ['Notification-Type' => 'trade_state_sync', 'Notification-Id' => $notification->id, 'Notification-SignatureString' => $data['sign_string']];
+        $response = $this->sendHttp($url, $data['params'], $headers);
 
         $duration = (int)((microtime(true) - $startTime) * 1000); // 计算请求耗时（毫秒）
 

@@ -247,16 +247,31 @@ class OrderController extends AdminBase
 
         try {
             if ($type === 'manual') {
-                $sign_string = OrderService::sendAsyncNotification($trade_no, $order, isServer: false);
-                $curlCommand = "curl -X POST '" . $order->notify_url . "' -H 'Notification-Type: trade_state_sync' -H 'Notification-Id: manual' -H 'Content-Type: application/json' -d '" . $sign_string . "'";
-                return $this->success('异步通知cURL命令已生成', ['curl_command' => $curlCommand, 'sign_string' => $sign_string]);
+                // manual模式：返回完整的cURL命令
+                $fullData = OrderService::buildFullNotificationData($order);
+                $jsonBody = json_encode($fullData['params']);
+
+                $curlCommand = sprintf(
+                    "curl -X POST '%s' -H 'Notification-Type: trade_state_sync' -H 'Notification-Id: manual' -H 'Notification-SignatureString: %s' -H 'Content-Type: application/json' -d '%s'",
+                    $order->notify_url,
+                    $fullData['sign_string'],
+                    $jsonBody
+                );
+
+                return $this->success('异步通知cURL命令已生成', [
+                    'sign_string'  => $fullData['sign_string'],
+                    'curl_command' => $curlCommand,
+                    'json_body'    => $jsonBody
+                ]);
             } elseif ($type === 'sync') {
-                $redirect_url = OrderService::buildSyncNotificationParams($order->toArray());
-                return $this->success('同步通知链接已生成', ['redirect_url' => $redirect_url]);
+                // sync模式：同步通知
+                $redirectUrl = OrderService::buildSyncNotificationParams($order->toArray());
+                return $this->success('同步通知链接已生成', ['redirect_url' => $redirectUrl]);
             }
 
-            $sign_string = OrderService::sendAsyncNotification($trade_no, $order, 'order-notification-manual');
-            return $this->success('重新通知任务已提交，系统将异步处理', ['sign_string' => $sign_string]);
+            // server模式：提交到队列
+            OrderService::sendAsyncNotification($trade_no, $order, true);
+            return $this->success('重新通知任务已加入队列，系统将异步处理');
         } catch (Exception $e) {
             return $this->fail($e->getMessage());
         }

@@ -4,13 +4,11 @@ declare(strict_types = 1);
 
 namespace app\queue\redis;
 
+use app\model\MerchantEncryption;
 use app\model\Order;
 use app\model\OrderNotification as OrderNotificationModel;
+use Core\Utils\SignatureUtil;
 use GuzzleHttp\Client;
-use GuzzleHttp\Exception\ClientException;
-use GuzzleHttp\Exception\GuzzleException;
-use GuzzleHttp\Exception\RequestException;
-use GuzzleHttp\Exception\ServerException;
 use support\Rodots\Functions\Uuid;
 use Throwable;
 use Webman\RedisQueue\Consumer;
@@ -38,7 +36,7 @@ class OrderNotification implements Consumer
         }
 
         $tradeNo = $data['trade_no'];
-        $order   = Order::select(['trade_no', 'notify_url', 'notify_state', 'notify_retry_count', 'notify_next_retry_time'])->where([['trade_no', '=', $tradeNo], ['notify_retry_count', '<', 7]])->whereIn('notify_state', [Order::NOTIFY_STATE_WAITING, Order::NOTIFY_STATE_FAILED])->lockForUpdate()->first();
+        $order = Order::where([['trade_no', '=', $tradeNo], ['notify_retry_count', '<', 7]])->whereIn('notify_state', [Order::NOTIFY_STATE_WAITING, Order::NOTIFY_STATE_FAILED])->lockForUpdate()->first(['trade_no', 'merchant_id', 'notify_url', 'notify_state', 'notify_retry_count', 'notify_next_retry_time']);
 
         if (!$order) {
             return;
@@ -52,14 +50,14 @@ class OrderNotification implements Consumer
             return;
         }
 
-        // 执行通知并获取请求耗时
-        $notificationResult = $this->sendNotification($tradeNo, $order->notify_url, $data);
+        // 执行通知
+        $notificationResult = $this->sendNotification($data, $order->merchant_id, $order->notify_url);
         $isSuccess          = $notificationResult['result'] === 'success';
         $requestDuration    = $notificationResult['duration'];
 
         // 立即重试逻辑：如果首次失败，立即再试一次
         if (!$isSuccess && $order->notify_retry_count === 0) {
-            $notificationResult = $this->sendNotification($tradeNo, $order->notify_url, $data);
+            $notificationResult = $this->sendNotification($data, $order->merchant_id, $order->notify_url);
             $isSuccess          = $notificationResult['result'] === 'success';
             $requestDuration    = $notificationResult['duration']; // 更新为第二次请求的耗时
         }
@@ -92,19 +90,26 @@ class OrderNotification implements Consumer
     /**
      * 发送通知
      */
-    private function sendNotification(string $tradeNo, string $url, array $params): array
+    private function sendNotification(array $data, int $merchant_id, string $notify_url): array
     {
-        $notification           = new OrderNotificationModel();
-        $notification->id       = Uuid::v7();
-        $notification->trade_no = $tradeNo;
+        $notification     = new OrderNotificationModel();
+        $notification->id = Uuid::v7();
 
-        $startTime = microtime(true); // 记录开始时间
+        // 在发送时生成实时时间戳和签名
+        $fullData = array_merge($data, ['timestamp' => time()]);
 
-        $headers  = ['Notification-Type' => 'trade_state_sync', 'Notification-Id' => $notification->id];
-        $response = $this->sendHttp($url, $params, $headers);
+        $signKey = $data['sign_type'] === MerchantEncryption::SIGN_TYPE_SHA256withRSA ? sys_config('payment', 'system_rsa2_private_key', '') : MerchantEncryption::where('merchant_id', $merchant_id)->value('hash_key');
 
-        $duration = (int)((microtime(true) - $startTime) * 1000); // 计算请求耗时（毫秒）
+        $signatureResult  = SignatureUtil::buildSignature($fullData, $data['sign_type'], $signKey);
+        $fullData['sign'] = $signatureResult['sign'];
 
+        $headers = ['Notification-Type' => 'trade_state_sync', 'Notification-Id' => $notification->id];
+
+        $startTime = microtime(true);
+        $response  = $this->sendHttp($notify_url, $fullData, $headers);
+        $duration  = (int)((microtime(true) - $startTime) * 1000); // 计算请求耗时（毫秒）
+
+        $notification->trade_no = $data['trade_no'];
         $notification->status           = $response === 'success';
         $notification->request_duration = $duration;
         $notification->response_content = mb_substr($response, 0, 2048, 'utf-8');

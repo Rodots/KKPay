@@ -153,37 +153,15 @@ class OrderService
     }
 
     /**
-     * 发送订单状态变更的异步通知
+     * 构建基础通知数据（不包含时间戳和签名）
+     * 这些数据在订单支付成功后就固定不变
      *
-     * 本方法用于将订单状态更新信息以异步消息的形式发送至指定的消息队列（默认为 'order-notification'），
-     * 供下游系统消费处理。通知数据包含订单核心字段、时间信息、金额信息及基于 RSA2 算法生成的签名。
-     * 根据 $isServer 参数决定行为模式。
-     *
-     * 若传入的 $order 为 null，将根据 $tradeNo 自动从数据库加载订单。
-     * 若未找到对应订单，将抛出异常。
-     *
-     * @param string     $tradeNo   系统内部交易号，唯一标识一笔订单
-     * @param Order|null $order     可选的订单模型实例；若未提供，则根据 $tradeNo 查询数据库
-     * @param string     $queueName 目标队列名称，默认为 'order-notification'
-     * @param bool       $isServer  是否以服务端模式运行：
-     *                              - true：发送消息到队列，并返回签名原始字符串；
-     *                              - false：不发送队列，返回完整 JSON 数据（含签名），用于模拟请求体
-     *
-     * @return string
-     *
-     * @throws Exception 当订单不存在或签名生成失败时抛出异常
+     * @param Order $order
+     * @return array
      */
-    public static function sendAsyncNotification(string $tradeNo, ?Order $order = null, string $queueName = 'order-notification', bool $isServer = true): string
+    public static function buildBaseNotificationData(Order $order): array
     {
-        if ($order === null) {
-            $order = Order::where('trade_no', $tradeNo)->first();
-        }
-        if (!$order) {
-            throw new Exception("订单不存在：" . $tradeNo);
-        }
-
-        // 构建通知数据
-        $queueData = [
+        return [
             'trade_no'         => $order->trade_no,
             'out_trade_no'     => $order->out_trade_no,
             'bill_trade_no'    => $order->bill_trade_no,
@@ -194,24 +172,70 @@ class OrderService
             'trade_state'      => $order->trade_state,
             'create_time'      => $order->create_time_with_zone,
             'payment_time'     => $order->payment_time_with_zone,
-            'timestamp'        => time(),
-            'sign_type'        => $order->sign_type,
+            'sign_type' => $order->sign_type
         ];
+    }
 
-        // 签名密钥获取
-        $signKey           = $order['sign_type'] === MerchantEncryption::SIGN_TYPE_SHA256withRSA ? sys_config('payment', 'system_rsa2_private_key', '') : MerchantEncryption::where('merchant_id', $order->merchant_id)->value('hash_key');
-        $buildSignature    = SignatureUtil::buildSignature($queueData, $queueData['sign_type'], $signKey);
-        $queueData['sign'] = $buildSignature['sign'];
+    /**
+     * 获取签名密钥
+     */
+    public static function getSignKey(string $signType, int $merchantId): string
+    {
+        return $signType === MerchantEncryption::SIGN_TYPE_SHA256withRSA ? sys_config('payment', 'system_rsa2_private_key', '') : MerchantEncryption::where('merchant_id', $merchantId)->value('hash_key');
+    }
 
-        if ($isServer) {
-            // 使用Redis队列发送异步通知
-            if (!SyncQueue::send($queueName, $queueData)) {
-                Log::error("订单异步通知队列{$queueName}投递失败：" . $tradeNo);
-            }
-            return $buildSignature['sign_string'];
+    /**
+     * 构建完整通知数据（包含实时时间戳和签名）
+     * 用于手动请求或即时发送
+     *
+     * @param Order $order
+     * @return array
+     *
+     * @throws Exception
+     */
+    public static function buildFullNotificationData(Order $order): array
+    {
+        $baseData              = self::buildBaseNotificationData($order);
+        $baseData['timestamp'] = time();
+        $buildSignature        = SignatureUtil::buildSignature($baseData, $order->sign_type, self::getSignKey($order->sign_type, $order->merchant_id));
+        $baseData['sign']      = $buildSignature['sign'];
+        return [
+            'params'      => $baseData,
+            'sign_string' => $buildSignature['sign_string']
+        ];
+    }
+
+    /**
+     * 发送订单状态变更的异步通知
+     *
+     * @param string     $tradeNo  系统内部交易号，唯一标识一笔订单
+     * @param Order|null $order    可选的订单模型实例；若未提供，则根据 $tradeNo 查询数据库
+     * @param bool       $isManual 是否为手动触发
+     * @return void
+     *
+     * @throws Exception 当订单不存在或签名生成失败时抛出异常
+     */
+    public static function sendAsyncNotification(string $tradeNo, ?Order $order = null, bool $isManual = false): void
+    {
+        if ($order === null) {
+            $order = Order::where('trade_no', $tradeNo)->first();
+        }
+        if (!$order) {
+            throw new Exception("订单不存在：" . $tradeNo);
         }
 
-        return json_encode($queueData);
+        if ($isManual) {
+            $queueName = 'order-notification-manual';
+            $queueData = self::buildFullNotificationData($order);
+        } else {
+            $queueName = 'order-notification';
+            $queueData = self::buildBaseNotificationData($order);
+        }
+
+        // 使用Redis队列发送异步通知
+        if (!SyncQueue::send($queueName, $queueData)) {
+            Log::error("订单异步通知队列{$queueName}投递失败：" . $tradeNo);
+        }
     }
 
     /**
@@ -234,7 +258,7 @@ class OrderService
         $params['payment_time'] = Carbon::parse($params['payment_time'])->timezone($timezone)->format('Y-m-d\TH:i:sP');
 
         // 签名密钥获取
-        $signKey = $order['sign_type'] === MerchantEncryption::SIGN_TYPE_SHA256withRSA ? sys_config('payment', 'system_rsa2_private_key', '') : MerchantEncryption::where('merchant_id', $order['merchant_id'])->value('hash_key');
+        $signKey = self::getSignKey($order['sign_type'], $order['merchant_id']);
         // 生成签名
         $params['sign'] = SignatureUtil::buildSignature($params, $params['sign_type'], $signKey)['sign'];
 
