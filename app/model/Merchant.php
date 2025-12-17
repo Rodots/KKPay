@@ -215,4 +215,24 @@ class Merchant extends Model
     {
         return $this->hasOne(MerchantWallet::class, 'merchant_id', 'id');
     }
+
+    /**
+     * 检查商户是否拥有特定权限
+     *
+     * @param string $permission
+     * @return bool
+     */
+    public function hasPermission(string $permission): bool
+    {
+        // 如果当前实例已经加载了数据，直接用 PHP 判断，避免重复查询数据库
+        if (isset($this->attributes['competence'])) {
+            return in_array($permission, $this->competence ?? []);
+        }
+
+        // 如果只是通过 ID 查询（静态调用场景），或者当前实例未加载该字段
+        // 使用数据库查询判断
+        return $this->where('id', $this->id)
+            ->whereJsonContains('competence', $permission)
+            ->exists();
+    }
 }

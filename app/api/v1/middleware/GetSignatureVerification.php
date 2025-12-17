@@ -148,7 +148,7 @@ class GetSignatureVerification implements MiddlewareInterface
      */
     private function checkMerchantStatus(Merchant $merchant): bool
     {
-        return $merchant->status === true && $merchant->risk_status === false && in_array('pay', $merchant->competence);
+        return $merchant->status === true && $merchant->risk_status === false && $merchant->hasPermission('pay');
     }
 
     /**
@@ -156,8 +156,7 @@ class GetSignatureVerification implements MiddlewareInterface
      */
     private function getMerchantAndValidate(string $merchantNumber): Merchant|string
     {
-        $merchant = Merchant::where('merchant_number', $merchantNumber)->first(['id', 'merchant_number', 'diy_order_subject', 'status', 'risk_status', 'competence']);
-        if (!$merchant) {
+        if (!$merchant = Merchant::where('merchant_number', $merchantNumber)->first(['id', 'merchant_number', 'diy_order_subject', 'status', 'risk_status', 'competence'])) {
             return '该商户不可用';
         }
 

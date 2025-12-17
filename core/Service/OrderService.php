@@ -4,6 +4,7 @@ declare(strict_types = 1);
 
 namespace Core\Service;
 
+use app\model\Merchant;
 use app\model\MerchantEncryption;
 use app\model\MerchantWalletRecord;
 use app\model\Order;
@@ -81,31 +82,39 @@ class OrderService
      */
     public static function handlePaymentSuccess(bool $isAsync, string $trade_no, string|int|null $api_trade_no = null, string|int|null $bill_trade_no = null, string|int|null $mch_trade_no = null, string|int|null $payment_time = null, array $buyer = [], bool $isAdmin = false): void
     {
-        $order = Order::where('trade_no', $trade_no)->first();
-
-        if (!$order) {
-            return;
-        }
-
-        $oldStatus = $order->trade_state;
-        $newStatus = Order::TRADE_STATE_SUCCESS;
-        // 验证订单状态转换是否有效
-        if (!self::isValidStatusTransition($order['trade_state'], $newStatus, $isAdmin)) {
-            throw new Exception("交易状态不能从 $oldStatus 转换为 $newStatus");
-        }
-
         Db::beginTransaction();
         try {
+            // 获取并锁定订单，防止并发处理
+            if (!$order = Order::where('trade_no', $trade_no)->lockForUpdate()->first()) {
+                Db::rollBack();
+                return;
+            }
+
+            // 幂等性检查：如果订单已经是成功状态，直接返回
+            if ($order->trade_state === Order::TRADE_STATE_SUCCESS) {
+                Db::rollBack();
+                return;
+            }
+
+            $oldStatus = $order->trade_state;
+            $newStatus = Order::TRADE_STATE_SUCCESS;
+            // 验证订单状态转换是否有效
+            if (!self::isValidStatusTransition($oldStatus, $newStatus, $isAdmin)) {
+                throw new Exception("交易状态不能从 $oldStatus 转换为 $newStatus");
+            }
+
             // 过滤并更新买家信息
-            $filteredBuyer = array_intersect_key($buyer, [
-                'ip'            => 0,
-                'user_agent'    => 0,
-                'user_id'       => 0,
-                'buyer_open_id' => 0,
-                'phone'         => 0
-            ]);
-            if (!empty($filteredBuyer)) {
-                OrderBuyer::where('trade_no', $order->trade_no)->update($filteredBuyer);
+            if (!empty($buyer)) {
+                $filteredBuyer = array_intersect_key($buyer, [
+                    'ip'            => 0,
+                    'user_agent'    => 0,
+                    'user_id'       => 0,
+                    'buyer_open_id' => 0,
+                    'phone'         => 0
+                ]);
+                if (!empty($filteredBuyer)) {
+                    OrderBuyer::where('trade_no', $order->trade_no)->update($filteredBuyer);
+                }
             }
 
             // 只在有值时才更新外部交易号
@@ -120,7 +129,8 @@ class OrderService
             if ($order->settle_cycle <= 0) {
                 // 将订单结算状态标记为已结算
                 $order->settle_state = Order::SETTLE_STATE_COMPLETED;
-                if ($order->settle_cycle === 0) {
+                // 如果该订单的结算周期为实时结算则一同校验该商户是否拥有结算权限
+                if ($order->settle_cycle === 0 && Merchant::where('id', $order->merchant_id)->whereJsonContains('competence', 'settle')->exists()) {
                     // 增加商户可用余额
                     MerchantWalletRecord::changeAvailable($order->merchant_id, $order->receipt_amount, '订单收益', true, $order->trade_no, '自动结算');
                 }
@@ -321,10 +331,12 @@ class OrderService
                 if ($order->settle_state === Order::SETTLE_STATE_COMPLETED) {
                     MerchantWalletRecord::changeAvailable($order->merchant_id, $order->receipt_amount, '订单解冻', true, $order->trade_no, '将原冻结的可用余额释放', true);
                 } elseif ($order->settle_state === Order::SETTLE_STATE_FAILED) {
-                    // 验证当前订单的结算状态是否为失败（可能是因为冻结而导致应结算时未结算），如果是则立即执行结算
-                    // 执行商户钱包金额变更操作
-                    MerchantWalletRecord::changeAvailable($order->merchant_id, $order->receipt_amount, '订单收益', true, $order->trade_no, '补偿结算(订单原为冻结状态，解冻后恢复结算)', true);
-                    $order->settle_state = Order::SETTLE_STATE_COMPLETED;
+                    // 验证当前订单的结算状态是否为失败（可能是因为冻结或无结算权限而导致应结算时未结算），如果是则立即尝试执行结算
+                    if (Merchant::where('id', $order->merchant_id)->whereJsonContains('competence', 'settle')->exists()) {
+                        // 执行商户钱包金额变更操作
+                        MerchantWalletRecord::changeAvailable($order->merchant_id, $order->receipt_amount, '订单收益', true, $order->trade_no, '补偿结算(订单原为冻结状态，解冻后恢复结算)', true);
+                        $order->settle_state = Order::SETTLE_STATE_COMPLETED;
+                    }
                 }
             }
             $order->save();

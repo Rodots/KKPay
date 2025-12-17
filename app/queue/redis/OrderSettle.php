@@ -4,11 +4,14 @@ declare(strict_types = 1);
 
 namespace app\queue\redis;
 
+use app\model\Merchant;
 use app\model\MerchantWalletRecord;
 use app\model\Order;
 use Exception;
+use support\Db;
+use support\Log;
+use Throwable;
 use Webman\RedisQueue\Consumer;
-use Webman\RedisQueue\Redis as SyncQueue;
 
 class OrderSettle implements Consumer
 {
@@ -27,24 +30,31 @@ class OrderSettle implements Consumer
      */
     public function consume($data): void
     {
-        $order = Order::where('trade_no', $data)->first(['trade_no', 'merchant_id', 'receipt_amount', 'trade_state', 'settle_state']);
-        if (!$order) {
-            return;
-        }
+        Db::beginTransaction();
+        try {
+            // 使用悲观锁获取订单，确保并发安全，防止重复结算
+            $order = Order::where('trade_no', $data)->lockForUpdate()->first(['trade_no', 'merchant_id', 'receipt_amount', 'trade_state', 'settle_state']);
 
-        // 检查订单结算状态，避免重复处理
-        if ($order->settle_state !== Order::SETTLE_STATE_PROCESSING) {
-            return;
-        }
-        // 当订单交易状态为冻结时，将结算状态直接标记为失败
-        if ($order->trade_state === Order::TRADE_STATE_FROZEN) {
-            $order->settle_state = Order::SETTLE_STATE_FAILED;
+            // 订单不存在或状态不符合结算要求（非处理中），直接回滚
+            if (!$order || $order->settle_state !== Order::SETTLE_STATE_PROCESSING) {
+                Db::rollBack();
+                return;
+            }
+
+            // 判断是否满足结算条件：非冻结状态 且 商户拥有结算权限
+            if ($order->trade_state !== Order::TRADE_STATE_FROZEN && Merchant::where('id', $order->merchant_id)->whereJsonContains('competence', 'settle')->exists()) {
+                // 执行结算：变更钱包余额（增加可用余额，同时扣除冻结/不可用余额）
+                MerchantWalletRecord::changeAvailable($order->merchant_id, $order->receipt_amount, '订单收益', true, $order->trade_no, '自动结算(延迟)', true);
+                $order->settle_state = Order::SETTLE_STATE_COMPLETED;
+            } else {
+                // 不满足条件（被冻结或无权限），标记为结算失败
+                $order->settle_state = Order::SETTLE_STATE_FAILED;
+            }
             $order->save();
+            Db::commit();
+        } catch (Throwable $e) {
+            Db::rollBack();
+            Log::error('结算队列执行失败：' . $e->getMessage());
         }
-
-        // 执行商户钱包金额变更操作
-        MerchantWalletRecord::changeAvailable($order->merchant_id, $order->receipt_amount, '订单收益', true, $order->trade_no, '自动结算(延迟)', true);
-        $order->settle_state = Order::SETTLE_STATE_COMPLETED;
-        $order->save();
     }
 }
