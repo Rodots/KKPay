@@ -48,7 +48,7 @@ class MerchantController extends AdminBase
         }
 
         // 构建查询
-        $query = Merchant::with('wallet:merchant_id,available_balance,unavailable_balance,margin,prepaid')->select(['id', 'merchant_number', 'email', 'phone', 'remark', 'status', 'risk_status', 'created_at', 'updated_at'])->when($params, function ($q) use ($params) {
+        $query = Merchant::with('wallet:merchant_id,available_balance,unavailable_balance,margin,prepaid')->select(['id', 'merchant_number', 'email', 'phone', 'remark', 'status', 'risk_status', 'created_at'])->when($params, function ($q) use ($params) {
             foreach ($params as $key => $value) {
                 if ($value === '' || $value === null) {
                     continue;
@@ -67,10 +67,10 @@ class MerchantController extends AdminBase
                         $q->where('remark', 'like', "%$value%");
                         break;
                     case 'status':
-                        $q->where('status', (int)$value);
+                        $q->where('status', (bool)$value);
                         break;
                     case 'risk_status':
-                        $q->where('risk_status', (int)$value);
+                        $q->where('risk_status', (bool)$value);
                         break;
                     case 'created_at':
                         $q->whereBetween('created_at', [$value[0], $value[1]]);
@@ -119,11 +119,12 @@ class MerchantController extends AdminBase
 
         try {
             validate([
-                'email'    => ['email'],
+                'email' => ['email', 'max:64'],
                 'phone'    => ['mobile'],
                 'password' => ['require', 'min:6']
             ], [
                 'email.email'      => '邮箱格式不正确',
+                'email.max' => '邮箱长度不能超过64位',
                 'phone.mobile'     => '手机号码格式不正确',
                 'password.require' => '密码不能为空',
                 'password.min'     => '密码长度不能小于6位'
@@ -164,10 +165,11 @@ class MerchantController extends AdminBase
         try {
             // 验证数据
             validate([
-                'email' => ['email'],
+                'email' => ['email', 'max:64'],
                 'phone' => ['mobile'],
             ], [
                 'email.email'  => '邮箱格式不正确',
+                'email.max' => '邮箱长度不能超过64位',
                 'phone.mobile' => '手机号码格式不正确',
             ])->check($params);
 
@@ -312,6 +314,34 @@ class MerchantController extends AdminBase
     }
 
     /**
+     * 手动重试结算失败的订单
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function retrySettlement(Request $request): Response
+    {
+        $id   = $request->post('id');
+        $days = $request->post('days', 0);
+        if (empty($id)) {
+            return $this->fail('必要参数缺失');
+        }
+
+        if (!Merchant::where('id', $id)->whereJsonContains('competence', 'settle')->exists()) {
+            return $this->fail('该商户没有结算权限');
+        }
+
+        try {
+            OrderService::retryFailedSettlements($days, $id);
+            $this->adminLog('手动为商户【' . $id . '】重试结算失败的订单');
+        } catch (Throwable $e) {
+            return $this->fail('操作失败：' . $e->getMessage());
+        }
+
+        return $this->success('执行成功');
+    }
+
+    /**
      * 批量修改商户状态
      * @param Request $request
      * @return Response
@@ -319,9 +349,9 @@ class MerchantController extends AdminBase
     public function batchChangeStatus(Request $request): Response
     {
         $ids    = $request->post('ids');
-        $status = (int)$request->post('status');
+        $status = (bool)$request->post('status');
 
-        if (empty($ids) || !is_array($ids) || !in_array($status, [0, 1])) {
+        if (empty($ids) || !is_array($ids)) {
             return $this->fail('必要参数缺失');
         }
 
@@ -504,7 +534,7 @@ class MerchantController extends AdminBase
         }
 
         // 检测要排序的字段是否在允许的字段列表中并检测排序顺序是否正确
-        if (!in_array($sort, ['id']) || !in_array($order, ['asc', 'desc'])) {
+        if ($sort !== 'id' || !in_array($order, ['asc', 'desc'])) {
             return $this->fail('排序失败，请刷新后重试');
         }
 
@@ -537,29 +567,5 @@ class MerchantController extends AdminBase
             'list'  => $list,
             'total' => $total,
         ]);
-    }
-
-    /**
-     * 手动重试结算失败的订单
-     *
-     * @param Request $request
-     * @return Response
-     */
-    public function retrySettlement(Request $request): Response
-    {
-        $id   = $request->post('id');
-        $days = $request->post('days', 0);
-        if (empty($id)) {
-            return $this->fail('必要参数缺失');
-        }
-
-        try {
-            OrderService::retryFailedSettlements($days, $id);
-            $this->adminLog('手动为商户【' . $id . '】重试结算失败的订单');
-        } catch (Throwable $e) {
-            return $this->fail('操作失败：' . $e->getMessage());
-        }
-
-        return $this->success('执行成功');
     }
 }

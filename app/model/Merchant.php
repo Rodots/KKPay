@@ -44,6 +44,15 @@ class Merchant extends Model
     }
 
     /**
+     * 可批量赋值的属性。
+     *
+     * @var array
+     */
+    protected $fillable = [
+        'status',
+    ];
+
+    /**
      * 模型启动方法，用于注册模型事件
      *
      * @return void
