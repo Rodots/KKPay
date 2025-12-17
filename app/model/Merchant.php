@@ -90,6 +90,24 @@ class Merchant extends Model
     }
 
     /**
+     * 访问器：保证金
+     */
+    protected function margin(): Attribute
+    {
+        return Attribute::make(
+            get: fn() => MerchantWallet::where('merchant_id', $this->id)->value('margin'),
+        );
+    }
+
+    /**
+     * 商户钱包，一对一关联
+     */
+    public function wallet(): HasOne
+    {
+        return $this->hasOne(MerchantWallet::class, 'merchant_id', 'id');
+    }
+
+    /**
      * 创建商户
      *
      * @param array $data 数据
@@ -108,8 +126,8 @@ class Merchant extends Model
             $merchantRow->remark      = empty($data['remark']) ? null : trim($data['remark']);
             $merchantRow->salt        = random(4);
             $merchantRow->password    = password_hash(hash('xxh128', trim($data['password'])) . $merchantRow->salt, PASSWORD_BCRYPT);
-            $merchantRow->status      = (int)$data['status'];
-            $merchantRow->risk_status = (int)$data['risk_status'];
+            $merchantRow->status = (bool)$data['status'];
+            $merchantRow->risk_status = (bool)$data['risk_status'];
             if (isset($data['competence'])) {
                 $merchantRow->competence = $data['competence'];
             }
@@ -130,6 +148,7 @@ class Merchant extends Model
             // 创建商户钱包
             $walletRow              = new MerchantWallet();
             $walletRow->merchant_id = $merchantRow->id;
+            $walletRow->margin = $data['margin'];
             $walletRow->save();
 
             // 提交事务
@@ -157,8 +176,7 @@ class Merchant extends Model
         // 开启事务
         Db::beginTransaction();
         try {
-            $merchant = self::find($id);
-            if (!$merchant) {
+            if (!$merchant = self::find($id)) {
                 throw new Exception('该商户不存在');
             }
 
@@ -166,20 +184,22 @@ class Merchant extends Model
             $merchant->email       = isset($data['email']) ? (empty($data['email']) ? null : trim($data['email'])) : $merchant->email;
             $merchant->phone       = isset($data['phone']) ? (empty($data['phone']) ? null : trim($data['phone'])) : $merchant->phone;
             $merchant->remark      = empty($data['remark']) ? null : trim($data['remark']);
-            $merchant->status      = (int)$data['status'];
-            $merchant->risk_status = (int)$data['risk_status'];
-
+            $merchant->status = (bool)$data['status'];
+            $merchant->risk_status = (bool)$data['risk_status'];
+            if (isset($data['competence'])) {
+                $merchant->competence = $data['competence'];
+            }
             // 更新密码
             if (isset($data['new_password'])) {
                 $merchant->salt     = random(4);
                 $merchant->password = password_hash(hash('xxh128', trim($data['new_password'])) . $merchant->salt, PASSWORD_BCRYPT);
             }
-
-            if (isset($data['competence'])) {
-                $merchant->competence = $data['competence'];
-            }
-
             $merchant->save();
+
+            // 更新商户保证金
+            if (isset($data['margin']) && is_numeric($data['margin'])) {
+                MerchantWallet::where('merchant_id', $merchant->id)->update(['margin' => $data['margin']]);
+            }
 
             // 提交事务
             Db::commit();
@@ -215,14 +235,6 @@ class Merchant extends Model
             throw new Exception('重置密码失败');
         }
         return true;
-    }
-
-    /**
-     * 商户钱包
-     */
-    public function wallet(): HasOne
-    {
-        return $this->hasOne(MerchantWallet::class, 'merchant_id', 'id');
     }
 
     /**

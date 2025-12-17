@@ -82,7 +82,7 @@ class MerchantController extends AdminBase
 
         // 获取总数和数据
         $total = $query->count();
-        $list  = $query->offset($from)->limit($limit)->orderByDesc('id')->get();
+        $list = $query->offset($from)->limit($limit)->orderByDesc('id')->get()->append(['margin']);
 
         return $this->success(data: [
             'list'  => $list,
@@ -97,7 +97,7 @@ class MerchantController extends AdminBase
     {
         $id = $request->get('id');
 
-        $query = Merchant::find($id, ['id', 'merchant_number', 'email', 'phone', 'remark', 'diy_order_subject', 'status', 'risk_status', 'competence']);
+        $query = Merchant::find($id, ['id', 'merchant_number', 'email', 'phone', 'remark', 'diy_order_subject', 'status', 'risk_status', 'competence'])->append(['margin']);
         return $this->success(data: $query->toArray());
     }
 
@@ -119,12 +119,15 @@ class MerchantController extends AdminBase
 
         try {
             validate([
-                'email' => ['email', 'max:64'],
+                'margin' => ['require', 'float'],
+                'email'  => ['email', 'max:64'],
                 'phone'    => ['mobile'],
                 'password' => ['require', 'min:6']
             ], [
+                'margin.require' => '保证金不能为空',
+                'margin.float'   => '保证金必须为数字',
                 'email.email'      => '邮箱格式不正确',
-                'email.max' => '邮箱长度不能超过64位',
+                'email.max'      => '邮箱长度不能超过64位',
                 'phone.mobile'     => '手机号码格式不正确',
                 'password.require' => '密码不能为空',
                 'password.min'     => '密码长度不能小于6位'
@@ -165,12 +168,15 @@ class MerchantController extends AdminBase
         try {
             // 验证数据
             validate([
-                'email' => ['email', 'max:64'],
-                'phone' => ['mobile'],
+                'margin' => ['require', 'float'],
+                'email'  => ['email', 'max:64'],
+                'phone'  => ['mobile'],
             ], [
-                'email.email'  => '邮箱格式不正确',
-                'email.max' => '邮箱长度不能超过64位',
-                'phone.mobile' => '手机号码格式不正确',
+                'margin.require' => '保证金不能为空',
+                'margin.float'   => '保证金必须为数字',
+                'email.email'    => '邮箱格式不正确',
+                'email.max'      => '邮箱长度不能超过64位',
+                'phone.mobile'   => '手机号码格式不正确',
             ])->check($params);
 
             Merchant::updateMerchant($user->id, $params);
