@@ -9,6 +9,7 @@ use app\model\MerchantLog;
 use app\model\MerchantWalletPrepaidRecord;
 use app\model\MerchantWalletRecord;
 use Core\baseController\AdminBase;
+use Core\Service\OrderService;
 use SodiumException;
 use support\Request;
 use support\Response;
@@ -536,5 +537,29 @@ class MerchantController extends AdminBase
             'list'  => $list,
             'total' => $total,
         ]);
+    }
+
+    /**
+     * 手动重试结算失败的订单
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function retrySettlement(Request $request): Response
+    {
+        $id   = $request->post('id');
+        $days = $request->post('days', 0);
+        if (empty($id)) {
+            return $this->fail('必要参数缺失');
+        }
+
+        try {
+            OrderService::retryFailedSettlements($days, $id);
+            $this->adminLog('手动为商户【' . $id . '】重试结算失败的订单');
+        } catch (Throwable $e) {
+            return $this->fail('操作失败：' . $e->getMessage());
+        }
+
+        return $this->success('执行成功');
     }
 }

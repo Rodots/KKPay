@@ -126,25 +126,31 @@ class OrderService
             $order->payment_time = $payment_time === null ? time() : (is_numeric($payment_time) ? (int)$payment_time : $payment_time);
 
             // 根据结算周期处理订单结算逻辑
-            if ($order->settle_cycle <= 0) {
-                // 将订单结算状态标记为已结算
-                $order->settle_state = Order::SETTLE_STATE_COMPLETED;
-                // 如果该订单的结算周期为实时结算则一同校验该商户是否拥有结算权限
-                if ($order->settle_cycle === 0 && Merchant::where('id', $order->merchant_id)->whereJsonContains('competence', 'settle')->exists()) {
-                    // 增加商户可用余额
-                    MerchantWalletRecord::changeAvailable($order->merchant_id, $order->receipt_amount, '订单收益', true, $order->trade_no, '自动结算');
-                }
-            } else {
+            if ($order->settle_cycle > 0) {
                 // 将订单结算状态标记为结算中
                 $order->settle_state = Order::SETTLE_STATE_PROCESSING;
                 // 增加商户不可用余额
                 MerchantWalletRecord::changeUnAvailable($order->merchant_id, $order->receipt_amount, '延迟结算', true, $order->trade_no);
                 // 使用Redis队列等待订单结算
-                $delay = $order->settle_cycle * 10;
-                if (!SyncQueue::send('order-settle', $order->trade_no, $delay)) {
-                    // 将订单结算状态标记为待结算
+                if (!SyncQueue::send('order-settle', $order->trade_no, $order->settle_cycle * 86400)) {
+                    // 将订单结算状态标记为结算失败
                     $order->settle_state = Order::SETTLE_STATE_FAILED;
                     Log::error("订单延迟结算队列投递失败：" . $order->trade_no);
+                }
+            } else {
+                // 默认为已结算（适用于测试订单 settle_cycle < 0）
+                $order->settle_state = Order::SETTLE_STATE_COMPLETED;
+
+                // 如果该订单的结算周期为0则意味着是实时结算
+                if ($order->settle_cycle === 0) {
+                    // 检查商户是否拥有结算权限
+                    if (Merchant::where('id', $order->merchant_id)->whereJsonContains('competence', 'settle')->exists()) {
+                        // 增加商户可用余额
+                        MerchantWalletRecord::changeAvailable($order->merchant_id, $order->receipt_amount, '订单收益', true, $order->trade_no, '自动结算');
+                    } else {
+                        // 无权限则标记为结算失败
+                        $order->settle_state = Order::SETTLE_STATE_FAILED;
+                    }
                 }
             }
             $order->save();
@@ -164,7 +170,6 @@ class OrderService
 
     /**
      * 构建基础通知数据（不包含时间戳和签名）
-     * 这些数据在订单支付成功后就固定不变
      *
      * @param Order $order
      * @return array
@@ -196,7 +201,6 @@ class OrderService
 
     /**
      * 构建完整通知数据（包含实时时间戳和签名）
-     * 用于手动请求或即时发送
      *
      * @param Order $order
      * @return array
@@ -347,5 +351,58 @@ class OrderService
             Log::error("订单冻结/解冻失败：" . $e->getMessage(), ['trade_no' => $tradeNo, 'target_state' => $targetState]);
             throw $e;
         }
+    }
+
+    /**
+     * 重试结算失败的订单
+     *
+     * 默认扫描近7天内结算失败的订单，并根据其应结算时间决定是立即结算还是重新投递到延迟队列。
+     *
+     * @param int      $subDays    需要扫描过去多少天的数据，默认为7天
+     * @param int|null $merchantId 商户ID，如果指定则只扫描该商户的订单
+     * @return void
+     */
+    public static function retryFailedSettlements(int $subDays = 7, ?int $merchantId = null): void
+    {
+        $now = Carbon::now()->timezone(config('app.default_timezone'));
+
+        $query = Order::whereHas('merchant', function ($query) {
+            $query->whereJsonContains('competence', 'settle');
+        })
+            ->select(['trade_no', 'merchant_id', 'receipt_amount', 'settle_state', 'settle_cycle', 'payment_time'])
+            ->where('settle_state', '=', Order::SETTLE_STATE_FAILED)
+            ->whereIn('trade_state', [Order::TRADE_STATE_SUCCESS, Order::TRADE_STATE_FINISHED]);
+
+        if ($subDays >= 0) {
+            $query->where('create_time', '>=', $now->copy()->subDays($subDays));
+        }
+        if (!is_null($merchantId)) {
+            $query->where('merchant_id', $merchantId);
+        }
+
+        $query->chunkById(200, function ($rows) use ($now) {
+            foreach ($rows as $row) {
+                // 计算原本应该结算的时间
+                $originalSettleTime = Carbon::parse($row->getRawOriginal('payment_time'))->addDays($row->settle_cycle);
+
+                if ($now->gte($originalSettleTime)) {
+                    // 立即执行结算
+                    try {
+                        MerchantWalletRecord::changeAvailable($row->merchant_id, $row->receipt_amount, '订单收益', true, $row->trade_no, '自动结算(失败重试)', true);
+                        $row->settle_state = Order::SETTLE_STATE_COMPLETED;
+                        $row->save();
+                    } catch (Throwable) {
+                        continue;
+                    }
+                } else {
+                    // 重新投递到队列
+                    $delay = (int)$now->diffInSeconds($originalSettleTime, true);
+                    if (SyncQueue::send('order-settle', $row->trade_no, $delay)) {
+                        $row->settle_state = Order::SETTLE_STATE_PROCESSING;
+                        $row->save();
+                    }
+                }
+            }
+        }, 'trade_no');
     }
 }
