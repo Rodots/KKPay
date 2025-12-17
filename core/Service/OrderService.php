@@ -150,6 +150,8 @@ class OrderService
                     } else {
                         // 无权限则标记为结算失败
                         $order->settle_state = Order::SETTLE_STATE_FAILED;
+                        // 增加商户不可用余额
+                        MerchantWalletRecord::changeUnAvailable($order->merchant_id, $order->receipt_amount, '暂缓结算', true, $order->trade_no, '商户无结算权限');
                     }
                 }
             }
@@ -373,7 +375,7 @@ class OrderService
             ->where('settle_state', '=', Order::SETTLE_STATE_FAILED)
             ->whereIn('trade_state', [Order::TRADE_STATE_SUCCESS, Order::TRADE_STATE_FINISHED]);
 
-        if ($subDays >= 0) {
+        if ($subDays > 0) {
             $query->where('create_time', '>=', $now->copy()->subDays($subDays));
         }
         if (!is_null($merchantId)) {
