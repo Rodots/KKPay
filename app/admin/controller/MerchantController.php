@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace app\admin\controller;
 
@@ -441,6 +441,48 @@ class MerchantController extends AdminBase
             return $this->fail($e->getMessage());
         }
         return $this->success('修改成功');
+    }
+
+    /**
+     * 找回已删除的商户
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function recover(Request $request): Response
+    {
+        $id = $request->post('id');
+
+        if (empty($id)) {
+            return $this->fail('必要参数缺失');
+        }
+
+        // 查找已软删除的商户
+        $merchant = Merchant::onlyTrashed()->find($id);
+        if (!$merchant) {
+            return $this->fail('该商户不存在或未被删除');
+        }
+
+        try {
+            $merchant->restore();
+            $this->adminLog("找回已删除商户【{$merchant->merchant_number}】");
+        } catch (Throwable $e) {
+            return $this->fail('找回失败：' . $e->getMessage());
+        }
+
+        return $this->success('找回成功');
+    }
+
+    /**
+     * 获取已删除商户列表（回收站）
+     *
+     * @return Response
+     */
+    public function recycleBin(): Response
+    {
+        return $this->success(data: [
+            'list' => Merchant::onlyTrashed()->select(['id', 'merchant_number', 'remark', 'deleted_at'])->orderByDesc('deleted_at')->get(),
+        ]);
     }
 
     /**

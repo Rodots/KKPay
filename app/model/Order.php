@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace app\model;
 
@@ -353,7 +353,7 @@ class Order extends Model
      */
     public function merchant(): BelongsTo
     {
-        return $this->belongsTo(Merchant::class);
+        return $this->belongsTo(Merchant::class)->withTrashed();
     }
 
     /**

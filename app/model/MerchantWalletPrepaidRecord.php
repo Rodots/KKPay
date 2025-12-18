@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace app\model;
 
@@ -68,11 +68,11 @@ class MerchantWalletPrepaidRecord extends Model
     }
 
     /**
-     * 该订单属于这个商户
+     * 该记录属于这个商户
      */
     public function merchant(): BelongsTo
     {
-        return $this->belongsTo(Merchant::class);
+        return $this->belongsTo(Merchant::class)->withTrashed();
     }
 
     /**
@@ -92,9 +92,7 @@ class MerchantWalletPrepaidRecord extends Model
         }
 
         // 查询商户钱包并加锁防止并发
-        $wallet = MerchantWallet::where('merchant_id', $merchantId)->lockForUpdate()->first();
-
-        if (!$wallet) {
+        if (!$wallet = MerchantWallet::where('merchant_id', $merchantId)->lockForUpdate()->first()) {
             throw new Exception('商户钱包不存在');
         }
 

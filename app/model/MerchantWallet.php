@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace app\model;
 
@@ -55,6 +55,6 @@ class MerchantWallet extends Model
      */
     public function merchant(): BelongsTo
     {
-        return $this->belongsTo(Merchant::class, 'id', 'merchant_id');
+        return $this->belongsTo(Merchant::class, 'id', 'merchant_id')->withTrashed();
     }
 }

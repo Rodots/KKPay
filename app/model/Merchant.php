@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace app\model;
 
@@ -83,6 +83,16 @@ class Merchant extends Model
      * 访问器：更新时间
      */
     protected function updatedAt(): Attribute
+    {
+        return Attribute::make(
+            get: fn(?string $value) => $value ? Carbon::parse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
+        );
+    }
+
+    /**
+     * 访问器：删除时间
+     */
+    protected function deletedAt(): Attribute
     {
         return Attribute::make(
             get: fn(?string $value) => $value ? Carbon::parse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,

@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace app\model;
 
@@ -76,11 +76,11 @@ class MerchantWalletRecord extends Model
     }
 
     /**
-     * 该订单属于这个商户
+     * 该记录属于这个商户
      */
     public function merchant(): BelongsTo
     {
-        return $this->belongsTo(Merchant::class);
+        return $this->belongsTo(Merchant::class)->withTrashed();
     }
 
     /**
