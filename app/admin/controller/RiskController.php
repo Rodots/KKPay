@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace app\admin\controller;
 
@@ -181,7 +181,7 @@ class RiskController extends AdminBase
         }
 
         // 构建查询
-        $query = RiskLog::with(['merchant:id,merchant_number'])->when($params, function ($q) use ($params) {
+        $query = RiskLog::whereHas('merchant', fn($q) => $q->whereNull('deleted_at'))->with(['merchant:id,merchant_number'])->when($params, function ($q) use ($params) {
             foreach ($params as $key => $value) {
                 if ($value === '' || $value === null) {
                     continue;

@@ -592,7 +592,7 @@ class MerchantController extends AdminBase
         }
 
         // 构建查询
-        $query = MerchantWalletRecord::with(['merchant:id,merchant_number'])->when($params, function ($q) use ($params) {
+        $query = MerchantWalletRecord::whereHas('merchant', fn($q) => $q->whereNull('deleted_at'))->with(['merchant:id,merchant_number'])->when($params, function ($q) use ($params) {
             foreach ($params as $key => $value) {
                 if ($value === '' || $value === null) {
                     continue;
@@ -661,7 +661,7 @@ class MerchantController extends AdminBase
         }
 
         // 构建查询
-        $query = MerchantWalletPrepaidRecord::with(['merchant:id,merchant_number'])->when($params, function ($q) use ($params) {
+        $query = MerchantWalletPrepaidRecord::whereHas('merchant', fn($q) => $q->whereNull('deleted_at'))->with(['merchant:id,merchant_number'])->when($params, function ($q) use ($params) {
             foreach ($params as $key => $value) {
                 if ($value === '' || $value === null) {
                     continue;
