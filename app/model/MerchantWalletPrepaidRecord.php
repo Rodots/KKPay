@@ -5,6 +5,7 @@ declare(strict_types = 1);
 namespace app\model;
 
 use Carbon\Carbon;
+use Exception;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use support\Model;
@@ -44,6 +45,19 @@ class MerchantWalletPrepaidRecord extends Model
     }
 
     /**
+     * 可批量赋值的属性。
+     *
+     * @var array
+     */
+    protected $fillable = [
+        'merchant_id',
+        'old_balance',
+        'amount',
+        'new_balance',
+        'remark',
+    ];
+
+    /**
      * 访问器：操作时间
      */
     protected function createdAt(): Attribute
@@ -59,5 +73,58 @@ class MerchantWalletPrepaidRecord extends Model
     public function merchant(): BelongsTo
     {
         return $this->belongsTo(Merchant::class);
+    }
+
+    /**
+     * 商户预付金变更（全程 bcmath，无分/元转换）
+     *
+     * @param int         $merchantId 商户ID
+     * @param string      $amount     变更金额（单位：元，正数=加款，负数=扣款）
+     * @param string|null $remark     备注
+     * @return void
+     * @throws Exception
+     */
+    public static function changePrepaid(int $merchantId, string $amount, ?string $remark = null): void
+    {
+        // 验证金额不能为0
+        if (bccomp($amount, '0.00', 2) === 0) {
+            return;
+        }
+
+        // 查询商户钱包并加锁防止并发
+        $wallet = MerchantWallet::where('merchant_id', $merchantId)->lockForUpdate()->first();
+
+        if (!$wallet) {
+            throw new Exception('商户钱包不存在');
+        }
+
+        // 判断是加款还是扣款
+        $is_add = bccomp($amount, '0.00', 2) === 1;
+
+        // 检查扣款时余额是否充足（金额为负数时表示扣款）
+        if (!$is_add) {
+            // 取绝对值进行比较
+            $abs_amount = bcmul($amount, '-1', 2);
+            if (bccomp($wallet->prepaid, $abs_amount, 2) === -1) {
+                throw new Exception('预付金余额不足');
+            }
+        }
+
+        // 计算变更后的预付金余额
+        $oldBalance = $wallet->prepaid;
+        $newBalance = bcadd($oldBalance, $amount, 2);
+
+        // 更新商户钱包预付金
+        $wallet->prepaid = $newBalance;
+        $wallet->save();
+
+        // 创建预付金变更记录
+        self::create([
+            'merchant_id' => $merchantId,
+            'old_balance' => $oldBalance,
+            'amount'      => $amount,
+            'new_balance' => $newBalance,
+            'remark'      => $remark,
+        ]);
     }
 }

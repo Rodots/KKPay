@@ -87,11 +87,11 @@ class MerchantWalletRecord extends Model
      * 商户可用余额变更（全程 bcmath，无分/元转换）
      *
      * @param int         $merchantId        商户ID
-     * @param string $amount            变更金额（单位：元，正数=加款，负数=扣款）
+     * @param string      $amount            变更金额（单位：元，正数=加款，负数=扣款）
      * @param string      $type              业务类型
      * @param string|null $tradeNo           关联订单号
      * @param string|null $remark            备注
-     * @param bool   $reduceUnavailable 是否同时减少不可用余额（仅在加款时生效）
+     * @param bool        $reduceUnavailable 是否同时减少不可用余额（仅在加款时生效）
      * @return void
      * @throws Exception
      */
@@ -103,14 +103,12 @@ class MerchantWalletRecord extends Model
         }
 
         // 查询商户钱包并加锁防止并发
-        $wallet = MerchantWallet::where('merchant_id', $merchantId)->lockForUpdate()->first();
-
-        if (!$wallet) {
+        if (!$wallet = MerchantWallet::where('merchant_id', $merchantId)->lockForUpdate()->first()) {
             throw new Exception('商户钱包不存在');
         }
 
         // 判断是加款还是扣款
-        $is_add     = bccomp($amount, '0.00', 2) === 1;
+        $is_add = bccomp($amount, '0.00', 2) === 1;
 
         // 计算变更后的可用余额
         $oldBalance = $wallet->available_balance;
@@ -129,18 +127,18 @@ class MerchantWalletRecord extends Model
         }
 
         // 更新商户钱包余额
-        $updateData = ['available_balance' => $newBalance];
+        $wallet->available_balance = $newBalance;
         if ($reduceUnavailable && $is_add) {
-            $updateData['unavailable_balance'] = $newUnavailableBalance;
+            $wallet->unavailable_balance = $newUnavailableBalance;
         }
-        MerchantWallet::where('merchant_id', $merchantId)->update($updateData);
+        $wallet->save();
 
         // 创建余额变更记录
         self::create([
             'merchant_id'             => $merchantId,
             'type'                    => $type,
             'old_available_balance'   => $oldBalance,
-            'available_amount' => $amount,
+            'available_amount'        => $amount,
             'new_available_balance'   => $newBalance,
             'old_unavailable_balance' => $oldUnavailableBalance,
             'unavailable_amount'      => $unavailableDelta,
@@ -154,11 +152,11 @@ class MerchantWalletRecord extends Model
      * 商户不可用余额变更（全程 bcmath，无分/元转换）
      *
      * @param int         $merchantId      商户ID
-     * @param string $amount          变更金额（单位：元，正数=加款，负数=扣款）
+     * @param string      $amount          变更金额（单位：元，正数=加款，负数=扣款）
      * @param string      $type            业务类型
      * @param string|null $tradeNo         关联订单号
      * @param string|null $remark          备注
-     * @param bool   $reduceAvailable 是否同时减少可用余额（仅在加款时生效）
+     * @param bool        $reduceAvailable 是否同时减少可用余额（仅在加款时生效）
      * @return void
      * @throws Exception
      */
@@ -170,14 +168,12 @@ class MerchantWalletRecord extends Model
         }
 
         // 查询商户钱包并加锁防止并发
-        $wallet = MerchantWallet::where('merchant_id', $merchantId)->lockForUpdate()->first();
-
-        if (!$wallet) {
+        if (!$wallet = MerchantWallet::where('merchant_id', $merchantId)->lockForUpdate()->first()) {
             throw new Exception('商户钱包不存在');
         }
 
         // 判断是加款还是扣款
-        $is_add                = bccomp($amount, '0.00', 2) === 1;
+        $is_add = bccomp($amount, '0.00', 2) === 1;
 
         // 检查扣款时余额是否充足（金额为负数时表示扣款）
         if (!$is_add) {
@@ -208,11 +204,11 @@ class MerchantWalletRecord extends Model
         }
 
         // 更新商户钱包余额
-        $updateData = ['unavailable_balance' => $newUnavailableBalance];
+        $wallet->unavailable_balance = $newUnavailableBalance;
         if ($reduceAvailable && $is_add) {
-            $updateData['available_balance'] = $newAvailableBalance;
+            $wallet->available_balance = $newAvailableBalance;
         }
-        MerchantWallet::where('merchant_id', $merchantId)->update($updateData);
+        $wallet->save();
 
         // 创建余额变更记录
         self::create([
@@ -222,7 +218,7 @@ class MerchantWalletRecord extends Model
             'available_amount'        => $availableDelta,
             'new_available_balance'   => $newAvailableBalance,
             'old_unavailable_balance' => $oldUnavailableBalance,
-            'unavailable_amount' => $amount,
+            'unavailable_amount'      => $amount,
             'new_unavailable_balance' => $newUnavailableBalance,
             'trade_no'                => $tradeNo,
             'remark'                  => $remark,

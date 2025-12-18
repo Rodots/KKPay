@@ -11,6 +11,7 @@ use app\model\MerchantWalletRecord;
 use Core\baseController\AdminBase;
 use Core\Service\OrderService;
 use SodiumException;
+use support\Db;
 use support\Request;
 use support\Response;
 use support\Rodots\Crypto\XChaCha20;
@@ -82,7 +83,7 @@ class MerchantController extends AdminBase
 
         // 获取总数和数据
         $total = $query->count();
-        $list = $query->offset($from)->limit($limit)->orderByDesc('id')->get()->append(['margin']);
+        $list  = $query->offset($from)->limit($limit)->orderByDesc('id')->get()->append(['margin']);
 
         return $this->success(data: [
             'list'  => $list,
@@ -119,15 +120,15 @@ class MerchantController extends AdminBase
 
         try {
             validate([
-                'margin' => ['require', 'float'],
-                'email'  => ['email', 'max:64'],
+                'margin'   => ['require', 'float'],
+                'email'    => ['email', 'max:64'],
                 'phone'    => ['mobile'],
                 'password' => ['require', 'min:6']
             ], [
-                'margin.require' => '保证金不能为空',
-                'margin.float'   => '保证金必须为数字',
+                'margin.require'   => '保证金不能为空',
+                'margin.float'     => '保证金必须为数字',
                 'email.email'      => '邮箱格式不正确',
-                'email.max'      => '邮箱长度不能超过64位',
+                'email.max'        => '邮箱长度不能超过64位',
                 'phone.mobile'     => '手机号码格式不正确',
                 'password.require' => '密码不能为空',
                 'password.min'     => '密码长度不能小于6位'
@@ -158,7 +159,7 @@ class MerchantController extends AdminBase
         $params = new XChaCha20(config('kkpay.api_crypto_key', ''))->get($payload);
 
         if (empty($params['id'])) {
-            return $this->fail('请求参数缺失');
+            return $this->fail('必要参数缺失');
         }
 
         if (!$user = Merchant::find($params['id'])) {
@@ -261,14 +262,86 @@ class MerchantController extends AdminBase
     }
 
     /**
-     * 重置商户密码为123456
+     * 商户余额增减（统一管理可用余额、不可用余额、预付金）
+     *
+     * @param Request $request
+     * @return Response
+     * @throws SodiumException
+     */
+    public function adjustBalance(Request $request): Response
+    {
+        $payload = $request->post('payload');
+        if (empty($payload)) {
+            return $this->fail('非法请求');
+        }
+
+        $params = new XChaCha20(config('kkpay.api_crypto_key', ''))->get($payload);
+
+        if (empty($params['id'])) {
+            return $this->fail('必要参数缺失');
+        }
+
+        // 验证商户是否存在
+        $merchant_id = (int)$params['id'];
+        if (!Merchant::where('id', $merchant_id)->exists()) {
+            return $this->fail('该商户不存在');
+        }
+
+        try {
+            // 验证参数
+            validate([
+                'balance_type' => ['require', 'in:available,unavailable,prepaid'],
+                'amount'       => ['require', 'float'],
+                'remark'       => ['require', 'max:255']
+            ], [
+                'balance_type.require' => '变更类型不能为空',
+                'balance_type.in'      => '变更类型不正确',
+                'amount.require'       => '变更金额不能为空',
+                'amount.float'         => '变更金额必须为数字',
+                'remark.require'       => '备注不能为空',
+                'remark.max'           => '备注不能超过255个字符'
+            ])->check($params);
+            $balance_type = $params['balance_type'];
+            $amount       = number_format((float)$params['amount'], 2, '.', '');
+            $remark       = $params['remark'];
+
+            // 开启数据库事务
+            Db::beginTransaction();
+
+            // 根据余额类型调用不同的变更方法
+            match ($balance_type) {
+                'available' => MerchantWalletRecord::changeAvailable($merchant_id, $amount, '后台操作', null, $remark),
+                'unavailable' => MerchantWalletRecord::changeUnAvailable($merchant_id, $amount, '后台操作', null, $remark),
+                'prepaid' => MerchantWalletPrepaidRecord::changePrepaid($merchant_id, $amount, $remark),
+            };
+
+            Db::commit();
+
+            // 记录操作日志
+            $action = bccomp($amount, '0.00', 2) === 1 ? '增加' : '减少';
+            $type   = match ($balance_type) {
+                'available' => '可用余额',
+                'unavailable' => '不可用余额',
+                'prepaid' => '预付金',
+            };
+            $this->adminLog("为商户【{$merchant_id}】{$action}{$type}：{$amount}元");
+        } catch (Throwable $e) {
+            Db::rollBack();
+            return $this->fail($e->getMessage());
+        }
+
+        return $this->success('操作成功');
+    }
+
+    /**
+     * 重置商户密码
      *
      * @param Request $request
      * @return Response
      */
     public function resetPassword(Request $request): Response
     {
-        $id = $request->post('id');
+        $id       = $request->post('id');
         $password = $request->post('password', '123456');
         if (empty($id) || empty($password)) {
             return $this->fail('必要参数缺失');
