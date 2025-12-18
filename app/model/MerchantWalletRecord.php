@@ -87,19 +87,18 @@ class MerchantWalletRecord extends Model
      * 商户可用余额变更（全程 bcmath，无分/元转换）
      *
      * @param int         $merchantId        商户ID
-     * @param string      $amount            变更金额（单位：元，正数）
+     * @param string $amount            变更金额（单位：元，正数=加款，负数=扣款）
      * @param string      $type              业务类型
-     * @param bool        $action            false=扣款，true=加款
      * @param string|null $tradeNo           关联订单号
      * @param string|null $remark            备注
-     * @param bool        $reduceUnavailable 是否同时减少不可用余额
+     * @param bool   $reduceUnavailable 是否同时减少不可用余额（仅在加款时生效）
      * @return void
      * @throws Exception
      */
-    public static function changeAvailable(int $merchantId, string $amount, string $type, bool $action = false, ?string $tradeNo = null, ?string $remark = null, bool $reduceUnavailable = false): void
+    public static function changeAvailable(int $merchantId, string $amount, string $type, ?string $tradeNo = null, ?string $remark = null, bool $reduceUnavailable = false): void
     {
-        // 验证金额必须大于0
-        if (bccomp($amount, '0.00', 2) !== 1) {
+        // 验证金额不能为0
+        if (bccomp($amount, '0.00', 2) === 0) {
             return;
         }
 
@@ -110,24 +109,28 @@ class MerchantWalletRecord extends Model
             throw new Exception('商户钱包不存在');
         }
 
-        // 计算变更金额和新余额
+        // 判断是加款还是扣款
+        $is_add     = bccomp($amount, '0.00', 2) === 1;
+
+        // 计算变更后的可用余额
         $oldBalance = $wallet->available_balance;
-        $delta      = $action ? $amount : bcsub('0.00', $amount, 2);
-        $newBalance = bcadd($oldBalance, $delta, 2);
+        $newBalance = bcadd($oldBalance, $amount, 2);
 
         // 计算不可用余额变更
         $oldUnavailableBalance = $wallet->unavailable_balance;
         $unavailableDelta      = '0.00';
         $newUnavailableBalance = $oldUnavailableBalance;
 
-        if ($reduceUnavailable && $action) { // 只有在加款时才可能减少不可用余额
+        // 只有在加款时才可能减少不可用余额
+        if ($reduceUnavailable && $is_add) {
+            // 使用金额的绝对值取反作为不可用余额的变更量
             $unavailableDelta      = bcsub('0.00', $amount, 2);
             $newUnavailableBalance = bcadd($oldUnavailableBalance, $unavailableDelta, 2);
         }
 
         // 更新商户钱包余额
         $updateData = ['available_balance' => $newBalance];
-        if ($reduceUnavailable) {
+        if ($reduceUnavailable && $is_add) {
             $updateData['unavailable_balance'] = $newUnavailableBalance;
         }
         MerchantWallet::where('merchant_id', $merchantId)->update($updateData);
@@ -137,7 +140,7 @@ class MerchantWalletRecord extends Model
             'merchant_id'             => $merchantId,
             'type'                    => $type,
             'old_available_balance'   => $oldBalance,
-            'available_amount'        => $delta,
+            'available_amount' => $amount,
             'new_available_balance'   => $newBalance,
             'old_unavailable_balance' => $oldUnavailableBalance,
             'unavailable_amount'      => $unavailableDelta,
@@ -151,19 +154,18 @@ class MerchantWalletRecord extends Model
      * 商户不可用余额变更（全程 bcmath，无分/元转换）
      *
      * @param int         $merchantId      商户ID
-     * @param string      $amount          变更金额（单位：元，正数）
+     * @param string $amount          变更金额（单位：元，正数=加款，负数=扣款）
      * @param string      $type            业务类型
-     * @param bool        $action          false=扣款，true=加款
      * @param string|null $tradeNo         关联订单号
      * @param string|null $remark          备注
-     * @param bool        $reduceAvailable 是否同时减少可用余额
+     * @param bool   $reduceAvailable 是否同时减少可用余额（仅在加款时生效）
      * @return void
      * @throws Exception
      */
-    public static function changeUnAvailable(int $merchantId, string $amount, string $type, bool $action = false, ?string $tradeNo = null, ?string $remark = null, bool $reduceAvailable = false): void
+    public static function changeUnAvailable(int $merchantId, string $amount, string $type, ?string $tradeNo = null, ?string $remark = null, bool $reduceAvailable = false): void
     {
-        // 验证金额必须大于0
-        if (bccomp($amount, '0.00', 2) !== 1) {
+        // 验证金额不能为0
+        if (bccomp($amount, '0.00', 2) === 0) {
             return;
         }
 
@@ -174,34 +176,40 @@ class MerchantWalletRecord extends Model
             throw new Exception('商户钱包不存在');
         }
 
-        // 检查扣款时余额是否充足
-        if (!$action) { // 扣款操作
-            if (bccomp($wallet->unavailable_balance, $amount, 2) === -1) {
+        // 判断是加款还是扣款
+        $is_add                = bccomp($amount, '0.00', 2) === 1;
+
+        // 检查扣款时余额是否充足（金额为负数时表示扣款）
+        if (!$is_add) {
+            // 取绝对值进行比较
+            $abs_amount = bcmul($amount, '-1', 2);
+            if (bccomp($wallet->unavailable_balance, $abs_amount, 2) === -1) {
                 throw new Exception('不可用余额不足');
             }
         }
 
-        // 计算变更金额和新余额
+        // 计算变更后的不可用余额
         $oldUnavailableBalance = $wallet->unavailable_balance;
-        $delta                 = $action ? $amount : bcsub('0.00', $amount, 2);
-        $newUnavailableBalance = bcadd($oldUnavailableBalance, $delta, 2);
+        $newUnavailableBalance = bcadd($oldUnavailableBalance, $amount, 2);
 
         // 计算可用余额变更
         $oldAvailableBalance = $wallet->available_balance;
         $availableDelta      = '0.00';
         $newAvailableBalance = $oldAvailableBalance;
 
-        if ($reduceAvailable && $action) { // 只有在加款时才可能减少可用余额
+        // 只有在加款时才可能减少可用余额
+        if ($reduceAvailable && $is_add) {
             if (bccomp($oldAvailableBalance, $amount, 2) === -1) {
                 throw new Exception('可用余额不足');
             }
+            // 使用金额的绝对值取反作为可用余额的变更量
             $availableDelta      = bcsub('0.00', $amount, 2);
             $newAvailableBalance = bcadd($oldAvailableBalance, $availableDelta, 2);
         }
 
         // 更新商户钱包余额
         $updateData = ['unavailable_balance' => $newUnavailableBalance];
-        if ($reduceAvailable) {
+        if ($reduceAvailable && $is_add) {
             $updateData['available_balance'] = $newAvailableBalance;
         }
         MerchantWallet::where('merchant_id', $merchantId)->update($updateData);
@@ -214,7 +222,7 @@ class MerchantWalletRecord extends Model
             'available_amount'        => $availableDelta,
             'new_available_balance'   => $newAvailableBalance,
             'old_unavailable_balance' => $oldUnavailableBalance,
-            'unavailable_amount'      => $delta,
+            'unavailable_amount' => $amount,
             'new_unavailable_balance' => $newUnavailableBalance,
             'trade_no'                => $tradeNo,
             'remark'                  => $remark,

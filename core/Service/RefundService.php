@@ -66,14 +66,15 @@ class RefundService
                 throw new Exception("本次退款金额不能大于剩余可退款金额{$remaining_amount}元");
             }
 
-            // 执行商户钱包金额变更操作（扣除商户实收金额）
-            MerchantWalletRecord::changeAvailable($order->merchant_id, $amount, '订单退款', false, $order->trade_no, '退款扣除收益');
+            // 执行商户钱包金额变更操作（扣除商户实收金额，传入负数金额表示扣款）
+            MerchantWalletRecord::changeAvailable($order->merchant_id, bcsub('0.00', $amount, 2), '订单退款', $order->trade_no, '退款扣除收益');
 
             // 计算应退还的平台服务费（如果平台承担服务费）
             $refund_fee_amount = '0';
             if ($fee_bearer && bccomp($fee_amount, '0', 2) > 0) {
                 $refund_fee_amount = self::calculateRefundFee($total_amount, $fee_amount, $amount);
-                MerchantWalletRecord::changeAvailable($order->merchant_id, $refund_fee_amount, '订单服务费退款', true, $order->trade_no, '退款退回平台扣除的订单服务费');
+                // 加款传入正数金额
+                MerchantWalletRecord::changeAvailable($order->merchant_id, $refund_fee_amount, '订单服务费退款', $order->trade_no, '退款退回平台扣除的订单服务费');
             }
 
             // 新增退款记录

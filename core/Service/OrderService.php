@@ -129,8 +129,8 @@ class OrderService
             if ($order->settle_cycle > 0) {
                 // 将订单结算状态标记为结算中
                 $order->settle_state = Order::SETTLE_STATE_PROCESSING;
-                // 增加商户不可用余额
-                MerchantWalletRecord::changeUnAvailable($order->merchant_id, $order->receipt_amount, '延迟结算', true, $order->trade_no);
+                // 增加商户不可用余额（正数金额表示加款）
+                MerchantWalletRecord::changeUnAvailable($order->merchant_id, $order->receipt_amount, '延迟结算', $order->trade_no);
                 // 使用Redis队列等待订单结算
                 if (!SyncQueue::send('order-settle', $order->trade_no, $order->settle_cycle * 86400)) {
                     // 将订单结算状态标记为结算失败
@@ -145,13 +145,13 @@ class OrderService
                 if ($order->settle_cycle === 0) {
                     // 检查商户是否拥有结算权限
                     if (Merchant::where('id', $order->merchant_id)->whereJsonContains('competence', 'settle')->exists()) {
-                        // 增加商户可用余额
-                        MerchantWalletRecord::changeAvailable($order->merchant_id, $order->receipt_amount, '订单收益', true, $order->trade_no, '自动结算');
+                        // 增加商户可用余额（正数金额表示加款）
+                        MerchantWalletRecord::changeAvailable($order->merchant_id, $order->receipt_amount, '订单收益', $order->trade_no, '自动结算');
                     } else {
                         // 无权限则标记为结算失败
                         $order->settle_state = Order::SETTLE_STATE_FAILED;
-                        // 增加商户不可用余额
-                        MerchantWalletRecord::changeUnAvailable($order->merchant_id, $order->receipt_amount, '暂缓结算', true, $order->trade_no, '商户无结算权限');
+                        // 增加商户不可用余额（正数金额表示加款）
+                        MerchantWalletRecord::changeUnAvailable($order->merchant_id, $order->receipt_amount, '暂缓结算', $order->trade_no, '商户无结算权限');
                     }
                 }
             }
@@ -328,19 +328,20 @@ class OrderService
 
             // 根据目标状态处理对应的操作
             if ($targetState === Order::TRADE_STATE_FROZEN) {
-                // 冻结操作，判断该订单已经结算了才冻结可用余额
+                // 冻结操作，判断该订单已经结算了才冻结可用余额（正数金额表示加款不可用余额）
                 if ($order->settle_state === Order::SETTLE_STATE_COMPLETED) {
-                    MerchantWalletRecord::changeUnAvailable($order->merchant_id, $order->receipt_amount, '订单冻结', true, $order->trade_no, '订单已结算，需冻结可用余额', true);
+                    MerchantWalletRecord::changeUnAvailable($order->merchant_id, $order->receipt_amount, '订单冻结', $order->trade_no, '订单已结算，需冻结可用余额', true);
                 }
             } else {
                 // 解冻操作
                 if ($order->settle_state === Order::SETTLE_STATE_COMPLETED) {
-                    MerchantWalletRecord::changeAvailable($order->merchant_id, $order->receipt_amount, '订单解冻', true, $order->trade_no, '将原冻结的可用余额释放', true);
+                    // 解冻：加款可用余额（正数金额），同时扣减不可用余额
+                    MerchantWalletRecord::changeAvailable($order->merchant_id, $order->receipt_amount, '订单解冻', $order->trade_no, '将原冻结的可用余额释放', true);
                 } elseif ($order->settle_state === Order::SETTLE_STATE_FAILED) {
                     // 验证当前订单的结算状态是否为失败（可能是因为冻结或无结算权限而导致应结算时未结算），如果是则立即尝试执行结算
                     if (Merchant::where('id', $order->merchant_id)->whereJsonContains('competence', 'settle')->exists()) {
-                        // 执行商户钱包金额变更操作
-                        MerchantWalletRecord::changeAvailable($order->merchant_id, $order->receipt_amount, '订单收益', true, $order->trade_no, '补偿结算(订单原为冻结状态，解冻后恢复结算)', true);
+                        // 执行商户钱包金额变更操作（正数金额表示加款）
+                        MerchantWalletRecord::changeAvailable($order->merchant_id, $order->receipt_amount, '订单收益', $order->trade_no, '补偿结算(订单原为冻结状态，解冻后恢复结算)', true);
                         $order->settle_state = Order::SETTLE_STATE_COMPLETED;
                     }
                 }
@@ -390,7 +391,8 @@ class OrderService
                 if ($now->gte($originalSettleTime)) {
                     // 立即执行结算
                     try {
-                        MerchantWalletRecord::changeAvailable($row->merchant_id, $row->receipt_amount, '订单收益', true, $row->trade_no, '自动结算(失败重试)', true);
+                        // 加款可用余额（正数金额），同时扣减不可用余额
+                        MerchantWalletRecord::changeAvailable($row->merchant_id, $row->receipt_amount, '订单收益', $row->trade_no, '自动结算(失败重试)', true);
                         $row->settle_state = Order::SETTLE_STATE_COMPLETED;
                         $row->save();
                     } catch (Throwable) {
