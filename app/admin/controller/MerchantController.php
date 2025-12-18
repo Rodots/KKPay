@@ -269,12 +269,13 @@ class MerchantController extends AdminBase
     public function resetPassword(Request $request): Response
     {
         $id = $request->post('id');
-        if (empty($id)) {
+        $password = $request->post('password', '123456');
+        if (empty($id) || empty($password)) {
             return $this->fail('必要参数缺失');
         }
 
         try {
-            if (Merchant::resetPassword($id)) {
+            if (Merchant::resetPassword($id, $password)) {
                 return $this->success('重置成功');
             }
         } catch (Throwable $e) {

@@ -216,11 +216,13 @@ class Merchant extends Model
     /**
      * 重置商户密码为123456
      *
-     * @param int $id 商户ID
+     * @param int    $id       商户ID
+     * @param string $password 新密码
+     *
      * @return true 重置是否成功
      * @throws Exception
      */
-    public static function resetPassword(int $id): true
+    public static function resetPassword(int $id, string $password): true
     {
         $merchant = self::find($id);
         if (!$merchant) {
@@ -229,7 +231,7 @@ class Merchant extends Model
 
         // 更新商户密码
         $merchant->salt     = random(4);
-        $merchant->password = password_hash(hash('xxh128', '123456') . $merchant->salt, PASSWORD_BCRYPT);
+        $merchant->password = password_hash(hash('xxh128', trim($password)) . $merchant->salt, PASSWORD_BCRYPT);
 
         if (!$merchant->save()) {
             throw new Exception('重置密码失败');
