@@ -72,8 +72,8 @@ class OrderController extends AdminBase
                 'total_amount.float'                => '订单金额格式不正确',
                 'buyer_pay_amount.float'            => '用户付款金额格式不正确',
                 'receipt_amount.float'              => '商户实收金额格式不正确',
-                'create_time.array'                 => '请重新选择选择时间范围',
-                'payment_time.array'                => '请重新选择选择时间范围'
+                'create_time.array'  => '请重新选择时间范围',
+                'payment_time.array' => '请重新选择时间范围'
             ])->check($params);
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());

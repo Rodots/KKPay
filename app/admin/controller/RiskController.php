@@ -32,7 +32,7 @@ class RiskController extends AdminBase
                 'expired_at'   => ['array']
             ], [
                 'entity_value.max' => '黑名单内容长度不能超过512位',
-                'expired_at.array' => '请重新选择选择时间范围'
+                'expired_at.array' => '请重新选择时间范围'
             ])->check($params);
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
@@ -174,7 +174,7 @@ class RiskController extends AdminBase
                 'merchant_number.length'    => '商户编号是以M开头的16位数字+英文组合',
                 'type.number'               => '风控类型不正确',
                 'content.max'               => '风控内容不能超过512个字符',
-                'created_at.array'          => '请重新选择选择时间范围'
+                'created_at.array' => '请重新选择时间范围'
             ])->check($params);
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());

@@ -36,7 +36,7 @@ class AdminController extends AdminBase
                 'account.max'      => '账号长度不能超过32位',
                 'nickname.max'     => '昵称长度不能超过16位',
                 'email.max'        => '邮箱长度不能超过64位',
-                'created_at.array' => '请重新选择选择时间范围'
+                'created_at.array' => '请重新选择时间范围'
             ])->check($params);
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
@@ -302,7 +302,7 @@ class AdminController extends AdminBase
                 'account.max'      => '账号长度不能超过32位',
                 'content.max'      => '操作内容不能超过1024个字符',
                 'ip.max'           => '操作IP长度不能超过45位',
-                'created_at.array' => '请重新选择选择时间范围'
+                'created_at.array' => '请重新选择时间范围'
             ])->check($params);
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
