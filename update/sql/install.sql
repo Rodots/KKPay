@@ -162,7 +162,8 @@ CREATE TABLE `kkpay_merchant_payee`  (
   `status` bit(1) NOT NULL DEFAULT b'0' COMMENT '状态',
   `created_at` timestamp NULL DEFAULT NULL COMMENT '创建时间',
   PRIMARY KEY (`id`) USING BTREE,
-  INDEX `idx_merchant_id`(`merchant_id` ASC) USING BTREE
+  INDEX `idx_merchant_id`(`merchant_id` ASC) USING BTREE,
+  INDEX `idx_status`(`status` ASC) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '商户结算收款人信息表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
