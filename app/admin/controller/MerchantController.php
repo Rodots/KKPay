@@ -340,7 +340,7 @@ class MerchantController extends AdminBase
             return $this->fail('必要参数缺失');
         }
 
-        if (!Merchant::where('id', $id)->whereJsonContains('competence', 'settle')->exists()) {
+        if (!Merchant::where('id', $id)->whereJsonContains('competence', 'orderSettle')->exists()) {
             return $this->fail('该商户没有结算权限');
         }
 

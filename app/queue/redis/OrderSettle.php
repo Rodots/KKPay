@@ -42,7 +42,7 @@ class OrderSettle implements Consumer
             }
 
             // 判断是否满足结算条件：非冻结状态 且 商户拥有结算权限
-            if ($order->trade_state !== Order::TRADE_STATE_FROZEN && Merchant::where('id', $order->merchant_id)->whereJsonContains('competence', 'settle')->exists()) {
+            if ($order->trade_state !== Order::TRADE_STATE_FROZEN && Merchant::where('id', $order->merchant_id)->whereJsonContains('competence', 'orderSettle')->exists()) {
                 // 执行结算：变更钱包余额（增加可用余额（正数金额），同时扣除冻结/不可用余额）
                 MerchantWalletRecord::changeAvailable($order->merchant_id, $order->receipt_amount, '订单收益', $order->trade_no, '自动结算(延迟)', true);
                 $order->settle_state = Order::SETTLE_STATE_COMPLETED;

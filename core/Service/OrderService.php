@@ -144,7 +144,7 @@ class OrderService
                 // 如果该订单的结算周期为0则意味着是实时结算
                 if ($order->settle_cycle === 0) {
                     // 检查商户是否拥有结算权限
-                    if (Merchant::where('id', $order->merchant_id)->whereJsonContains('competence', 'settle')->exists()) {
+                    if (Merchant::where('id', $order->merchant_id)->whereJsonContains('competence', 'orderSettle')->exists()) {
                         // 增加商户可用余额（正数金额表示加款）
                         MerchantWalletRecord::changeAvailable($order->merchant_id, $order->receipt_amount, '订单收益', $order->trade_no, '自动结算');
                     } else {
@@ -339,7 +339,7 @@ class OrderService
                     MerchantWalletRecord::changeAvailable($order->merchant_id, $order->receipt_amount, '订单解冻', $order->trade_no, '将原冻结的可用余额释放', true);
                 } elseif ($order->settle_state === Order::SETTLE_STATE_FAILED) {
                     // 验证当前订单的结算状态是否为失败（可能是因为冻结或无结算权限而导致应结算时未结算），如果是则立即尝试执行结算
-                    if (Merchant::where('id', $order->merchant_id)->whereJsonContains('competence', 'settle')->exists()) {
+                    if (Merchant::where('id', $order->merchant_id)->whereJsonContains('competence', 'orderSettle')->exists()) {
                         // 执行商户钱包金额变更操作（正数金额表示加款）
                         MerchantWalletRecord::changeAvailable($order->merchant_id, $order->receipt_amount, '订单收益', $order->trade_no, '补偿结算(订单原为冻结状态，解冻后恢复结算)', true);
                         $order->settle_state = Order::SETTLE_STATE_COMPLETED;
@@ -370,7 +370,7 @@ class OrderService
         $now = Carbon::now()->timezone(config('app.default_timezone'));
 
         $query = Order::whereHas('merchant', function ($query) {
-            $query->whereJsonContains('competence', 'settle');
+            $query->whereJsonContains('competence', 'orderSettle');
         })
             ->select(['trade_no', 'merchant_id', 'receipt_amount', 'settle_state', 'settle_cycle', 'payment_time'])
             ->where('settle_state', '=', Order::SETTLE_STATE_FAILED)
