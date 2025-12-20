@@ -333,7 +333,7 @@ CREATE TABLE `kkpay_order_buyer`  (
 -- ----------------------------
 DROP TABLE IF EXISTS `kkpay_order_notification`;
 CREATE TABLE `kkpay_order_notification`  (
-  `id` char(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '通知校验ID',
+  `id` binary(16) NOT NULL COMMENT '通知校验ID',
   `trade_no` char(24) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '平台订单号',
   `status` bit(1) NOT NULL DEFAULT b'0' COMMENT '状态 0:失败 1:成功',
   `request_duration` int UNSIGNED NOT NULL DEFAULT 0 COMMENT '请求耗时（毫秒）',

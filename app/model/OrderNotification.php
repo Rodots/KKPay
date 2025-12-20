@@ -1,9 +1,10 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace app\model;
 
+use app\casts\BinaryUuidCast;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use support\Model;
@@ -49,6 +50,7 @@ class OrderNotification extends Model
     protected function casts(): array
     {
         return [
+            'id'               => BinaryUuidCast::class,
             'status'           => 'boolean',
             'request_duration' => 'integer'
         ];

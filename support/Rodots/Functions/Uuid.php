@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace support\Rodots\Functions;
 
@@ -9,105 +9,142 @@ use Random\RandomException;
 
 /**
  * UUID 生成器类
- * 支持 UUID v4 (随机), v6 (时间排序), v7 (时间排序新格式)
+ *
+ * 支持以下 UUID 版本：
+ * - v4：完全随机 UUID
+ * - v7：时间排序 UUID（推荐，RFC 9562 标准）
  */
 final readonly class Uuid
 {
-    private const int UUID_VERSION_4       = 4;
-    private const int UUID_VERSION_6       = 6;
-    private const int UUID_VERSION_7       = 7;
-    private const int UUID_VARIANT_RFC4122 = 0b10;
+    // UUID 版本常量
+    private const int VERSION_4 = 4;
+    private const int VERSION_7 = 7;
+
+    // RFC 4122 变体标识
+    private const int VARIANT_RFC4122 = 0b10;
 
     /**
-     * 生成 UUID v4 (随机 UUID)
+     * 生成 UUID v4（完全随机）
      *
      * @param bool $withDashes 是否包含横杠，默认为 false
-     * @return non-empty-string
+     * @return non-empty-string 32 位（无横杠）或 36 位（有横杠）十六进制字符串
      * @throws RandomException
      */
     public static function v4(bool $withDashes = false): string
     {
-        $bytes = random_bytes(16);
-
-        // 设置版本号 (4) 到第 13-16 位
-        $bytes[6] = chr(ord($bytes[6]) & 0x0F | (self::UUID_VERSION_4 << 4));
-
-        // 设置变体 (RFC 4122) 到第 17-18 位
-        $bytes[8] = chr(ord($bytes[8]) & 0x3F | (self::UUID_VARIANT_RFC4122 << 6));
+        $bytes    = random_bytes(16);
+        $bytes[6] = chr(ord($bytes[6]) & 0x0F | (self::VERSION_4 << 4));
+        $bytes[8] = chr(ord($bytes[8]) & 0x3F | (self::VARIANT_RFC4122 << 6));
 
         return self::formatUuid($bytes, $withDashes);
     }
 
     /**
-     * 生成 UUID v6 (时间排序 UUID)
+     * 生成 UUID v7（时间排序，推荐使用）
      *
-     * @param int|null    $timestamp  自定义时间戳 (微秒)，默认使用当前时间
-     * @param string|null $nodeId     自定义节点 ID (6 字节)，默认使用随机数
-     * @param bool        $withDashes 是否包含横杠，默认为 false
-     * @return non-empty-string
-     * @throws RandomException
-     * @throws InvalidArgumentException
-     */
-    public static function v6(?int $timestamp = null, ?string $nodeId = null, bool $withDashes = false): string
-    {
-        $timestamp ??= intval(microtime(true) * 1_000_000); // 微秒时间戳
-        $nodeId    ??= substr(random_bytes(6), 0, 6); // 使用随机数作为节点 ID
-
-        // 确保节点 ID 为 6 字节
-        if ($nodeId !== null && strlen($nodeId) !== 6) {
-            throw new InvalidArgumentException('Node ID must be exactly 6 bytes');
-        }
-
-        // 生成 60 位时间戳 (从 1582-10-15 开始计算)
-        $unixTimestamp = $timestamp;
-        $uuidTimestamp = $unixTimestamp + 12219292800000000; // 转换为 UUID 时间戳
-
-        // 将时间戳转换为字节
-        $timeBytes = pack('J', $uuidTimestamp);
-        $timeBytes = substr($timeBytes, 2); // 取后 6 字节 + 2 字节
-
-        // 生成时钟序列
-        $clockSeq = random_bytes(2);
-        $clockSeq = pack('n', unpack('n', $clockSeq)[1] & 0x3FFF); // 保留 14 位
-
-        // 构造 UUID 字节
-        $bytes = substr($timeBytes, 0, 6); // 时间戳前 6 字节
-        $bytes .= chr((ord(substr($timeBytes, 6, 1)) & 0x0F) | (self::UUID_VERSION_6 << 4)); // 版本号
-        $bytes .= chr((ord($clockSeq[0]) & 0x3F) | (self::UUID_VARIANT_RFC4122 << 6)); // 变体
-        $bytes .= $clockSeq[1]; // 时钟序列低字节
-        $bytes .= $nodeId; // 6 字节节点 ID
-
-        return self::formatUuid($bytes, $withDashes);
-    }
-
-    /**
-     * 生成 UUID v7 (时间排序 UUID 新格式)
+     * UUID v7 结构：
+     * - 前 48 位：Unix 毫秒时间戳
+     * - 4 位：版本号 (7)
+     * - 12 位：随机数
+     * - 2 位：变体标识
+     * - 62 位：随机数
      *
-     * @param int|null $timestamp  自定义时间戳 (毫秒)，默认使用当前时间
+     * @param int|null $timestamp  自定义时间戳（毫秒），默认使用当前时间
      * @param bool     $withDashes 是否包含横杠，默认为 false
      * @return non-empty-string
      * @throws RandomException
      */
     public static function v7(?int $timestamp = null, bool $withDashes = false): string
     {
+        return self::formatUuid(self::v7Binary($timestamp), $withDashes);
+    }
+
+    /**
+     * 生成 UUID v7 的二进制格式（适合直接存入 BINARY(16) 字段）
+     *
+     * @param int|null $timestamp 自定义时间戳（毫秒），默认使用当前时间
+     * @return string 16 字节的二进制数据
+     * @throws RandomException
+     */
+    public static function v7Binary(?int $timestamp = null): string
+    {
         $timestamp ??= intval(microtime(true) * 1000);
 
-        // 时间戳占前 48 位 (6 字节)
-        $timeBytes = pack('J', $timestamp);
-        $timeBytes = substr($timeBytes, 2, 6); // 取后 6 字节
+        // 时间戳占前 48 位（6 字节）
+        $timeBytes = substr(pack('J', $timestamp), 2, 6);
 
-        // 随机数占后 80 位 (10 字节)
+        // 随机数占后 80 位（10 字节）
         $randomBytes = random_bytes(10);
 
         $bytes = $timeBytes . $randomBytes;
 
-        // 设置版本号 (7) 到第 49-52 位 (字节 6 的高 4 位)
-        $bytes[6] = chr(ord($bytes[6]) & 0x0F | (self::UUID_VERSION_7 << 4));
+        // 设置版本号 (7) 到字节 6 的高 4 位
+        $bytes[6] = chr(ord($bytes[6]) & 0x0F | (self::VERSION_7 << 4));
 
-        // 设置变体 (RFC 4122) 到第 65-66 位 (字节 8 的高 2 位)
-        $bytes[8] = chr(ord($bytes[8]) & 0x3F | (self::UUID_VARIANT_RFC4122 << 6));
+        // 设置变体 (RFC 4122) 到字节 8 的高 2 位
+        $bytes[8] = chr(ord($bytes[8]) & 0x3F | (self::VARIANT_RFC4122 << 6));
 
-        return self::formatUuid($bytes, $withDashes);
+        return $bytes;
+    }
+
+    /**
+     * 将十六进制 UUID 字符串转换为二进制格式
+     *
+     * @param string $hex 32 位十六进制字符串（不含横杠）或 36 位（含横杠）
+     * @return string 16 字节的二进制数据
+     * @throws InvalidArgumentException
+     */
+    public static function toBinary(string $hex): string
+    {
+        $hex = str_replace('-', '', $hex);
+
+        if (strlen($hex) !== 32 || !ctype_xdigit($hex)) {
+            throw new InvalidArgumentException('无效的 UUID 十六进制格式，必须是 32 位十六进制字符串');
+        }
+
+        return hex2bin($hex);
+    }
+
+    /**
+     * 将二进制 UUID 转换为十六进制字符串
+     *
+     * @param string $binary     16 字节的二进制数据
+     * @param bool   $withDashes 是否包含横杠，默认为 false
+     * @return non-empty-string 32 或 36 位十六进制字符串
+     * @throws InvalidArgumentException
+     */
+    public static function toHex(string $binary, bool $withDashes = false): string
+    {
+        if (strlen($binary) !== 16) {
+            throw new InvalidArgumentException('无效的二进制 UUID，必须是 16 字节');
+        }
+
+        return self::formatUuid($binary, $withDashes);
+    }
+
+    /**
+     * 验证 UUID 格式是否有效
+     *
+     * 支持以下格式：
+     * - 带横杠：xxxxxxxx-xxxx-xxxx-xxxx-xxxxxxxxxxxx（36 位）
+     * - 不带横杠：xxxxxxxxxxxxxxxxxxxxxxxxxxxxxxxx（32 位）
+     *
+     * @param string $uuid UUID 字符串
+     * @return bool
+     */
+    public static function isValid(string $uuid): bool
+    {
+        $length = strlen($uuid);
+
+        if ($length === 36) {
+            return preg_match('/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i', $uuid) === 1;
+        }
+
+        if ($length === 32) {
+            return ctype_xdigit($uuid);
+        }
+
+        return false;
     }
 
     /**
@@ -125,41 +162,6 @@ final readonly class Uuid
             return $hex;
         }
 
-        return sprintf(
-            '%s-%s-%s-%s-%s',
-            substr($hex, 0, 8),    // 8 位
-            substr($hex, 8, 4),    // 4 位
-            substr($hex, 12, 4),   // 4 位
-            substr($hex, 16, 4),   // 4 位
-            substr($hex, 20, 12)   // 12 位
-        );
-    }
-
-    /**
-     * 验证 UUID 格式是否有效
-     *
-     * @param string $uuid
-     * @return bool
-     */
-    public static function isValid(string $uuid): bool
-    {
-        $pattern = '/^[0-9a-f]{8}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{4}-[0-9a-f]{12}$/i';
-        return preg_match($pattern, $uuid) === 1;
-    }
-
-    /**
-     * 获取 UUID 版本号
-     *
-     * @param string $uuid
-     * @return int|null
-     */
-    public static function getVersion(string $uuid): ?int
-    {
-        if (!self::isValid($uuid)) {
-            return null;
-        }
-
-        $versionChar = $uuid[14];
-        return intval($versionChar);
+        return sprintf('%s-%s-%s-%s-%s', substr($hex, 0, 8), substr($hex, 8, 4), substr($hex, 12, 4), substr($hex, 16, 4), substr($hex, 20, 12));
     }
 }
