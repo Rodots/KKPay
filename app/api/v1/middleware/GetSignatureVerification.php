@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace app\api\v1\middleware;
 
@@ -215,6 +215,7 @@ class GetSignatureVerification implements MiddlewareInterface
             'only_xxh' => $signType === MerchantEncryption::SIGN_TYPE_XXH128,
             'only_sha3' => $signType === MerchantEncryption::SIGN_TYPE_SHA3_256,
             'only_rsa2' => $signType === MerchantEncryption::SIGN_TYPE_SHA256withRSA,
+            'open' => true,
             default => false
         };
     }
