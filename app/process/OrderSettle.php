@@ -5,6 +5,7 @@ declare(strict_types = 1);
 namespace app\process;
 
 use Core\Service\OrderService;
+use support\Log;
 use Workerman\Crontab\Crontab;
 
 /**
@@ -24,6 +25,7 @@ class OrderSettle
     {
         // 每6个小时的第6分钟的第6秒执行一次，尝试重新投递近7天结算失败的订单
         new Crontab('6 6 */6 * * *', function () {
+            Log::channel('process')->info('已执行订单自动结算任务');
             OrderService::retryFailedSettlements();
         });
     }

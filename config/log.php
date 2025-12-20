@@ -36,4 +36,16 @@ return [
             ]
         ]
     ],
+    'process' => [
+        'handlers' => [
+            [
+                'class'       => Monolog\Handler\RotatingFileHandler::class,
+                'constructor' => [runtime_path() . '/logs/process_logs/process.log', 30, 200, true, null, false, 'Y-m-d', '{date}'],
+                'formatter'   => [
+                    'class'       => Monolog\Formatter\LineFormatter::class,
+                    'constructor' => ["[%datetime%] %message% %context%\n", 'H:i:s', true, true],
+                ],
+            ]
+        ]
+    ],
 ];
