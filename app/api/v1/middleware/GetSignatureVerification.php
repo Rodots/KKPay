@@ -212,10 +212,10 @@ class GetSignatureVerification implements MiddlewareInterface
     private function validateSignType(string $signType, string $mode): bool
     {
         return match ($mode) {
-            'only_xxh' => $signType === MerchantEncryption::SIGN_TYPE_XXH128,
-            'only_sha3' => $signType === MerchantEncryption::SIGN_TYPE_SHA3_256,
-            'only_rsa2' => $signType === MerchantEncryption::SIGN_TYPE_SHA256withRSA,
-            'open' => true,
+            MerchantEncryption::MODE_ONLY_XXH => $signType === MerchantEncryption::SIGN_TYPE_XXH128,
+            MerchantEncryption::MODE_ONLY_SHA3 => $signType === MerchantEncryption::SIGN_TYPE_SHA3_256,
+            MerchantEncryption::MODE_ONLY_RSA2 => $signType === MerchantEncryption::SIGN_TYPE_SHA256withRSA,
+            MerchantEncryption::MODE_OPEN => true,
             default => false
         };
     }

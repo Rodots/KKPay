@@ -118,6 +118,14 @@ class Merchant extends Model
     }
 
     /**
+     * 商户密钥配置，一对一关联
+     */
+    public function encryption(): HasOne
+    {
+        return $this->hasOne(MerchantEncryption::class, 'merchant_id', 'id');
+    }
+
+    /**
      * 创建商户
      *
      * @param array $data 数据
@@ -224,7 +232,7 @@ class Merchant extends Model
     }
 
     /**
-     * 重置商户密码为123456
+     * 重置商户密码
      *
      * @param int    $id       商户ID
      * @param string $password 新密码

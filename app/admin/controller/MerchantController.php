@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace app\admin\controller;
 
 use app\model\Merchant;
+use app\model\MerchantEncryption;
 use app\model\MerchantLog;
 use app\model\MerchantPayee;
 use Core\baseController\AdminBase;
@@ -759,5 +760,134 @@ class MerchantController extends AdminBase
         }
 
         return $this->success('设置成功');
+    }
+
+    /**
+     * 获取商户密钥详情
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function encryptionDetail(Request $request): Response
+    {
+        $id = $request->get('id');
+        if (empty($id)) {
+            return $this->fail('必要参数缺失');
+        }
+
+        if (!$merchant = Merchant::with('encryption:merchant_id,mode,hash_key,aes_key,rsa2_key')->find($id, ['id', 'merchant_number'])) {
+            return $this->fail('该商户不存在');
+        }
+
+        $encryption = $merchant->encryption;
+        if (!$encryption) {
+            return $this->fail('该商户密钥配置不存在');
+        }
+
+        return $this->success(data: [
+            'merchant_number' => $merchant->merchant_number,
+            'mode'            => $encryption->mode,
+            'mode_text'       => MerchantEncryption::MODE_TEXT_MAP[$encryption->mode] ?? '未知',
+            'hash_key'        => $encryption->hash_key,
+            'aes_key'         => $encryption->aes_key,
+            'rsa2_key'        => $encryption->rsa2_key
+        ]);
+    }
+
+    /**
+     * 修改商户密钥配置
+     *
+     * @param Request $request
+     * @return Response
+     * @throws SodiumException
+     */
+    public function encryptionEdit(Request $request): Response
+    {
+        $payload = $request->post('payload');
+        if (empty($payload)) {
+            return $this->fail('非法请求');
+        }
+
+        $params = new XChaCha20(config('kkpay.api_crypto_key', ''))->get($payload);
+
+        if (empty($params['id'])) {
+            return $this->fail('必要参数缺失');
+        }
+
+        // 验证模式是否有效
+        if (!in_array($params['mode'] ?? '', MerchantEncryption::SUPPORTED_MODES)) {
+            return $this->fail('对接模式无效');
+        }
+
+        // 验证 hash_key 长度（如果提供）
+        if (!empty($params['hash_key']) && strlen($params['hash_key']) !== 32) {
+            return $this->fail('散列算法对接密钥必须为32位字符串');
+        }
+
+        // 验证 aes_key 长度（如果提供）
+        if (!empty($params['aes_key']) && strlen($params['aes_key']) !== 32) {
+            return $this->fail('AES加密传输密钥必须为32位字符串');
+        }
+
+        if (!$merchant = Merchant::find($params['id'])) {
+            return $this->fail('该商户不存在');
+        }
+
+        $encryption = MerchantEncryption::find($params['id']);
+        if (!$encryption) {
+            return $this->fail('该商户密钥配置不存在');
+        }
+
+        try {
+            // 构建更新数据
+            $update_data = ['mode' => $params['mode']];
+            if (!empty($params['hash_key'])) {
+                $update_data['hash_key'] = $params['hash_key'];
+            }
+            if (!empty($params['aes_key'])) {
+                $update_data['aes_key'] = $params['aes_key'];
+            }
+
+            $encryption->fill($update_data)->save();
+
+            // 记录操作日志
+            $this->adminLog("修改商户【{$merchant->merchant_number}】的密钥配置");
+        } catch (Throwable $e) {
+            return $this->fail('修改失败：' . $e->getMessage());
+        }
+
+        return $this->success('修改成功');
+    }
+
+    /**
+     * 生成商户 RSA2 密钥对
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function encryptionGenerateRsa2(Request $request): Response
+    {
+        $id = $request->get('id');
+        if (empty($id)) {
+            return $this->fail('必要参数缺失');
+        }
+
+        $merchant = Merchant::find($id, ['id', 'merchant_number']);
+        if (!$merchant) {
+            return $this->fail('该商户不存在');
+        }
+
+        try {
+            $keys = MerchantEncryption::generateRsa2KeyPair($merchant->id);
+
+            // 记录操作日志
+            $this->adminLog("为商户【{$merchant->merchant_number}】生成RSA2密钥对");
+        } catch (Throwable $e) {
+            return $this->fail('生成失败：' . $e->getMessage());
+        }
+
+        return $this->success('生成成功，请妥善保存私钥', [
+            'private_key' => $keys['private_key']
+        ]);
     }
 }

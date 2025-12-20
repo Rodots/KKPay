@@ -1,0 +1,15 @@
+# 最小可用的 OpenSSL 配置文件
+[ req ]
+default_bits        = 2048
+default_md          = sha256
+prompt              = no
+distinguished_name  = req_distinguished_name
+
+[ req_distinguished_name ]
+C  = CN
+ST = Shanghai
+L  = Shanghai
+O  = kkpay
+OU = IT Department
+CN = kkpay.local
+emailAddress = admin@kkpay.local
