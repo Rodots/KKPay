@@ -109,11 +109,11 @@ final readonly class Uuid
      * 将二进制 UUID 转换为十六进制字符串
      *
      * @param string $binary     16 字节的二进制数据
-     * @param bool   $withDashes 是否包含横杠，默认为 false
+     * @param bool   $withDashes 是否包含横杠，默认为 true
      * @return non-empty-string 32 或 36 位十六进制字符串
      * @throws InvalidArgumentException
      */
-    public static function toHex(string $binary, bool $withDashes = false): string
+    public static function toHex(string $binary, bool $withDashes = true): string
     {
         if (strlen($binary) !== 16) {
             throw new InvalidArgumentException('无效的二进制 UUID，必须是 16 字节');

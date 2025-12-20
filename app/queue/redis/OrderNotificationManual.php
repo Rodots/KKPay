@@ -1,16 +1,12 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace app\queue\redis;
 
 use app\model\Order;
 use app\model\OrderNotification as OrderNotificationModel;
 use GuzzleHttp\Client;
-use GuzzleHttp\Exception\ClientException;
-use GuzzleHttp\Exception\GuzzleException;
-use GuzzleHttp\Exception\RequestException;
-use GuzzleHttp\Exception\ServerException;
 use support\Rodots\Functions\Uuid;
 use Throwable;
 use Webman\RedisQueue\Consumer;
