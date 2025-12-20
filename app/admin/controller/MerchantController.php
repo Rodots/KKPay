@@ -44,7 +44,7 @@ class MerchantController extends AdminBase
                 'email.max'                 => '邮箱长度不能超过64位',
                 'phone.number'              => '手机号码只能是纯数字',
                 'phone.max'                 => '手机号码长度不能超过11位',
-                'created_at.array' => '请重新选择时间范围'
+                'created_at.array'          => '请重新选择时间范围'
             ])->check($params);
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
@@ -445,7 +445,7 @@ class MerchantController extends AdminBase
                 'merchant_number.length'    => '商户编号是以M开头的16位数字+英文组合',
                 'content.max'               => '操作内容不能超过1024个字符',
                 'ip.max'                    => '操作IP长度不能超过45位',
-                'created_at.array' => '请重新选择时间范围'
+                'created_at.array'          => '请重新选择时间范围'
             ])->check($params);
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
@@ -500,18 +500,16 @@ class MerchantController extends AdminBase
     {
         $from   = $request->get('from', 0);
         $limit  = $request->get('limit', 10);
-        $params = $request->only(['merchant_number', 'status', 'created_at']);
+        $params = $request->only(['merchant_number', 'created_at']);
 
         try {
             validate([
                 'merchant_number' => ['startWith:M', 'alphaNum', 'length:16'],
-                'status'          => ['in:0,1'],
                 'created_at'      => ['array']
             ], [
                 'merchant_number.startWith' => '商户编号是以M开头的16位数字+英文组合',
                 'merchant_number.alphaNum'  => '商户编号是以M开头的16位数字+英文组合',
                 'merchant_number.length'    => '商户编号是以M开头的16位数字+英文组合',
-                'status.in'                 => '状态参数不正确',
                 'created_at.array'          => '请重新选择时间范围'
             ])->check($params);
         } catch (Throwable $e) {
@@ -527,9 +525,6 @@ class MerchantController extends AdminBase
                 switch ($key) {
                     case 'merchant_number':
                         $q->where('merchant_id', Merchant::where('merchant_number', $value)->value('id'));
-                        break;
-                    case 'status':
-                        $q->where('status', (bool)$value);
                         break;
                     case 'created_at':
                         $q->whereBetween('created_at', [$value[0], $value[1]]);
@@ -569,17 +564,14 @@ class MerchantController extends AdminBase
             // 验证参数
             validate([
                 'merchant_number' => ['require', 'startWith:M', 'alphaNum', 'length:16'],
-                'payee_info'      => ['require', 'array'],
-                'status'          => ['require', 'in:0,1']
+                'payee_info'      => ['require', 'array']
             ], [
                 'merchant_number.require'   => '商户编号不能为空',
                 'merchant_number.startWith' => '商户编号是以M开头的16位数字+英文组合',
                 'merchant_number.alphaNum'  => '商户编号是以M开头的16位数字+英文组合',
                 'merchant_number.length'    => '商户编号是以M开头的16位数字+英文组合',
                 'payee_info.require'        => '收款信息不能为空',
-                'payee_info.array'          => '收款信息格式不正确',
-                'status.require'            => '状态不能为空',
-                'status.in'                 => '状态参数不正确'
+                'payee_info.array'          => '收款信息格式不正确'
             ])->check($params);
 
             // 验证商户是否存在
@@ -588,15 +580,14 @@ class MerchantController extends AdminBase
                 return $this->fail('该商户不存在');
             }
 
-            // 创建收款人信息
+            // 创建收款信息
             $payee              = new MerchantPayee();
             $payee->merchant_id = $merchant->id;
             $payee->payee_info  = $params['payee_info'];
-            $payee->status      = (bool)$params['status'];
             $payee->save();
 
             // 记录操作日志
-            $this->adminLog("为商户【{$merchant->merchant_number}】新增收款人信息");
+            $this->adminLog("为商户【{$merchant->merchant_number}】新增收款信息");
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
         }
@@ -627,29 +618,25 @@ class MerchantController extends AdminBase
         try {
             // 验证参数
             validate([
-                'payee_info' => ['require', 'array'],
-                'status'     => ['require', 'in:0,1']
+                'payee_info' => ['require', 'array']
             ], [
                 'payee_info.require' => '收款信息不能为空',
-                'payee_info.array'   => '收款信息格式不正确',
-                'status.require'     => '状态不能为空',
-                'status.in'          => '状态参数不正确'
+                'payee_info.array'   => '收款信息格式不正确'
             ])->check($params);
 
             // 查找收款人记录
             $payee = MerchantPayee::with('merchant:id,merchant_number')->find($params['id']);
             if (!$payee) {
-                return $this->fail('该收款人信息不存在');
+                return $this->fail('该收款信息不存在');
             }
 
-            // 更新收款人信息
+            // 更新收款信息
             $payee->payee_info = $params['payee_info'];
-            $payee->status     = (bool)$params['status'];
             $payee->save();
 
             // 记录操作日志
             $merchant_number = $payee->merchant->merchant_number ?? '未知';
-            $this->adminLog("编辑商户【{$merchant_number}】的收款人信息【{$payee->id}】");
+            $this->adminLog("编辑商户【{$merchant_number}】的收款信息【{$payee->id}】");
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
         }
@@ -673,47 +660,19 @@ class MerchantController extends AdminBase
 
         $payee = MerchantPayee::with('merchant:id,merchant_number')->find($id);
         if (!$payee) {
-            return $this->fail('该收款人信息不存在');
+            return $this->fail('该收款信息不存在');
         }
 
         try {
             $merchant_number = $payee->merchant->merchant_number ?? '未知';
             $payee->delete();
             // 记录操作日志
-            $this->adminLog("删除商户【{$merchant_number}】的收款人信息【{$id}】");
+            $this->adminLog("删除商户【{$merchant_number}】的收款信息【{$id}】");
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
         }
 
         return $this->success('删除成功');
-    }
-
-    /**
-     * 切换商户收款人状态
-     *
-     * @param Request $request
-     * @return Response
-     */
-    public function payeeChangeStatus(Request $request): Response
-    {
-        $id     = $request->post('id');
-        $status = $request->post('status');
-
-        if (empty($id) || !in_array($status, [0, 1])) {
-            return $this->fail('必要参数缺失');
-        }
-
-        $payee = MerchantPayee::find($id);
-        if (!$payee) {
-            return $this->fail('该收款人信息不存在');
-        }
-
-        $payee->status = (bool)$status;
-        if (!$payee->save()) {
-            return $this->fail('修改失败');
-        }
-
-        return $this->success('修改成功');
     }
 
     /**
@@ -732,7 +691,7 @@ class MerchantController extends AdminBase
 
         $payee = MerchantPayee::with(['merchant:id,merchant_number,remark'])->find($id);
         if (!$payee) {
-            return $this->fail('该收款人信息不存在');
+            return $this->fail('该收款信息不存在');
         }
 
         return $this->success(data: $payee->toArray());
@@ -757,7 +716,7 @@ class MerchantController extends AdminBase
             return $this->fail('该商户不存在');
         }
 
-        $list = MerchantPayee::where('merchant_id', $merchant_id)->orderByDesc('id')->get();
+        $list = MerchantPayee::select(['id', 'payee_info', 'is_default'])->where('merchant_id', $merchant_id)->orderByDesc('id')->get();
 
         return $this->success(data: ['list' => $list]);
     }
@@ -777,17 +736,17 @@ class MerchantController extends AdminBase
         }
 
         if (!$payee = MerchantPayee::with('merchant:id,merchant_number')->find($id, ['id', 'merchant_id'])) {
-            return $this->fail('该收款人信息不存在');
+            return $this->fail('该收款信息不存在');
         }
 
         try {
             Db::beginTransaction();
 
-            // 将该商户所有收款人状态设为禁用
-            MerchantPayee::where('merchant_id', $payee->merchant_id)->update(['status' => false]);
+            // 将该商户所有收款人设为非默认
+            MerchantPayee::where('merchant_id', $payee->merchant_id)->update(['is_default' => false]);
 
-            // 设置当前收款人为启用
-            MerchantPayee::where('id', $payee->id)->update(['status' => true]);
+            // 设置当前收款人为默认
+            MerchantPayee::where('id', $payee->id)->update(['is_default' => true]);
 
             Db::commit();
 

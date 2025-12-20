@@ -159,12 +159,12 @@ CREATE TABLE `kkpay_merchant_payee`  (
   `id` int UNSIGNED NOT NULL AUTO_INCREMENT,
   `merchant_id` int UNSIGNED NOT NULL COMMENT '商户ID',
   `payee_info` json NOT NULL COMMENT '收款信息',
-  `status` bit(1) NOT NULL DEFAULT b'0' COMMENT '状态',
+  `is_default` bit(1) NOT NULL DEFAULT b'0' COMMENT '是否默认',
   `created_at` timestamp NULL DEFAULT NULL COMMENT '创建时间',
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `idx_merchant_id`(`merchant_id` ASC) USING BTREE,
-  INDEX `idx_status`(`status` ASC) USING BTREE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '商户结算收款人信息表' ROW_FORMAT = DYNAMIC;
+  INDEX `idx_is_default` (`is_default` ASC) USING BTREE
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '商户结算收款信息表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for kkpay_merchant_security
@@ -250,6 +250,7 @@ CREATE TABLE `kkpay_merchant_withdrawal_record`  (
   `merchant_id` int UNSIGNED NOT NULL COMMENT '商户ID',
   `payee_info` json NOT NULL COMMENT '收款信息',
   `amount` decimal(12, 2) UNSIGNED NOT NULL COMMENT '提款金额',
+  `prepaid_deducted` decimal(12, 2) UNSIGNED NOT NULL DEFAULT 0.00 COMMENT '本次扣除的预付金',
   `received_amount` decimal(12, 2) UNSIGNED NOT NULL DEFAULT 0.00 COMMENT '到账金额',
   `fee` decimal(12, 2) UNSIGNED NOT NULL DEFAULT 0.00 COMMENT '服务费',
   `fee_type` bit(1) NOT NULL DEFAULT b'0' COMMENT '服务费收取方式',
@@ -259,7 +260,8 @@ CREATE TABLE `kkpay_merchant_withdrawal_record`  (
   `updated_at` timestamp NULL DEFAULT NULL COMMENT '处理时间',
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `idx_merchant_id`(`merchant_id` ASC) USING BTREE,
-  INDEX `idx_status_created`(`status` ASC, `created_at` ASC) USING BTREE
+  INDEX `idx_status` (`status` ASC) USING BTREE,
+  INDEX `idx_created` (`created_at` ASC) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '商户提款记录表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------

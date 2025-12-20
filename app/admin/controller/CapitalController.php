@@ -7,7 +7,9 @@ namespace app\admin\controller;
 use app\model\Merchant;
 use app\model\MerchantWalletPrepaidRecord;
 use app\model\MerchantWalletRecord;
+use app\model\MerchantWithdrawalRecord;
 use Core\baseController\AdminBase;
+use Core\Service\MerchantWithdrawalService;
 use SodiumException;
 use support\Db;
 use support\Request;
@@ -79,11 +81,6 @@ class CapitalController extends AdminBase
                         break;
                     case 'created_at':
                         $q->whereBetween('created_at', [$value[0], $value[1]]);
-                        break;
-                    case 'sort':
-                    case 'order':
-                    case 'limit':
-                    case 'from':
                         break;
                 }
             }
@@ -236,5 +233,124 @@ class CapitalController extends AdminBase
         }
 
         return $this->success('操作成功');
+    }
+
+    /**
+     * 商户提款记录列表
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function withdrawalList(Request $request): Response
+    {
+        $from   = $request->get('from', 0);
+        $limit  = $request->get('limit', 10);
+        $sort   = $request->get('sort', 'id');
+        $order  = $request->get('order', 'desc');
+        $params = $request->only(['merchant_number', 'status', 'created_at']);
+
+        try {
+            validate([
+                'merchant_number' => ['startWith:M', 'alphaNum', 'length:16'],
+                'status'          => ['in:PENDING,PROCESSING,COMPLETED,FAILED,REJECTED,CANCELED'],
+                'created_at'      => ['array']
+            ], [
+                'merchant_number.startWith' => '商户编号是以M开头的16位数字+英文组合',
+                'merchant_number.alphaNum'  => '商户编号是以M开头的16位数字+英文组合',
+                'merchant_number.length'    => '商户编号是以M开头的16位数字+英文组合',
+                'status.in'                 => '状态参数不正确',
+                'created_at.array'          => '请重新选择时间范围'
+            ])->check($params);
+        } catch (Throwable $e) {
+            return $this->fail($e->getMessage());
+        }
+
+        // 检测排序字段和顺序
+        if (!in_array($sort, ['id', 'amount', 'status']) || !in_array($order, ['asc', 'desc'])) {
+            return $this->fail('排序失败，请刷新后重试');
+        }
+
+        // 构建查询
+        $query = MerchantWithdrawalRecord::whereHas('merchant', fn($q) => $q->whereNull('deleted_at'))->with(['merchant:id,merchant_number,remark'])->when($params, function ($q) use ($params) {
+            foreach ($params as $key => $value) {
+                if ($value === '' || $value === null) {
+                    continue;
+                }
+                switch ($key) {
+                    case 'merchant_number':
+                        $q->where('merchant_id', Merchant::where('merchant_number', $value)->value('id'));
+                        break;
+                    case 'status':
+                        $q->where('status', $value);
+                        break;
+                    case 'created_at':
+                        $q->whereBetween('created_at', [$value[0], $value[1]]);
+                        break;
+                }
+            }
+            return $q;
+        });
+
+        // 获取总数和数据
+        $total = $query->count();
+        $list  = $query->offset($from)->limit($limit)->orderBy($sort, $order)->get()->append(['fee_type_text', 'status_text']);
+
+        return $this->success(data: [
+            'list'  => $list,
+            'total' => $total,
+        ]);
+    }
+
+    /**
+     * 商户清账
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function settleAccount(Request $request): Response
+    {
+        $merchantId = $request->post('id');
+        $payeeId    = $request->post('payee_id');
+
+        if (empty($merchantId) || empty($payeeId)) {
+            return $this->fail('必要参数缺失');
+        }
+
+        $result = MerchantWithdrawalService::settleAccount((int)$merchantId, (int)$payeeId);
+
+        if ($result['success']) {
+            // 记录操作日志
+            $this->adminLog("为商户【{$merchantId}】执行清账操作：{$result['message']}");
+            return $this->success($result['message'], ['withdrawal_id' => $result['withdrawal_id']]);
+        }
+
+        return $this->fail($result['message']);
+    }
+
+    /**
+     * 修改提款记录状态
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function changeWithdrawalStatus(Request $request): Response
+    {
+        $id     = $request->post('id');
+        $status = $request->post('status');
+        $reason = $request->post('reason');
+
+        if (empty($id) || empty($status)) {
+            return $this->fail('必要参数缺失');
+        }
+
+        $result = MerchantWithdrawalService::changeStatus((int)$id, $status, $reason);
+
+        if ($result['success']) {
+            // 记录操作日志
+            $this->adminLog("修改提款记录【{$id}】状态为【{$status}】");
+            return $this->success($result['message']);
+        }
+
+        return $this->fail($result['message']);
     }
 }

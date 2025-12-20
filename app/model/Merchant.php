@@ -136,8 +136,8 @@ class Merchant extends Model
             $merchantRow->remark      = empty($data['remark']) ? null : trim($data['remark']);
             $merchantRow->salt        = random(4);
             $merchantRow->password    = password_hash(hash('xxh128', trim($data['password'])) . $merchantRow->salt, PASSWORD_BCRYPT);
-            $merchantRow->status = (bool)$data['status'];
-            $merchantRow->risk_status = (bool)$data['risk_status'];
+            $merchantRow->status      = $data['status'];
+            $merchantRow->risk_status = $data['risk_status'];
             if (isset($data['competence'])) {
                 $merchantRow->competence = $data['competence'];
             }
@@ -158,7 +158,7 @@ class Merchant extends Model
             // 创建商户钱包
             $walletRow              = new MerchantWallet();
             $walletRow->merchant_id = $merchantRow->id;
-            $walletRow->margin = $data['margin'];
+            $walletRow->margin      = $data['margin'];
             $walletRow->save();
 
             // 提交事务
@@ -194,8 +194,8 @@ class Merchant extends Model
             $merchant->email       = isset($data['email']) ? (empty($data['email']) ? null : trim($data['email'])) : $merchant->email;
             $merchant->phone       = isset($data['phone']) ? (empty($data['phone']) ? null : trim($data['phone'])) : $merchant->phone;
             $merchant->remark      = empty($data['remark']) ? null : trim($data['remark']);
-            $merchant->status = (bool)$data['status'];
-            $merchant->risk_status = (bool)$data['risk_status'];
+            $merchant->status      = $data['status'];
+            $merchant->risk_status = $data['risk_status'];
             if (isset($data['competence'])) {
                 $merchant->competence = $data['competence'];
             }

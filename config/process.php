@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 use support\Log;
 use support\Request;
@@ -9,7 +9,7 @@ use app\process\Http;
 global $argv;
 
 return [
-    'webman'  => [
+    'webman'       => [
         'handler'     => Http::class,
         'listen'      => 'http://0.0.0.0:8787',
         'count'       => cpu_count() * 4,
@@ -20,13 +20,13 @@ return [
         'context'     => [],
         'constructor' => [
             'requestClass' => Request::class,
-            'logger' => Log::channel(),
+            'logger'       => Log::channel(),
             'appPath'      => app_path(),
             'publicPath'   => public_path()
         ]
     ],
     // File update detection and automatic reload
-    'monitor' => [
+    'monitor'      => [
         'handler'     => app\process\Monitor::class,
         'reloadable'  => false,
         'constructor' => [
@@ -39,7 +39,10 @@ return [
             ], glob(base_path() . '/plugin/*/app'), glob(base_path() . '/plugin/*/config'), glob(base_path() . '/plugin/*/api')),
             // Files with these suffixes will be monitored
             'monitorExtensions' => [
-                'php', 'html', 'htm', 'env'
+                'php',
+                'html',
+                'htm',
+                'env'
             ],
             'options'           => [
                 'enable_file_monitor'   => !in_array('-d', $argv) && DIRECTORY_SEPARATOR === '/',
@@ -47,10 +50,13 @@ return [
             ]
         ]
     ],
-    'task'    => [
+    'task'         => [
         'handler' => app\process\OrderSettle::class
     ],
-    'fake'    => [
+    'autoWithdraw' => [
+        'handler' => app\process\MerchantAutoWithdraw::class
+    ],
+    'fake'         => [
         'handler'     => Http::class,
         'listen'      => 'http://0.0.0.0:8686',
         'count'       => 1,

@@ -10,7 +10,7 @@ use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use support\Model;
 
 /**
- * 商户结算收款人信息表
+ * 商户结算收款信息表
  */
 class MerchantPayee extends Model
 {
@@ -38,8 +38,37 @@ class MerchantPayee extends Model
         return [
             'merchant_id' => 'integer',
             'payee_info'  => 'array',
-            'status'      => 'boolean'
+            'is_default'  => 'boolean'
         ];
+    }
+
+    /**
+     * 可批量赋值的属性。
+     *
+     * @var array
+     */
+    protected $fillable = [
+        'merchant_id',
+        'payee_info',
+        'is_default',
+    ];
+
+    /**
+     * 模型启动方法，用于注册模型事件
+     *
+     * @return void
+     */
+    protected static function boot(): void
+    {
+        parent::boot();
+
+        // 创建时自动将新收款人设为默认，并将该商户其他收款人置为非默认
+        static::creating(function ($payee) {
+            // 将该商户下所有现有收款人设为非默认
+            self::where('merchant_id', $payee->merchant_id)->update(['is_default' => false]);
+            // 新增的收款人设为默认
+            $payee->is_default = true;
+        });
     }
 
     /**
