@@ -85,7 +85,6 @@ class Order extends Model
         'notify_url',
         'return_url',
         'attach',
-        'quit_url',
         'settle_cycle',
         'sign_type',
         'close_time',

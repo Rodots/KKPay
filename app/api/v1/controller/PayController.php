@@ -143,7 +143,6 @@ class PayController extends ApiBase
             'payment_type'         => $this->getString($data, 'payment_type'),
             'payment_channel_code' => $this->getString($data, 'payment_channel_code'),
             'attach'               => $this->getString($data, 'attach'),
-            'quit_url'             => $this->getString($data, 'quit_url'),
             'close_time'           => $this->getString($data, 'close_time'),
             'buyer'                => $this->parseBuyerData($buyerData, $request, $useDefaults),
         ];
@@ -236,12 +235,6 @@ class PayController extends ApiBase
         $attach = $this->filterString($bizContent['attach'] ?? null);
         if ($attach && strlen($attach) > 128) {
             return '附加参数(attach)长度不能超过128个字符';
-        }
-
-        // 验证中途退出地址
-        $quitUrl = $this->filterString($bizContent['quit_url'] ?? null);
-        if ($quitUrl && (strlen($quitUrl) > 400 || !filter_var($quitUrl, FILTER_VALIDATE_URL))) {
-            return '中途退出地址(quit_url)格式错误';
         }
 
         // 验证买家IP

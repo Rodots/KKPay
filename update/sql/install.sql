@@ -286,7 +286,6 @@ CREATE TABLE `kkpay_order`  (
   `notify_url` varchar(1024) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '异步通知地址',
   `return_url` varchar(1024) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '同步通知地址',
   `attach` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '附加参数（原样返回）',
-  `quit_url` varchar(400) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT '' COMMENT '中途退出地址',
   `trade_state` enum('WAIT_PAY','TRADE_CLOSED','TRADE_SUCCESS','TRADE_FINISHED','TRADE_FROZEN') CHARACTER SET ascii COLLATE ascii_bin NOT NULL DEFAULT 'WAIT_PAY' COMMENT '交易状态',
   `settle_state` enum('PENDING','PROCESSING','COMPLETED','FAILED') CHARACTER SET ascii COLLATE ascii_bin NOT NULL DEFAULT 'PENDING' COMMENT '结算状态',
   `settle_cycle` tinyint NOT NULL DEFAULT 0 COMMENT '结算周期',

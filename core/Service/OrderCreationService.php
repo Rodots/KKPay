@@ -193,7 +193,6 @@ class OrderCreationService
             'notify_url'                 => $bizContent['notify_url'],
             'return_url'                 => $bizContent['return_url'],
             'attach'                     => $bizContent['attach'] ?: null,
-            'quit_url'                   => $bizContent['quit_url'] ?: '',
             'settle_cycle'               => $settleSycle,
             'sign_type'                  => $bizContent['sign_type'],
             'close_time'                 => $bizContent['close_time'] ?: null,
