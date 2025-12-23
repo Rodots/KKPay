@@ -162,7 +162,7 @@ class PayController extends ApiBase
             'real_name'  => $this->getString($buyerData, 'real_name'),
             'cert_no'    => $this->getString($buyerData, 'cert_no'),
             'cert_type'  => $this->getString($buyerData, 'cert_type'),
-            'min_age'    => $this->getString($buyerData, 'min_age'),
+            'min_age'    => $this->getInt($buyerData, 'min_age'),
             'mobile'     => $this->getString($buyerData, 'mobile'),
             'ip'         => $useDefaults ? $request->getRealIp() : $this->getString($buyerData, 'ip'),
             'user_agent' => $useDefaults ? $request->header('user-agent') : $this->getString($buyerData, 'user_agent'),
@@ -303,10 +303,6 @@ class PayController extends ApiBase
             if ($nameLen < 2 || $nameLen > 50) {
                 return '买家真实姓名(buyer.real_name)长度必须在2-50个字符之间';
             }
-            // 只允许中文汉字和少数民族姓名常见符号（·）
-            if (!preg_match('/^[\x{4e00}-\x{9fa5}·]+$/u', $realName)) {
-                return '买家真实姓名(buyer.real_name)格式错误，仅支持中文汉字及间隔符(·)';
-            }
         }
 
         // 校验证件类型
@@ -330,12 +326,9 @@ class PayController extends ApiBase
         }
 
         // 校验最小年龄
-        $minAge = $buyer['min_age'] ?? null;
-        if ($minAge !== null && $minAge !== '') {
-            $minAgeInt = filter_var($minAge, FILTER_VALIDATE_INT);
-            if ($minAgeInt === false || $minAgeInt < 14 || $minAgeInt > 120) {
-                return '买家最小年龄(buyer.min_age)必须为14-120之间的整数';
-            }
+        $minAge = $buyer['min_age'] ?? 0;
+        if ($minAge !== 0 && ($minAge < 14 || $minAge > 120)) {
+            return '买家最小年龄(buyer.min_age)必须在14-120之间';
         }
 
         // 校验手机号码
