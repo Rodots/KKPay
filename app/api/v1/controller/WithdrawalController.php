@@ -6,6 +6,7 @@ namespace app\api\v1\controller;
 
 use app\model\MerchantPayee;
 use app\model\MerchantWithdrawalRecord;
+use Core\baseController\ApiBase;
 use Core\Exception\PaymentException;
 use Core\Service\MerchantWithdrawalService;
 use support\Log;
@@ -18,7 +19,7 @@ use Throwable;
  *
  * 提供提款申请、取消、查询等API接口
  */
-class WithdrawalController extends BaseApiController
+class WithdrawalController extends ApiBase
 {
     /**
      * 提款申请接口

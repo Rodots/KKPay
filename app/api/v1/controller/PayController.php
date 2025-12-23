@@ -6,6 +6,7 @@ namespace app\api\v1\controller;
 
 use app\model\Order;
 use Carbon\Carbon;
+use Core\baseController\ApiBase;
 use Core\Exception\PaymentException;
 use Core\Service\PaymentService;
 use Core\Service\OrderCreationService;
@@ -19,7 +20,7 @@ use Throwable;
  * 支付控制器
  * 处理商户支付请求
  */
-class PayController extends BaseApiController
+class PayController extends ApiBase
 {
     /**
      * 页面跳转支付接口

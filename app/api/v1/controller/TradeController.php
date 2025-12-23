@@ -6,6 +6,7 @@ namespace app\api\v1\controller;
 
 use app\model\Order;
 use Carbon\Carbon;
+use Core\baseController\ApiBase;
 use Core\Exception\PaymentException;
 use Core\Service\RefundService;
 use support\Log;
@@ -18,7 +19,7 @@ use Throwable;
  *
  * 提供订单查询、退款、关闭等API接口
  */
-class TradeController extends BaseApiController
+class TradeController extends ApiBase
 {
     /**
      * 订单查询接口
