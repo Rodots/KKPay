@@ -110,7 +110,7 @@ class OrderService
                     'user_agent'    => 0,
                     'user_id'       => 0,
                     'buyer_open_id' => 0,
-                    'phone'         => 0
+                    'mobile'         => 0
                 ]);
                 if (!empty($filteredBuyer)) {
                     OrderBuyer::where('trade_no', $order->trade_no)->update($filteredBuyer);

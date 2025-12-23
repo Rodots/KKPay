@@ -115,8 +115,8 @@ class PayController extends BaseApiController
     /**
      * 解析支付业务参数
      *
-     * @param Request $request 请求对象
-     * @param bool $useDefaults 是否为buyer信息使用默认值
+     * @param Request $request     请求对象
+     * @param bool    $useDefaults 是否为buyer信息使用默认值
      * @return array|string 解析后的参数数组,或错误消息字符串
      */
     private function parsePayBizContent(Request $request, bool $useDefaults = false): array|string
@@ -150,35 +150,29 @@ class PayController extends BaseApiController
     /**
      * 解析买家信息
      *
-     * @param array $buyerData 买家数据
-     * @param Request $request 请求对象
-     * @param bool $useDefaults 是否使用默认值
+     * @param array   $buyerData   买家数据
+     * @param Request $request     请求对象
+     * @param bool    $useDefaults 是否使用默认值
      * @return array 解析后的买家信息
      */
     private function parseBuyerData(array $buyerData, Request $request, bool $useDefaults): array
     {
-        // 如果使用默认值,直接从请求中获取ip和user_agent
-        if ($useDefaults) {
-            return [
-                'phone'      => $this->getString($buyerData, 'phone'),
-                'ip'         => $request->getRealIp(),
-                'user_agent' => $request->header('user-agent'),
-            ];
-        }
-
-        // 严格模式,不使用默认值
         return [
-            'phone'      => $this->getString($buyerData, 'phone'),
-            'ip'         => $this->getString($buyerData, 'ip'),
-            'user_agent' => $this->getString($buyerData, 'user_agent'),
+            'real_name'  => $this->getString($buyerData, 'real_name'),
+            'cert_no'    => $this->getString($buyerData, 'cert_no'),
+            'cert_type'  => $this->getString($buyerData, 'cert_type'),
+            'min_age'    => $this->getString($buyerData, 'min_age'),
+            'mobile'     => $this->getString($buyerData, 'mobile'),
+            'ip'         => $useDefaults ? $request->getRealIp() : $this->getString($buyerData, 'ip'),
+            'user_agent' => $useDefaults ? $request->header('user-agent') : $this->getString($buyerData, 'user_agent'),
         ];
     }
 
     /**
      * 验证业务参数
      *
-     * @param array $bizContent 业务参数
-     * @param bool $isStrictMode 是否为严格验证模式(create接口为true,submit接口为false)
+     * @param array $bizContent   业务参数
+     * @param bool  $isStrictMode 是否为严格验证模式(create接口为true,submit接口为false)
      * @return string|true 验证通过返回true,失败返回错误消息
      */
     private function validateBizContent(array $bizContent, bool $isStrictMode = false): string|true

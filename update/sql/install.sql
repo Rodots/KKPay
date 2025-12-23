@@ -82,7 +82,7 @@ CREATE TABLE `kkpay_merchant`  (
   `id` int UNSIGNED NOT NULL AUTO_INCREMENT,
   `merchant_number` char(16) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '商户编号',
   `email` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '邮箱',
-  `phone` char(11) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '手机号',
+  `mobile` char(11) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '手机号码',
   `remark` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT '' COMMENT '备注',
   `diy_order_subject` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '自定义商品名称',
   `password` char(60) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '密码哈希',
@@ -96,7 +96,7 @@ CREATE TABLE `kkpay_merchant`  (
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `merchant_number_uindex`(`merchant_number` ASC) USING BTREE COMMENT '商户编号是唯一的',
   UNIQUE INDEX `email_uindex`(`email` ASC) USING BTREE COMMENT '邮箱是唯一的',
-  UNIQUE INDEX `phone_uindex`(`phone` ASC) USING BTREE COMMENT '手机号是唯一的',
+  UNIQUE INDEX `phone_uindex`(`mobile` ASC) USING BTREE COMMENT '手机号码是唯一的',
   INDEX `idx_softdelete`(`deleted_at` ASC) USING BTREE COMMENT '软删除'
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '商户表' ROW_FORMAT = DYNAMIC;
 
@@ -323,7 +323,11 @@ CREATE TABLE `kkpay_order_buyer`  (
   `user_agent` varchar(1024) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '浏览器标识',
   `user_id` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '付款人',
   `buyer_open_id` varchar(128) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '买家用户唯一标识',
-  `phone` char(11) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '手机号码',
+  `real_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '真实姓名',
+  `cert_no` varchar(64) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '证件号码',
+  `cert_type` enum('IDENTITY_CARD','PASSPORT','OFFICER_CARD','SOLDIER_CARD','HOKOU','PERMANENT_RESIDENCE_FOREIGNER') CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '证件类型',
+  `min_age` tinyint NULL DEFAULT NULL COMMENT '最小年龄',
+  `mobile` char(11) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '手机号码',
   `created_at` timestamp NULL DEFAULT NULL COMMENT '创建时间',
   `updated_at` timestamp NULL DEFAULT NULL COMMENT '更新时间',
   PRIMARY KEY (`trade_no`) USING BTREE,

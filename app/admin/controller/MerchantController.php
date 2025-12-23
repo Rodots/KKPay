@@ -30,21 +30,21 @@ class MerchantController extends AdminBase
     {
         $from   = $request->get('from', 0);
         $limit  = $request->get('limit', 10);
-        $params = $request->only(['merchant_number', 'email', 'phone', 'remark', 'status', 'risk_status', 'created_at']);
+        $params = $request->only(['merchant_number', 'email', 'mobile', 'remark', 'status', 'risk_status', 'created_at']);
 
         try {
             validate([
                 'merchant_number' => ['startWith:M', 'alphaNum', 'length:16'],
                 'email'           => ['max:64'],
-                'phone'           => ['number', 'max:11'],
+                'mobile'          => ['number', 'max:11'],
                 'created_at'      => ['array']
             ], [
                 'merchant_number.startWith' => '商户编号是以M开头的16位数字+英文组合',
                 'merchant_number.alphaNum'  => '商户编号是以M开头的16位数字+英文组合',
                 'merchant_number.length'    => '商户编号是以M开头的16位数字+英文组合',
                 'email.max'                 => '邮箱长度不能超过64位',
-                'phone.number'              => '手机号码只能是纯数字',
-                'phone.max'                 => '手机号码长度不能超过11位',
+                'mobile.number'             => '手机号码只能是纯数字',
+                'mobile.max'                => '手机号码长度不能超过11位',
                 'created_at.array'          => '请重新选择时间范围'
             ])->check($params);
         } catch (Throwable $e) {
@@ -52,7 +52,7 @@ class MerchantController extends AdminBase
         }
 
         // 构建查询
-        $query = Merchant::with('wallet:merchant_id,available_balance,unavailable_balance,margin,prepaid')->select(['id', 'merchant_number', 'email', 'phone', 'remark', 'status', 'risk_status', 'created_at'])->when($params, function ($q) use ($params) {
+        $query = Merchant::with('wallet:merchant_id,available_balance,unavailable_balance,margin,prepaid')->select(['id', 'merchant_number', 'email', 'mobile', 'remark', 'status', 'risk_status', 'created_at'])->when($params, function ($q) use ($params) {
             foreach ($params as $key => $value) {
                 if ($value === '' || $value === null) {
                     continue;
@@ -64,8 +64,8 @@ class MerchantController extends AdminBase
                     case 'email':
                         $q->where('email', 'like', "%$value%");
                         break;
-                    case 'phone':
-                        $q->where('phone', 'like', "%$value%");
+                    case 'mobile':
+                        $q->where('mobile', 'like', "%$value%");
                         break;
                     case 'remark':
                         $q->where('remark', 'like', "%$value%");
@@ -104,7 +104,7 @@ class MerchantController extends AdminBase
     {
         $id = $request->get('id');
 
-        $query = Merchant::find($id, ['id', 'merchant_number', 'email', 'phone', 'remark', 'diy_order_subject', 'status', 'risk_status', 'competence'])->append(['margin']);
+        $query = Merchant::find($id, ['id', 'merchant_number', 'email', 'mobile', 'remark', 'diy_order_subject', 'status', 'risk_status', 'competence'])->append(['margin']);
         return $this->success(data: $query->toArray());
     }
 
@@ -128,14 +128,14 @@ class MerchantController extends AdminBase
             validate([
                 'margin'   => ['require', 'float'],
                 'email'    => ['email', 'max:64'],
-                'phone'    => ['mobile'],
+                'mobile'   => ['mobile'],
                 'password' => ['require', 'min:6']
             ], [
                 'margin.require'   => '保证金不能为空',
                 'margin.float'     => '保证金必须为数字',
                 'email.email'      => '邮箱格式不正确',
                 'email.max'        => '邮箱长度不能超过64位',
-                'phone.mobile'     => '手机号码格式不正确',
+                'mobile.mobile'    => '手机号码格式不正确',
                 'password.require' => '密码不能为空',
                 'password.min'     => '密码长度不能小于6位'
             ])->check($params);
@@ -177,13 +177,13 @@ class MerchantController extends AdminBase
             validate([
                 'margin' => ['require', 'float'],
                 'email'  => ['email', 'max:64'],
-                'phone'  => ['mobile'],
+                'mobile' => ['mobile'],
             ], [
                 'margin.require' => '保证金不能为空',
                 'margin.float'   => '保证金必须为数字',
                 'email.email'    => '邮箱格式不正确',
                 'email.max'      => '邮箱长度不能超过64位',
-                'phone.mobile'   => '手机号码格式不正确',
+                'mobile.mobile'  => '手机号码格式不正确',
             ])->check($params);
 
             Merchant::updateMerchant($user->id, $params);

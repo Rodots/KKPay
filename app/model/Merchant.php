@@ -140,7 +140,7 @@ class Merchant extends Model
             // 创建商户
             $merchantRow              = new self();
             $merchantRow->email       = empty($data['email']) ? null : trim($data['email']);
-            $merchantRow->phone       = empty($data['phone']) ? null : trim($data['phone']);
+            $merchantRow->mobile      = empty($data['mobile']) ? null : trim($data['mobile']);
             $merchantRow->remark      = empty($data['remark']) ? null : trim($data['remark']);
             $merchantRow->salt        = random(4);
             $merchantRow->password    = password_hash(hash('xxh128', trim($data['password'])) . $merchantRow->salt, PASSWORD_BCRYPT);
@@ -200,7 +200,7 @@ class Merchant extends Model
 
             // 更新商户基本信息
             $merchant->email       = isset($data['email']) ? (empty($data['email']) ? null : trim($data['email'])) : $merchant->email;
-            $merchant->phone       = isset($data['phone']) ? (empty($data['phone']) ? null : trim($data['phone'])) : $merchant->phone;
+            $merchant->mobile      = isset($data['mobile']) ? (empty($data['mobile']) ? null : trim($data['mobile'])) : $merchant->mobile;
             $merchant->remark      = empty($data['remark']) ? null : trim($data['remark']);
             $merchant->status      = $data['status'];
             $merchant->risk_status = $data['risk_status'];

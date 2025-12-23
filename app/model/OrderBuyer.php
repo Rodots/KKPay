@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace app\model;
 
@@ -52,7 +52,7 @@ class OrderBuyer extends Model
         'ip',
         'user_agent',
         'user_id',
-        'phone'
+        'mobile'
     ];
 
     /**
