@@ -195,13 +195,16 @@ class PayController extends ApiBase
             return '订单金额(total_amount)不规范';
         }
 
-        // 验证订单标题
+        // 验证商品名称
         $subject = $this->filterString($bizContent['subject'] ?? null);
         if (empty($subject)) {
-            return '订单标题(subject)缺失';
+            return '商品名称(subject)缺失';
         }
-        if (strlen($subject) > 255) {
-            return '订单标题(subject)长度不能超过255个字符';
+        if (mb_strlen($subject, 'UTF-8') > 255) {
+            return '商品名称(subject)长度不能超过255个字符';
+        }
+        if (preg_match('/[\/=&]/', $subject)) {
+            return '商品名称(subject)不可包含特殊字符（/、=、&）';
         }
 
         // 验证异步通知地址

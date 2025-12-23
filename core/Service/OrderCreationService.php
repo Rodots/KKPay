@@ -115,7 +115,7 @@ class OrderCreationService
 
         // 4. 对于未支付订单，检查关键支付参数是否一致
         $paramChecks = [
-            'subject'      => '订单标题',
+            'subject'      => '商品名称',
             'total_amount' => '订单金额',
             'notify_url'   => '异步通知地址',
             'return_url'   => '同步通知地址',
