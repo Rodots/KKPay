@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace Core\Service;
 
@@ -85,7 +85,7 @@ class OrderService
         Db::beginTransaction();
         try {
             // 获取并锁定订单，防止并发处理
-            if (!$order = Order::where('trade_no', $trade_no)->lockForUpdate()->first()) {
+            if (!$order = Order::where([['trade_no', '=', $trade_no], ['payment_channel_account_id', '>', 0]])->lockForUpdate()->first()) {
                 Db::rollBack();
                 return;
             }
@@ -110,7 +110,7 @@ class OrderService
                     'user_agent'    => 0,
                     'user_id'       => 0,
                     'buyer_open_id' => 0,
-                    'mobile'         => 0
+                    'mobile'        => 0
                 ]);
                 if (!empty($filteredBuyer)) {
                     OrderBuyer::where('trade_no', $order->trade_no)->update($filteredBuyer);
@@ -189,7 +189,7 @@ class OrderService
             'trade_state'      => $order->trade_state,
             'create_time'      => $order->create_time_with_zone,
             'payment_time'     => $order->payment_time_with_zone,
-            'sign_type' => $order->sign_type
+            'sign_type'        => $order->sign_type
         ];
     }
 
