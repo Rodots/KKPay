@@ -32,11 +32,18 @@ class PaymentService
                 throw new PaymentException('支付通道信息缺失');
             }
 
+            // 处理自定义商品名称变量替换
+            $subject  = $order['subject'];
+            $merchant = request()->merchant ?? null;
+            if ($merchant && !empty($merchant->diy_order_subject)) {
+                $subject = self::processOrderSubject($merchant->diy_order_subject, $order['subject'], $order['trade_no'], $order['out_trade_no'], $merchant->email, $merchant->mobile);
+            }
+
             $items = [
                 'order'      => $order,
                 'channel'    => $paymentChannelAccount->config,
                 'buyer'      => $orderBuyer->toArray(),
-                'subject'    => $order['subject'],
+                'subject'    => $subject,
                 'return_url' => site_url("pay/return/{$order['trade_no']}.html"),
                 'notify_url' => site_url("pay/notify/{$order['trade_no']}.html"),
             ];
@@ -176,5 +183,33 @@ class PaymentService
 </html>
 HTML;
         return new Response(200, ['Content-Type' => 'text/html; charset=utf-8', 'Cache-Control' => 'no-cache'], $html);
+    }
+
+    /**
+     * 处理自定义商品名称变量替换
+     *
+     * 支持的变量：
+     * - [name]     原商品名称
+     * - [order]    平台订单号 (trade_no)
+     * - [outorder] 商户订单号 (out_trade_no)
+     * - [time]     11位时间戳
+     * - [email]    商户联系邮箱
+     * - [mobile]   商户手机号
+     *
+     * @param string      $template   模板字符串
+     * @param string      $name       原商品名称
+     * @param string      $tradeNo    平台订单号
+     * @param string      $outTradeNo 商户订单号
+     * @param string|null $email      商户邮箱
+     * @param string|null $mobile     商户手机号
+     * @return string
+     */
+    private static function processOrderSubject(string $template, string $name, string $tradeNo, string $outTradeNo, ?string $email, ?string $mobile): string
+    {
+        return str_replace(
+            ['[name]', '[order]', '[outorder]', '[time]', '[email]', '[mobile]'],
+            [$name, $tradeNo, $outTradeNo, (string)time(), $email ?? '', $mobile ?? ''],
+            $template
+        );
     }
 }

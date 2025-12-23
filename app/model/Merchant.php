@@ -37,9 +37,10 @@ class Merchant extends Model
     protected function casts(): array
     {
         return [
-            'status'      => 'boolean',
-            'risk_status' => 'boolean',
-            'competence'  => 'array'
+            'status'        => 'boolean',
+            'risk_status'   => 'boolean',
+            'buyer_pay_fee' => 'boolean',
+            'competence'    => 'array'
         ];
     }
 

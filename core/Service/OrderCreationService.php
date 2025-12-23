@@ -50,7 +50,7 @@ class OrderCreationService
             $paymentChannelAccount = self::selectPaymentChannel($bizContent);
 
             // 创建订单记录
-            $order = self::createOrderRecord($bizContent, $merchant->id, $paymentChannelAccount);
+            $order = self::createOrderRecord($bizContent, $merchant, $paymentChannelAccount);
 
             // 创建订单关联信息
             $orderBuyer = OrderBuyer::create([
@@ -155,8 +155,13 @@ class OrderCreationService
 
     /**
      * 创建订单记录（初始化）
+     *
+     * @param array                      $bizContent            业务参数
+     * @param Merchant                   $merchant              商户对象
+     * @param PaymentChannelAccount|null $paymentChannelAccount 支付通道账户
+     * @return Order
      */
-    private static function createOrderRecord(array $bizContent, int $merchantId, ?PaymentChannelAccount $paymentChannelAccount = null): Order
+    private static function createOrderRecord(array $bizContent, Merchant $merchant, ?PaymentChannelAccount $paymentChannelAccount = null): Order
     {
         $receiptAmount = 0;
         $feeAmount     = 0;
@@ -177,16 +182,18 @@ class OrderCreationService
             $paymentType             = 'None';
             $paymentChannelAccountId = 0;
         }
-        // TODO 根据商户的设定，判断是否由买家支付服务费，以计算买家实付金额
+
+        // 根据商户设定判断是否由买家承担服务费
+        $buyerPayAmount = $merchant->buyer_pay_fee && bccomp($feeAmount, '0', 2) > 0 ? bcadd($bizContent['total_amount'], $feeAmount, 2) : $bizContent['total_amount'];
 
         $fillData = [
             'out_trade_no'               => $bizContent['out_trade_no'],
-            'merchant_id'                => $merchantId,
+            'merchant_id'                => $merchant->id,
             'payment_type'               => $paymentType,
             'payment_channel_account_id' => $paymentChannelAccountId,
             'subject'                    => $bizContent['subject'],
             'total_amount'               => $bizContent['total_amount'],
-            'buyer_pay_amount'           => $bizContent['total_amount'],
+            'buyer_pay_amount'           => $buyerPayAmount,
             'receipt_amount'             => $receiptAmount,
             'fee_amount'                 => $feeAmount,
             'profit_amount'              => $profitAmount,

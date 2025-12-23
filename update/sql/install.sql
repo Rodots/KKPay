@@ -85,6 +85,7 @@ CREATE TABLE `kkpay_merchant`  (
   `mobile` char(11) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '手机号码',
   `remark` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT '' COMMENT '备注',
   `diy_order_subject` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '自定义商品名称',
+  `buyer_pay_fee` bit(1) NOT NULL DEFAULT b'0' COMMENT '买家承担服务费',
   `password` char(60) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '密码哈希',
   `salt` char(4) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '密码盐',
   `status` bit(1) NOT NULL DEFAULT b'1' COMMENT '账户状态',

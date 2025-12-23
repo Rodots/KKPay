@@ -200,7 +200,7 @@ class ApiSignatureVerification implements MiddlewareInterface
      */
     private function getMerchantAndValidate(string $merchantNumber): Merchant|string
     {
-        $merchant = Merchant::where('merchant_number', $merchantNumber)->first(['id', 'merchant_number', 'diy_order_subject', 'status', 'risk_status', 'competence']);
+        $merchant = Merchant::where('merchant_number', $merchantNumber)->first(['id', 'merchant_number', 'email', 'mobile', 'diy_order_subject', 'buyer_pay_fee', 'status', 'risk_status', 'competence']);
         if (!$merchant) {
             return '该商户不可用';
         }
