@@ -16,19 +16,27 @@ use Webman\Http\Response;
 use Webman\MiddlewareInterface;
 
 /**
- * API签名验证中间件
+ * 统一API签名验证中间件
+ *
+ * 支持 GET/POST 请求的签名验证，遵循以下请求参数规范：
+ * - merchant_number: 商户编号
+ * - encryption_param: 可选，AES加密内容
+ * - timestamp: 请求时间戳
+ * - biz_content: 业务参数（Base64编码的JSON）
+ * - sign_type: 签名算法类型
+ * - sign: 签名
  */
-class GetSignatureVerification implements MiddlewareInterface
+class ApiSignatureVerification implements MiddlewareInterface
 {
     use ApiResponse;
 
     /**
-     * 偏移有效期（秒）
+     * 时间戳有效期（秒）
      */
     private const int OFFSET_VALID_TIME = 600; // 10分钟
 
     /**
-     * 必需参数列表
+     * 必需参数错误提示
      */
     private const array REQUIRED_PARAMS = [
         'merchant_number' => '商户编号(merchant_number)缺失',
@@ -40,12 +48,16 @@ class GetSignatureVerification implements MiddlewareInterface
 
     /**
      * 处理请求
+     *
+     * @param Request  $request 请求对象
+     * @param callable $handler 下一个处理器
+     * @return Response 响应对象
      */
     public function process(Request $request, callable $handler): Response
     {
         try {
-            // 获取并验证请求参数
-            $params       = $this->getRequestParams($request->all());
+            // 获取并验证请求参数（支持 GET/POST）
+            $params = $this->getRequestParams($request);
             $errorMessage = $this->validateAllParams($params);
             if ($errorMessage) {
                 return $this->fail($errorMessage);
@@ -57,17 +69,19 @@ class GetSignatureVerification implements MiddlewareInterface
                 return $this->fail($merchant);
             }
 
-            // 获取商户密钥配置并处理加密参数
+            // 获取商户密钥配置
             $merchantEncryption = MerchantEncryption::find($merchant->id, ['mode', 'aes_key', 'hash_key', 'rsa2_key']);
             if ($merchantEncryption === null) {
                 return $this->fail('无法获取当前商户密钥配置');
             }
             $merchantEncryption = $merchantEncryption->toArray();
+
+            // 处理加密参数（如有）
             if (!empty($params['encryption_param'])) {
                 $params = $this->processEncryptedParams($params, $merchantEncryption['aes_key']);
-            }
-            if (is_string($params)) {
-                return $this->fail($params);
+                if (is_string($params)) {
+                    return $this->fail($params);
+                }
             }
 
             // 执行所有验证
@@ -76,7 +90,7 @@ class GetSignatureVerification implements MiddlewareInterface
                 return $this->fail($errorMessage);
             }
 
-            // 将验证结果添加到请求中
+            // 将验证结果附加到请求中
             $this->attachToRequest($request, $merchant, $params);
         } catch (Throwable $e) {
             Log::error('API签名验证异常:' . $e->getMessage());
@@ -88,9 +102,27 @@ class GetSignatureVerification implements MiddlewareInterface
 
     /**
      * 获取请求参数
+     *
+     * 支持 GET 查询参数和 POST JSON/表单参数
+     *
+     * @param Request $request 请求对象
+     * @return array 请求参数数组
      */
-    private function getRequestParams(mixed $params): array
+    private function getRequestParams(Request $request): array
     {
+        // POST JSON 请求从 body 解析
+        if ($request->method() === 'POST') {
+            $contentType = $request->header('content-type', '');
+            if (str_contains($contentType, 'application/json')) {
+                $rawBody = $request->rawBody();
+                $params = json_validate($rawBody) ? json_decode($rawBody, true) : [];
+            } else {
+                $params = $request->post();
+            }
+        } else {
+            $params = $request->get();
+        }
+
         return [
             'merchant_number'  => $params['merchant_number'] ?? '',
             'encryption_param' => $params['encryption_param'] ?? null,
@@ -103,6 +135,9 @@ class GetSignatureVerification implements MiddlewareInterface
 
     /**
      * 验证必需参数
+     *
+     * @param array $params 参数数组
+     * @return string|null 错误消息，验证通过返回null
      */
     private function validateRequiredParams(array $params): ?string
     {
@@ -124,6 +159,9 @@ class GetSignatureVerification implements MiddlewareInterface
 
     /**
      * 验证所有参数
+     *
+     * @param array $params 参数数组
+     * @return string|null 错误消息，验证通过返回null
      */
     private function validateAllParams(array $params): ?string
     {
@@ -145,6 +183,9 @@ class GetSignatureVerification implements MiddlewareInterface
 
     /**
      * 检查商户状态
+     *
+     * @param Merchant $merchant 商户对象
+     * @return bool 商户状态是否正常
      */
     private function checkMerchantStatus(Merchant $merchant): bool
     {
@@ -153,15 +194,19 @@ class GetSignatureVerification implements MiddlewareInterface
 
     /**
      * 获取并验证商户信息
+     *
+     * @param string $merchantNumber 商户编号
+     * @return Merchant|string 商户对象或错误消息
      */
     private function getMerchantAndValidate(string $merchantNumber): Merchant|string
     {
-        if (!$merchant = Merchant::where('merchant_number', $merchantNumber)->first(['id', 'merchant_number', 'diy_order_subject', 'status', 'risk_status', 'competence'])) {
+        $merchant = Merchant::where('merchant_number', $merchantNumber)->first(['id', 'merchant_number', 'diy_order_subject', 'status', 'risk_status', 'competence']);
+        if (!$merchant) {
             return '该商户不可用';
         }
 
         if (!$this->checkMerchantStatus($merchant)) {
-            return '商户权限不足';
+            return '无权限使用接口';
         }
 
         return $merchant;
@@ -169,6 +214,10 @@ class GetSignatureVerification implements MiddlewareInterface
 
     /**
      * 处理加密参数
+     *
+     * @param array       $params 参数数组
+     * @param string|null $aesKey AES密钥
+     * @return array|string 解密后的参数数组或错误消息
      */
     private function processEncryptedParams(array $params, ?string $aesKey): array|string
     {
@@ -196,6 +245,9 @@ class GetSignatureVerification implements MiddlewareInterface
 
     /**
      * 验证时间戳
+     *
+     * @param string $timestamp 时间戳字符串
+     * @return bool 时间戳是否有效
      */
     private function validateTimestamp(string $timestamp): bool
     {
@@ -208,6 +260,10 @@ class GetSignatureVerification implements MiddlewareInterface
 
     /**
      * 验证签名算法类型
+     *
+     * @param string $signType 签名类型
+     * @param string $mode     商户对接模式
+     * @return bool 签名类型是否允许
      */
     private function validateSignType(string $signType, string $mode): bool
     {
@@ -222,6 +278,10 @@ class GetSignatureVerification implements MiddlewareInterface
 
     /**
      * 执行所有验证
+     *
+     * @param array $params             参数数组
+     * @param array $merchantEncryption 商户加密配置
+     * @return string|null 错误消息，验证通过返回null
      */
     private function performAllValidations(array $params, array $merchantEncryption): ?string
     {
@@ -245,6 +305,11 @@ class GetSignatureVerification implements MiddlewareInterface
 
     /**
      * 将验证结果附加到请求
+     *
+     * @param Request  $request  请求对象
+     * @param Merchant $merchant 商户对象
+     * @param array    $params   验证后的参数
+     * @return void
      */
     private function attachToRequest(Request $request, Merchant $merchant, array $params): void
     {

@@ -131,6 +131,52 @@ class RefundService
     }
 
     /**
+     * 商户API发起退款
+     *
+     * 幂等规则：
+     * - 若 out_biz_no 已存在，且 trade_no + amount 一致，则返回已有退款记录
+     * - 若 out_biz_no 已存在，但参数不一致，则返回错误
+     *
+     * @param string      $tradeNo      平台订单号
+     * @param string      $refundAmount 退款金额（字符串格式，保留2位小数）
+     * @param string      $reason       退款原因
+     * @param string|null $outBizNo     商户退款业务号（用于幂等）
+     * @param int         $merchantId   商户ID
+     * @return array{success: bool, message: string, refund_id: int|null}
+     */
+    public static function apiRefund(string $tradeNo, string $refundAmount, string $reason = '商户发起退款', ?string $outBizNo = null, int $merchantId = 0): array
+    {
+        // 格式化金额
+        $refundAmount = number_format((float)$refundAmount, 2, '.', '');
+
+        // 幂等处理：检查业务号是否已存在
+        if ($outBizNo !== null && $outBizNo !== '') {
+            $existingRefund = OrderRefund::where('merchant_id', $merchantId)->where('out_biz_no', $outBizNo)->first(['id', 'trade_no', 'amount']);
+            if ($existingRefund !== null) {
+                // 校验参数一致性：订单号和金额必须相同
+                if ($existingRefund->trade_no !== $tradeNo || bccomp((string)$existingRefund->amount, $refundAmount, 2) !== 0) {
+                    return ['success' => false, 'message' => '商户退款业务号已存在，但订单号或金额不一致', 'refund_id' => null];
+                }
+                // 幂等返回已有记录
+                return ['success' => true, 'message' => '退款成功', 'refund_id' => $existingRefund->id];
+            }
+        }
+
+        // 验证订单归属
+        $order = Order::where('trade_no', $tradeNo)->first(['merchant_id']);
+        if ($order === null || $order->merchant_id !== $merchantId) {
+            return ['success' => false, 'message' => '订单不存在或不属于当前商户', 'refund_id' => null];
+        }
+
+        // 执行退款
+        $result = self::handle($tradeNo, $refundAmount, 'api', true, false, $outBizNo, $reason);
+
+        return $result['state']
+            ? ['success' => true, 'message' => '退款成功', 'refund_id' => $result['refund_record']['id']]
+            : ['success' => false, 'message' => $result['msg'], 'refund_id' => null];
+    }
+
+    /**
      * 计算应退还的平台服务费
      *
      * @param string $total_amount  订单金额

@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace Core\Service;
 
@@ -28,14 +28,14 @@ class PaymentChannelSelectionService
      *
      * @param string $channelCode 支付通道编码
      * @param string $paymentType 支付方式类型
-     * @param float  $amount      支付金额
+     * @param string $amount      支付金额
      * @return PaymentChannelAccount 选中的支付通道子账户
      * @throws PaymentException 当通道不可用或无可用子账户时抛出异常
      */
     public static function selectByCode(
         string $channelCode,
         string $paymentType,
-        float  $amount
+        string $amount
     ): PaymentChannelAccount
     {
         // 查找指定的支付通道并验证基础状态
@@ -68,11 +68,11 @@ class PaymentChannelSelectionService
      * 找到第一个通过风控校验且有可用子账户的通道
      *
      * @param string $paymentType 支付方式类型
-     * @param float  $amount      支付金额
+     * @param string $amount      支付金额
      * @return PaymentChannelAccount 选中的支付通道子账户
      * @throws PaymentException 当支付方式不可用或无可用子账户时抛出异常
      */
-    public static function selectByType(string $paymentType, float $amount): PaymentChannelAccount
+    public static function selectByType(string $paymentType, string $amount): PaymentChannelAccount
     {
         // 查找该支付方式下所有启用的支付通道
         $paymentChannels = PaymentChannel::where('payment_type', $paymentType)
@@ -101,8 +101,7 @@ class PaymentChannelSelectionService
             } catch (PaymentException $e) {
                 // 对于金额或时间限制异常，跳过当前通道尝试下一个
                 // 对于其他类型异常（如系统错误），直接向上抛出
-                if (str_contains($e->getMessage(), '支付金额不能') ||
-                    str_contains($e->getMessage(), '不在可用时间段内')) {
+                if (str_contains($e->getMessage(), '支付金额不能') || str_contains($e->getMessage(), '不在可用时间段内')) {
                     continue;
                 }
                 throw $e;
@@ -118,18 +117,18 @@ class PaymentChannelSelectionService
      * 检查支付通道的各项限制条件，包括金额限制、时间段限制和日限额控制
      *
      * @param PaymentChannel $paymentChannel 支付通道对象
-     * @param float          $amount         支付金额
+     * @param string         $amount         支付金额
      * @throws PaymentException 当不满足风控条件时抛出异常
      */
-    private static function validateChannelRiskControl(PaymentChannel $paymentChannel, float $amount): void
+    private static function validateChannelRiskControl(PaymentChannel $paymentChannel, string $amount): void
     {
         // 检查通道最小金额限制
-        if ($paymentChannel->min_amount !== null && $amount < $paymentChannel->min_amount) {
+        if ($paymentChannel->min_amount !== null && bccomp($amount, (string)$paymentChannel->min_amount, 2) < 0) {
             throw new PaymentException("支付金额不能小于 $paymentChannel->min_amount 元");
         }
 
         // 检查通道最大金额限制
-        if ($paymentChannel->max_amount !== null && $amount > $paymentChannel->max_amount) {
+        if ($paymentChannel->max_amount !== null && bccomp($amount, (string)$paymentChannel->max_amount, 2) > 0) {
             throw new PaymentException("支付金额不能大于 $paymentChannel->max_amount 元");
         }
 
@@ -141,7 +140,7 @@ class PaymentChannelSelectionService
         // 检查通道日限额
         if ($paymentChannel->daily_limit !== null) {
             $todayUsed = self::getTodayUsedAmount($paymentChannel->id);
-            if ($todayUsed + $amount > $paymentChannel->daily_limit) {
+            if (bccomp(bcadd($todayUsed, $amount, 2), (string)$paymentChannel->daily_limit, 2) > 0) {
                 throw new PaymentException('超出通道日限额');
             }
         }
@@ -151,10 +150,10 @@ class PaymentChannelSelectionService
      * 选择可用的支付通道账户
      *
      * @param PaymentChannel $paymentChannel 支付通道对象
-     * @param float          $amount         支付金额
+     * @param string         $amount         支付金额
      * @return PaymentChannelAccount|null 选中的子账户，无可用账户时返回null
      */
-    private static function selectAvailableAccount(PaymentChannel $paymentChannel, float $amount): ?PaymentChannelAccount
+    private static function selectAvailableAccount(PaymentChannel $paymentChannel, string $amount): ?PaymentChannelAccount
     {
         // 构建基础查询：只查询启用且非维护状态的账户
         $query = $paymentChannel->paymentChannelAccount()
@@ -178,7 +177,7 @@ class PaymentChannelSelectionService
         $availableAccounts = $accounts->filter(function ($account) use ($amount) {
             if ($account->daily_limit !== null) {
                 $todayUsed = self::getTodayUsedAmount($account->id, true);
-                if ($todayUsed + $amount > $account->daily_limit) {
+                if (bccomp(bcadd($todayUsed, $amount, 2), (string)$account->daily_limit, 2) > 0) {
                     return false;
                 }
             }
@@ -200,11 +199,11 @@ class PaymentChannelSelectionService
      * - inherit_config=1：继承父通道规则，不检查子账户金额限制
      * - inherit_config=0：使用子账户自身规则，需检查min_amount和max_amount
      *
-     * @param mixed $query  查询构建器
-     * @param float $amount 支付金额
+     * @param mixed  $query  查询构建器
+     * @param string $amount 支付金额
      * @return void
      */
-    private static function addAmountConstraintsToQuery(mixed $query, float $amount): void
+    private static function addAmountConstraintsToQuery(mixed $query, string $amount): void
     {
         $query->where(function ($q) use ($amount) {
             $q->where(function ($subQ) use ($amount) {
@@ -432,13 +431,13 @@ class PaymentChannelSelectionService
      *
      * @param int  $id        通道ID或账户ID
      * @param bool $isAccount 是否为账户ID（false为通道ID）
-     * @return float 今日已使用金额
+     * @return string 今日已使用金额
      */
-    private static function getTodayUsedAmount(int $id, bool $isAccount = false): float
+    private static function getTodayUsedAmount(int $id, bool $isAccount = false): string
     {
         $redisKey = self::REDIS_KEY_DAILY_LIMIT_PREFIX . ($isAccount ? 'account:' : 'channel:') . $id . ':' . date('Y-m-d');
         $used     = Redis::get($redisKey);
-        return $used ? (float)$used : 0.0;
+        return $used ? (string)$used : '0.00';
     }
 
     /**
@@ -446,20 +445,20 @@ class PaymentChannelSelectionService
      *
      * 在订单创建成功后调用此方法，更新通道和账户的日使用金额统计。
      *
-     * @param int   $channelId 通道ID
-     * @param int   $accountId 账户ID
-     * @param float $amount    本次使用金额
+     * @param int    $channelId 通道ID
+     * @param int    $accountId 账户ID
+     * @param string $amount    本次使用金额
      */
-    public static function updateTodayUsedAmount(int $channelId, int $accountId, float $amount): void
+    public static function updateTodayUsedAmount(int $channelId, int $accountId, string $amount): void
     {
         $today      = date('Y-m-d');
         $channelKey = self::REDIS_KEY_DAILY_LIMIT_PREFIX . 'channel:' . $channelId . ':' . $today;
         $accountKey = self::REDIS_KEY_DAILY_LIMIT_PREFIX . 'account:' . $accountId . ':' . $today;
 
         // 批量操作更新使用金额
-        Redis::incrbyfloat($channelKey, $amount);  // 增加通道使用金额
+        Redis::incrbyfloat($channelKey, (float)$amount);  // 增加通道使用金额
         Redis::expire($channelKey, 86400);   // 设置过期时间
-        Redis::incrbyfloat($accountKey, $amount);  // 增加账户使用金额
+        Redis::incrbyfloat($accountKey, (float)$amount);  // 增加账户使用金额
         Redis::expire($accountKey, 86400);   // 设置过期时间
     }
 }

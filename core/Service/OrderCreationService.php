@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace Core\Service;
 
@@ -8,6 +8,7 @@ use app\model\Order;
 use app\model\Merchant;
 use app\model\OrderBuyer;
 use app\model\PaymentChannelAccount;
+use Carbon\Carbon;
 use Core\Exception\PaymentException;
 use support\Log;
 use support\Db;
@@ -22,7 +23,10 @@ class OrderCreationService
     /**
      * 创建订单的完整流程
      *
-     * @throws PaymentException
+     * @param array    $bizContent 业务参数
+     * @param Merchant $merchant   商户对象
+     * @return array [Order, ?PaymentChannelAccount, ?OrderBuyer]
+     * @throws PaymentException 创建失败时抛出异常
      */
     public static function createOrder(array $bizContent, Merchant $merchant): array
     {
@@ -30,8 +34,17 @@ class OrderCreationService
         Db::beginTransaction();
 
         try {
-            // 业务验证
-            self::validateBusinessRules($merchant->id, $bizContent);
+            // 业务验证 - 返回已存在的订单（如有）
+            $existingOrder = self::validateBusinessRules($merchant->id, $bizContent);
+
+            // 如果订单已存在且参数一致，直接返回（避免重复创建）
+            if ($existingOrder !== null) {
+                Db::commit();
+                $paymentChannelAccount = $existingOrder->payment_channel_account_id > 0 ? PaymentChannelAccount::find($existingOrder->payment_channel_account_id) : null;
+                // 重新加载 buyer 关联
+                $existingOrder->load('buyer');
+                return [$existingOrder, $paymentChannelAccount, $existingOrder->buyer];
+            }
 
             // 选择支付通道收款账户
             $paymentChannelAccount = self::selectPaymentChannel($bizContent);
@@ -53,8 +66,7 @@ class OrderCreationService
             Log::error('订单创建失败', [
                 'merchant_id'  => $merchant->id,
                 'out_trade_no' => $bizContent['out_trade_no'] ?? '',
-                'error'        => $e->getMessage(),
-                'ip'           => $bizContent['buyer']['ip']
+                'error'        => $e->getMessage()
             ]);
 
             if ($e instanceof PaymentException) {
@@ -69,15 +81,55 @@ class OrderCreationService
 
     /**
      * 验证业务规则
+     *
+     * 检查订单是否已存在、是否已支付、参数是否一致
+     *
+     * @param int   $merchantId 商户ID
+     * @param array $bizContent 业务参数
+     * @return Order|null 已存在的订单（参数一致时返回），或null表示需要创建新订单
+     * @throws PaymentException 验证失败时抛出异常
      */
-    private static function validateBusinessRules(int $merchantId, array $bizContent): void
+    private static function validateBusinessRules(int $merchantId, array $bizContent): ?Order
     {
-        // 验证订单是否已存在
-        // if (Order::checkOutTradeNoExists($merchantId, $bizContent['out_trade_no'])) {
-        //     throw new PaymentException('商户订单号已存在');
-        // }
+        // 1. 查询现有订单（同一商户7天内的订单号）
+        $oldOrder = Order::where('out_trade_no', $bizContent['out_trade_no'])->where([['merchant_id', '=', $merchantId], ['create_time', '>', Carbon::now()->subDays(7)]])->first();
 
-        // 其他业务验证可以在这里添加
+        if ($oldOrder === null) {
+            return null; // 无重复订单，需要创建新订单
+        }
+
+        // 2. 检查订单是否已支付或已完结
+        if (in_array($oldOrder->trade_state, [Order::TRADE_STATE_SUCCESS, Order::TRADE_STATE_FINISHED, Order::TRADE_STATE_FROZEN])) {
+            throw new PaymentException('该订单号已被使用且已完成支付');
+        }
+
+        // 3. 检查订单是否已关闭
+        if ($oldOrder->trade_state === Order::TRADE_STATE_CLOSED) {
+            throw new PaymentException('该订单已关闭，请使用新的订单号');
+        }
+
+        // 4. 对于未支付订单，检查关键支付参数是否一致
+        $paramChecks = [
+            'subject'      => '订单标题',
+            'total_amount' => '订单金额',
+            'notify_url'   => '异步通知地址',
+            'return_url'   => '同步通知地址',
+            'attach'       => '附加参数'
+        ];
+        foreach ($paramChecks as $param => $label) {
+            $oldValue = $oldOrder->$param;
+            $newValue = $bizContent[$param] ?? null;
+            // 金额使用 bccomp 比较，避免浮点数精度问题
+            if ($param === 'total_amount') {
+                if (bccomp($oldValue, $newValue, 2) !== 0) {
+                    throw new PaymentException("订单已存在但$label($param)不一致，请使用新的订单号");
+                }
+            } elseif ($oldValue !== $newValue) {
+                throw new PaymentException("订单已存在但$label($param)不一致，请使用新的订单号");
+            }
+        }
+
+        return $oldOrder;
     }
 
     /**
@@ -148,14 +200,14 @@ class OrderCreationService
     /**
      * 计算订单服务费、商户实收金额和利润
      *
-     * @param float                 $total_amount          订单金额
+     * @param string                $total_amount          订单金额
      * @param PaymentChannelAccount $paymentChannelAccount 支付渠道账户配置
      * @return array [商户实收金额, 服务费金额, 利润金额]
      */
-    private static function calculateOrderFees(float $total_amount, PaymentChannelAccount $paymentChannelAccount): array
+    private static function calculateOrderFees(string $total_amount, PaymentChannelAccount $paymentChannelAccount): array
     {
-        // 1. 格式化金额
-        $total_amount = sprintf('%.2f', $total_amount);
+        // 1. 格式化金额（确保两位小数）
+        $total_amount = number_format((float)$total_amount, 2, '.', '');
 
         $paymentChannel = $paymentChannelAccount->paymentChannel;
 

@@ -59,7 +59,7 @@ class MerchantWithdrawalService
 
             // 判断可用余额与预付金的关系
             if (bccomp($availableBalance, '0.00', 2) <= 0) {
-                throw new Exception('商户可用余额不足，无需清账');
+                throw new Exception('这个逼的账户可用余额一分钱都没有，还清个毛的账');
             }
 
             $withdrawalId = null;

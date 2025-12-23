@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace Core\Service;
 
@@ -69,11 +69,11 @@ class PaymentService
             case 'redirect': //跳转
                 $url       = htmlspecialchars($result['url'] ?? '', ENT_QUOTES, 'UTF-8');
                 $html_text = '<script>window.location.replace(\'' . $url . '\');</script>';
-                return self::redirectTemplate('正在为您跳转到支付页面，请稍候...', $html_text);
-            case 'html': //显示html
+                return self::redirectTemplate($html_text);
+            case 'html': //显示HTML
                 $html_text = $result['data'] ?? '';
-                if (isset($result['submit']) && $result['submit'] && str_starts_with($html_text, '<form ')) {
-                    return self::redirectTemplate('正在为您跳转到支付页面，请稍候...', $html_text);
+                if (isset($result['template']) && $result['template'] && str_starts_with($html_text, '<form ')) {
+                    return self::redirectTemplate($html_text);
                 } else {
                     return new Response(200, ['Content-Type' => 'text/html; charset=utf-8', 'Cache-Control' => 'no-cache'], $html_text);
                 }
@@ -87,10 +87,6 @@ class PaymentService
                     Log::error($e->getTraceAsString());
                     throw new PaymentException("页面不存在: $page");
                 }
-            case 'return': //同步回调
-                $url       = htmlspecialchars($result['url'] ?? '', ENT_QUOTES, 'UTF-8');
-                $html_text = '<script>window.location.href=window.atob(\'' . $url . '\');</script>';
-                return self::redirectTemplate('支付完成，正在跳转请稍候...', $html_text);
             case 'error': //错误提示
             default:
                 throw new PaymentException($result['message'] ?? '未知错误');
@@ -98,14 +94,57 @@ class PaymentService
     }
 
     /**
+     * 响应提交结果
+     *
+     * @throws PaymentException
+     */
+    public static function echoJson(array $result, array $order): array
+    {
+        $type = $result['type'] ?? '';
+        if (!$type) {
+            throw new PaymentException('支付网关返回了未知的处理类型');
+        }
+        switch ($type) {
+            case 'redirect': //跳转
+                $json['pay_type'] = 'redirect';
+                $json['pay_info'] = $result['url'];
+                break;
+            case 'html': //显示HTML
+                $json['pay_type'] = 'html';
+                $json['pay_info'] = $result['data'] ?? '';
+                break;
+            case 'json': //显示JSON
+                $json['pay_type'] = 'json';
+                $json['pay_info'] = $result['data'] ?? [];
+                break;
+            case 'page': //显示指定页面
+                $page = $result['page'] ?? '404';
+                if (strpos($page, 'qrcode')) {
+                    $json['pay_type'] = 'qrcode';
+                    $json['pay_info'] = $result['data']['url'];
+                } else {
+                    $json['pay_type'] = 'redirect';
+                    $json['pay_info'] = site_url("pay/submit/{$order['trade_no']}.html");
+                }
+                break;
+            case 'error': //错误提示
+                throw new PaymentException($result['message'] ?? '未知错误');
+            default:
+                $json['pay_type'] = 'redirect';
+                $json['pay_info'] = site_url("pay/submit/{$order['trade_no']}.html");
+                break;
+        }
+        return $json;
+    }
+
+    /**
      * 跳转页面模板
      *
-     * @param string $title
      * @param string $html_text
      *
      * @return Response
      */
-    private static function redirectTemplate(string $title, string $html_text): Response
+    private static function redirectTemplate(string $html_text): Response
     {
         $html = <<<HTML
 <!DOCTYPE html>
@@ -113,7 +152,7 @@ class PaymentService
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>{$title}</title>
+    <title>正在为您跳转到支付页面，请稍候...</title>
     <style>
         .loader {
           width: fit-content;
@@ -125,7 +164,7 @@ class PaymentService
           animation: l3 1.5s steps(6) infinite;
         }
         .loader:before {
-          content:"{$title}"
+          content:"正在为您跳转到支付页面，请稍候..."
         }
         @keyframes l3 {to{background-position: 80% 100%}}
     </style>
