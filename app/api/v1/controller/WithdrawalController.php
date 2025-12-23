@@ -25,7 +25,6 @@ class WithdrawalController extends ApiBase
      * 提款申请接口
      *
      * biz_content 参数：
-     * - payee_id: 收款账户ID
      * - amount: 提款金额
      *
      * @param Request $request 请求对象
@@ -40,29 +39,23 @@ class WithdrawalController extends ApiBase
             }
 
             // 提取参数
-            $bizContent = [
-                'payee_id' => $this->getInt($data, 'payee_id'),
-                'amount'   => $this->getAmount($data, 'amount'),
-            ];
+            $amount = $this->getAmount($data, 'amount');
 
             // 验证参数
-            if ($bizContent['payee_id'] <= 0) {
-                return $this->fail('收款账户ID(payee_id)无效');
-            }
-            if ($bizContent['amount'] === '0' || bccomp($bizContent['amount'], '0', 2) <= 0) {
+            if ($amount === '0' || bccomp($amount, '0', 2) <= 0) {
                 return $this->fail('提款金额(amount)必须大于0');
             }
 
             $merchantId = $this->getMerchantId($request);
 
-            // 验证收款账户是否属于该商户
-            $payee = MerchantPayee::where('id', $bizContent['payee_id'])->where('merchant_id', $merchantId)->first();
+            // 获取商户的默认收款账户
+            $payee = MerchantPayee::where('merchant_id', $merchantId)->where('is_default', true)->first();
             if ($payee === null) {
-                return $this->fail('收款账户不存在或不属于当前商户');
+                return $this->fail('商户未设置默认收款账户，请先添加收款账户');
             }
 
             // 调用提款服务
-            $result = MerchantWithdrawalService::applyWithdrawal($merchantId, $bizContent['payee_id'], $bizContent['amount']);
+            $result = MerchantWithdrawalService::applyWithdrawal($merchantId, $payee->id, $amount);
 
             if (!$result['success']) {
                 return $this->fail($result['message']);
@@ -70,7 +63,7 @@ class WithdrawalController extends ApiBase
 
             return $this->success([
                 'withdrawal_id' => $result['withdrawal_id'],
-                'amount'        => $bizContent['amount'],
+                'amount'        => $amount,
                 'status'        => 'PENDING',
             ], '提款申请成功');
         } catch (PaymentException $e) {
