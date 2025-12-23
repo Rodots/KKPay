@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace app\api\controller;
 
@@ -50,7 +50,7 @@ class CheckoutController
             }
 
             // 获取可用的支付方式
-            $paymentTypes = $this->getAvailablePaymentTypes((float)$order->total_amount);
+            $paymentTypes = $this->getAvailablePaymentTypes($order->total_amount);
 
             // 渲染收银台页面
             return raw_view("/app/api/view/checkout", ['order' => $order->toArray(), 'paymentTypesJson' => json_encode($paymentTypes, JSON_UNESCAPED_UNICODE)]);
@@ -153,7 +153,7 @@ class CheckoutController
     /**
      * 获取可用的支付方式
      */
-    private function getAvailablePaymentTypes(float $amount): array
+    private function getAvailablePaymentTypes(string $amount): array
     {
         $paymentChannels = PaymentChannel::where('status', true)
             ->where(function ($query) use ($amount) {
