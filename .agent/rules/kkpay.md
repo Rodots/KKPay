@@ -71,6 +71,7 @@ KKPay/
 │   ├── queue/redis/           # 消费者 (OrderNotification, OrderSettle)
 │   └── functions.php          # 全局函数
 ├── core/
+│   ├── baseController/        # 控制器基类 (AdminBase, ApiBase)
 │   ├── Service/               # 核心业务 (OrderService, PaymentService)
 │   ├── Utils/                 # 工具类 (SignatureUtil, Helper)
 │   └── Constants/             # 系统常量
@@ -85,8 +86,8 @@ KKPay/
 
 ## 四、API 开发规范 (v1)
 
-### 4.1 BaseApiController 基类
-所有 API 控制器均继承自 `BaseApiController`，主要提供以下能力：
+### 4.1 ApiBase 基类 (Core\baseController\ApiBase)
+所有商户 API 控制器均继承自 `Core\baseController\ApiBase`，主要提供以下能力：
 - **签名验证**：自动挂载 `ApiSignatureVerification` 中间件。
 - **参数解析与获取**：
   - `parseBizContent(Request $req)`: 解密并解析 JSON 业务参数。
@@ -168,7 +169,7 @@ KKPay/
 | `MerchantWallet` | kkpay_merchant_wallet | 商户余额 (Available, Unavailable, Prepaid) |
 | `MerchantWalletRecord` | kkpay_merchant_wallet_record | 余额变动流水 |
 | `MerchantWalletPrepaidRecord` | kkpay_merchant_wallet_prepaid_record | 预付金变动流水 |
-| `MerchantWithdrawalRecord` | kkpay_merchant_withdrawal_record | 商户提款/清账记录 |
+| `MerchantWithdrawalRecord` | kkpay_merchant_withdrawal_record | 商户提款记录 |
 | `MerchantPayee` | kkpay_merchant_payee | 商户收款账户信息 |
 
 ### 6.4 交易订单 (Order)
