@@ -57,6 +57,11 @@ class OrderCreationService
                 'trade_no'   => $order->trade_no,
                 'ip'         => $bizContent['buyer']['ip'],
                 'user_agent' => $bizContent['buyer']['user_agent'],
+                'real_name'  => $bizContent['buyer']['real_name'],
+                'cert_no'    => $bizContent['buyer']['cert_no'],
+                'cert_type'  => $bizContent['buyer']['cert_type'],
+                'min_age'    => $bizContent['buyer']['min_age'],
+                'mobile'     => $bizContent['buyer']['mobile'],
             ]);
 
             Db::commit();

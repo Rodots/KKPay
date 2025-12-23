@@ -14,6 +14,7 @@ use support\Model;
  */
 class OrderBuyer extends Model
 {
+
     /**
      * 与模型关联的表
      *
@@ -52,8 +53,20 @@ class OrderBuyer extends Model
         'ip',
         'user_agent',
         'user_id',
+        'real_name',
+        'cert_no',
+        'cert_type',
+        'min_age',
         'mobile'
     ];
+
+    // 证件类型枚举
+    const string CERT_TYPE_IDENTITY_CARD       = 'IDENTITY_CARD'; // 居民身份证
+    const string CERT_TYPE_PASSPORT            = 'PASSPORT'; // 护照
+    const string CERT_TYPE_OFFICER_CARD        = 'OFFICER_CARD'; // 军官证
+    const string CERT_TYPE_SOLDIER_CARD        = 'SOLDIER_CARD'; // 士兵证
+    const string CERT_TYPE_HOKOU               = 'HOKOU'; // 户口簿
+    const string CERT_TYPE_PERMANENT_RESIDENCE = 'PERMANENT_RESIDENCE_FOREIGNER'; // 外国人永久居留身份证
 
     /**
      * 访问器：创建时间
@@ -81,5 +94,27 @@ class OrderBuyer extends Model
     public function order(): BelongsTo
     {
         return $this->belongsTo(Order::class, 'trade_no', 'trade_no');
+    }
+
+    /**
+     * 检查证件类型是否合法
+     *
+     * @param string|null $certType 证件类型
+     * @return bool
+     */
+    public static function isValidCertType(?string $certType): bool
+    {
+        if ($certType === null) {
+            return true;
+        }
+
+        return in_array($certType, [
+            self::CERT_TYPE_IDENTITY_CARD,
+            self::CERT_TYPE_PASSPORT,
+            self::CERT_TYPE_OFFICER_CARD,
+            self::CERT_TYPE_SOLDIER_CARD,
+            self::CERT_TYPE_HOKOU,
+            self::CERT_TYPE_PERMANENT_RESIDENCE,
+        ], true);
     }
 }

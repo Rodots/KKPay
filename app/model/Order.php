@@ -5,7 +5,6 @@ declare(strict_types=1);
 namespace app\model;
 
 use Carbon\Carbon;
-use Exception;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;

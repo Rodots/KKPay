@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace app\api\v1\controller;
 
 use app\model\Order;
+use app\model\OrderBuyer;
 use Carbon\Carbon;
 use Core\baseController\ApiBase;
 use Core\Exception\PaymentException;
@@ -28,7 +29,7 @@ class PayController extends ApiBase
      */
     public function submit(Request $request): Response
     {
-        // 解析业务参数(允许使用默认值)
+        // 解析业务参数
         $bizContent = $this->parsePayBizContent($request, true);
         if (is_string($bizContent)) {
             return $this->pageMsg($bizContent);
@@ -77,8 +78,8 @@ class PayController extends ApiBase
      */
     public function create(Request $request): Response
     {
-        // 解析业务参数(严格模式,不使用默认值)
-        $bizContent = $this->parsePayBizContent($request, false);
+        // 解析业务参数
+        $bizContent = $this->parsePayBizContent($request);
         if (is_string($bizContent)) {
             return $this->fail($bizContent);
         }
@@ -173,7 +174,7 @@ class PayController extends ApiBase
      * 验证业务参数
      *
      * @param array $bizContent   业务参数
-     * @param bool  $isStrictMode 是否为严格验证模式(create接口为true,submit接口为false)
+     * @param bool  $isStrictMode 是否为严格验证模式
      * @return string|true 验证通过返回true,失败返回错误消息
      */
     private function validateBizContent(array $bizContent, bool $isStrictMode = false): string|true
@@ -248,6 +249,11 @@ class PayController extends ApiBase
         if ($isStrictMode && empty($buyerIp)) {
             return '买家IP(buyer.ip)缺失';
         }
+        // 校验买家信息
+        $buyerValidation = $this->validateBuyerInfo($bizContent['buyer'] ?? []);
+        if ($buyerValidation !== true) {
+            return $buyerValidation;
+        }
 
         // 校验订单关闭时间
         if (!empty($bizContent['close_time'])) {
@@ -280,6 +286,140 @@ class PayController extends ApiBase
             } catch (Throwable) {
                 return '订单关闭时间格式无效，请使用有效的时间戳或标准时间格式（如 "2026-01-01 01:01:01"）';
             }
+        }
+
+        return true;
+    }
+
+    /**
+     * 验证买家信息
+     *
+     * @param array $buyer 买家信息数组
+     * @return string|true 验证通过返回true,失败返回错误消息
+     */
+    private function validateBuyerInfo(array $buyer): string|true
+    {
+
+        // 校验真实姓名
+        $realName = $this->filterString($buyer['real_name'] ?? null);
+        if ($realName !== null) {
+            $nameLen = mb_strlen($realName, 'UTF-8');
+            if ($nameLen < 2 || $nameLen > 50) {
+                return '买家真实姓名(buyer.real_name)长度必须在2-50个字符之间';
+            }
+            // 只允许中文汉字和少数民族姓名常见符号（·）
+            if (!preg_match('/^[\x{4e00}-\x{9fa5}·]+$/u', $realName)) {
+                return '买家真实姓名(buyer.real_name)格式错误，仅支持中文汉字及间隔符(·)';
+            }
+        }
+
+        // 校验证件类型
+        $certType = $this->filterString($buyer['cert_type'] ?? null);
+        if ($certType !== null && !OrderBuyer::isValidCertType($certType)) {
+            return '买家证件类型(buyer.cert_type)不合法';
+        }
+
+        // 校验证件号码
+        $certNo = $this->filterString($buyer['cert_no'] ?? null);
+        if ($certNo !== null) {
+            // 提供证件号码时必须同时提供证件类型
+            if ($certType === null) {
+                return '提供证件号码(buyer.cert_no)时必须同时指定证件类型(buyer.cert_type)';
+            }
+            // 根据证件类型进行格式校验
+            $certValidation = $this->validateCertNo($certNo, $certType);
+            if ($certValidation !== true) {
+                return $certValidation;
+            }
+        }
+
+        // 校验最小年龄
+        $minAge = $buyer['min_age'] ?? null;
+        if ($minAge !== null && $minAge !== '') {
+            $minAgeInt = filter_var($minAge, FILTER_VALIDATE_INT);
+            if ($minAgeInt === false || $minAgeInt < 14 || $minAgeInt > 120) {
+                return '买家最小年龄(buyer.min_age)必须为14-120之间的整数';
+            }
+        }
+
+        // 校验手机号码
+        $mobile = $this->filterString($buyer['mobile'] ?? null);
+        if ($mobile !== null) {
+            if (!preg_match('/^1[3-9]\d{9}$/', $mobile)) {
+                return '买家手机号码(buyer.mobile)格式错误，仅支持中国大陆11位手机号';
+            }
+        }
+
+        return true;
+    }
+
+    /**
+     * 根据证件类型验证证件号码格式
+     *
+     * @param string $certNo   证件号码
+     * @param string $certType 证件类型
+     * @return string|true 验证通过返回true,失败返回错误消息
+     */
+    private function validateCertNo(string $certNo, string $certType): string|true
+    {
+        return match ($certType) {
+            // 中国大陆居民身份证（18位）
+            'IDENTITY_CARD' => $this->validateIdentityCard($certNo),
+            // 护照:英文字母开头,5-17位字母数字
+            'PASSPORT' => preg_match('/^[A-Za-z][A-Za-z0-9]{4,16}$/', $certNo) ? true : '护照号码格式错误，应以字母开头，5-17位字母数字',
+            // 军官证:通常由汉字、数字组成，8-18字符
+            'OFFICER_CARD' => preg_match('/^[\x{4e00}-\x{9fa5}A-Za-z0-9]{6,18}$/u', $certNo) ? true : '军官证号码格式错误，8-18位汉字或字母数字',
+            // 士兵证:同军官证规则
+            'SOLDIER_CARD' => preg_match('/^[\x{4e00}-\x{9fa5}A-Za-z0-9]{6,18}$/u', $certNo) ? true : '士兵证号码格式错误，8-18位汉字或字母数字',
+            // 户口簿:一般为户籍号，可以是身份证号格式
+            'HOKOU' => preg_match('/^[A-Za-z0-9]{6,20}$/', $certNo) ? true : '户口簿编号格式错误，6-20位字母数字',
+            // 外国人永久居留身份证:15位数字
+            'PERMANENT_RESIDENCE_FOREIGNER' => preg_match('/^[A-Za-z0-9]{15,18}$/', $certNo) ? true : '外国人永久居留身份证号格式错误，15-18位',
+            // 未知类型
+            default => '未知证件类型',
+        };
+    }
+
+    /**
+     * 验证中国大陆居民身份证号码（18位）
+     *
+     * @param string $idCard 身份证号码
+     * @return string|true 验证通过返回true,失败返回错误消息
+     */
+    private function validateIdentityCard(string $idCard): string|true
+    {
+        // 身份证必须为18位
+        if (strlen($idCard) !== 18) {
+            return '身份证号码必须为18位';
+        }
+
+        // 前17位必须为数字
+        if (!preg_match('/^\d{17}/', $idCard)) {
+            return '身份证号码前17位必须为数字';
+        }
+
+        // 最后一位可以是数字或X
+        $lastChar = strtoupper($idCard[17]);
+        if (!is_numeric($lastChar) && $lastChar !== 'X') {
+            return '身份证号码最后一位必须为数字或X';
+        }
+
+        // 校验码验证
+        $weights    = [7, 9, 10, 5, 8, 4, 2, 1, 6, 3, 7, 9, 10, 5, 8, 4, 2];
+        $checkCodes = ['1', '0', 'X', '9', '8', '7', '6', '5', '4', '3', '2'];
+        $sum        = 0;
+        for ($i = 0; $i < 17; $i++) {
+            $sum += (int)$idCard[$i] * $weights[$i];
+        }
+        $expectedCheckCode = $checkCodes[$sum % 11];
+        if ($lastChar !== $expectedCheckCode) {
+            return '身份证号码校验码错误';
+        }
+
+        // 出生日期验证
+        $year = (int)substr($idCard, 6, 4);
+        if ($year < 1900 || $year > 2100) {
+            return '身份证号码出生日期不在合理范围内';
         }
 
         return true;
