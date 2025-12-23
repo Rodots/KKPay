@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace Core\Traits;
 
@@ -20,11 +20,11 @@ trait ApiResponse
     public function success(mixed $data = [], string $message = '成功', ApiRespCode|int $code = ApiRespCode::SUCCESS): Response
     {
         $result = [
-            'message'  => $message,
-            'code'     => $code,
-            'data'     => $data,
-            'state'    => true,
-            'datetime' => date('Y-m-d H:i:s')
+            'state'     => true,
+            'message'   => $message,
+            'code'      => $code,
+            'data'      => $data,
+            'timestamp' => time()
         ];
         if (empty($data)) {
             unset($result['data']);
