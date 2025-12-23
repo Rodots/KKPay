@@ -1,8 +1,8 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
-namespace app\api\v1\controller;
+namespace app\api\controller;
 
 use app\model\Order;
 use Core\Service\OrderService;
@@ -12,8 +12,19 @@ use support\Request;
 use support\Response;
 use Webman\RateLimiter\Annotation\RateLimiter;
 
+/**
+ * 标准控制器
+ *
+ * 提供不需要签名验证的公共接口
+ */
 class StandardController
 {
+    /**
+     * 查询订单支付状态（用于前端轮询）
+     *
+     * @param Request $request 请求对象
+     * @return Response JSON响应
+     */
     #[RateLimiter(limit: 1, ttl: 3, key: RateLimiter::SID, message: '状态查询频率过快，别急')]
     public function queryQRStatus(Request $request): Response
     {
@@ -36,33 +47,28 @@ class StandardController
                         }
                         $result = [
                             'code'    => 20000,
-                            'data'    => [
-                                'redirect_url' => $redirect_url
-                            ],
+                            'data'    => ['redirect_url' => $redirect_url],
                             'message' => '付款成功',
                             'state'   => true
                         ];
                     } else {
                         $result = [
                             'code'    => 40423,
-                            'data'    => [
-                                'redirect_url' => '/payfail.html'
-                            ],
+                            'data'    => ['redirect_url' => '/payfail.html'],
                             'message' => '交易已结束',
                             'state'   => true
                         ];
                     }
-
-                    return new Response(200, ['Content-Type' => 'application/json'], json_encode($result, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+                } else {
+                    $result = [
+                        'code'    => 20000,
+                        'data'    => [],
+                        'message' => '订单不存在或未支付',
+                        'state'   => false
+                    ];
                 }
-                $result = [
-                    'code'    => 20000,
-                    'data'    => [],
-                    'message' => '订单不存在或未支付',
-                    'state'   => false
-                ];
 
-                return new Response(200, ['Content-Type' => 'application/json'], json_encode($result, JSON_UNESCAPED_UNICODE | JSON_UNESCAPED_SLASHES));
+                return json($result);
             }
         }
         return new Response(400);

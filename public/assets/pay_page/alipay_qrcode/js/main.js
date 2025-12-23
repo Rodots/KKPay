@@ -61,7 +61,7 @@ const clearTimers = () => {
 
 const queryPaymentStatus = async () => {
     try {
-        const url = '/api/v1/standard/queryQRStatus?trade_no=' + tradeNo;
+        const url = '/api/standard/queryQRStatus?trade_no=' + tradeNo;
         const response = await fetch(url, {
             headers: {
                 'Accept': 'application/json',
