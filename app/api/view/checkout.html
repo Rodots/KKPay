@@ -5,11 +5,7 @@
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <title>收银台 - 选择支付方式</title>
     <style>
-        * {
-            margin: 0;
-            padding: 0;
-            box-sizing: border-box;
-        }
+        * { margin: 0; padding: 0; box-sizing: border-box; }
         body {
             font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
             background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
@@ -22,7 +18,7 @@
         .checkout-container {
             background: white;
             border-radius: 12px;
-            box-shadow: 0 20px 40px rgba(0, 0, 0, 0.1);
+            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
             max-width: 480px;
             width: 100%;
             overflow: hidden;
@@ -33,16 +29,8 @@
             padding: 24px;
             text-align: center;
         }
-
-        .checkout-header h1 {
-            font-size: 24px;
-            margin-bottom: 8px;
-        }
-
-        .checkout-header p {
-            opacity: 0.9;
-            font-size: 14px;
-        }
+        .checkout-header h1 { font-size: 24px; margin-bottom: 8px; }
+        .checkout-header p { opacity: 0.9; font-size: 14px; }
         .order-info {
             padding: 24px;
             border-bottom: 1px solid #f0f0f0;
@@ -53,25 +41,10 @@
             align-items: center;
             margin-bottom: 12px;
         }
-
-        .order-item:last-child {
-            margin-bottom: 0;
-        }
-
-        .order-label {
-            color: #666;
-            font-size: 14px;
-        }
-
-        .order-value {
-            font-weight: 500;
-        }
-
-        .amount {
-            color: #e74c3c;
-            font-size: 24px;
-            font-weight: bold;
-        }
+        .order-item:last-child { margin-bottom: 0; }
+        .order-label { color: #666; font-size: 14px; }
+        .order-value { font-weight: 500; }
+        .amount { color: #e74c3c; font-size: 24px; font-weight: bold; }
         .payment-methods {
             padding: 24px;
         }
@@ -149,12 +122,8 @@
             margin: 0 auto 10px;
         }
         @keyframes spin {
-            0% {
-                transform: rotate(0deg);
-            }
-            100% {
-                transform: rotate(360deg);
-            }
+            0% { transform: rotate(0deg); }
+            100% { transform: rotate(360deg); }
         }
     </style>
 </head>
@@ -199,12 +168,7 @@
 </div>
 
 <script>
-    const paymentTypes = <?php
-    echo
-    $paymentTypesJson;
-            ?
-    >
-    ;
+    const paymentTypes = <?php echo $paymentTypesJson;?>;
     let selectedPaymentType = null;
     let selectedChannelCode = null;
 
@@ -219,10 +183,10 @@
             methodDiv.onclick = () => selectPaymentMethod(type.type, type.channels[0]?.code);
 
             methodDiv.innerHTML = `
-                    <input type="radio" name="payment_type" value="\${type.type}" id="payment_\${index}">
+                    <input type="radio" name="payment_type" value="${type.type}" id="payment_${index}">
                     <div class="payment-method-info">
-                        <div class="payment-method-name">\${type.name}</div>
-                        <div class="payment-method-desc">安全快捷的\${type.name}支付</div>
+                        <div class="payment-method-name">${type.name}</div>
+                        <div class="payment-method-desc">安全快捷的${type.name}支付</div>
                     </div>
                 `;
 
@@ -262,16 +226,13 @@
         loading.style.display = 'block';
 
         try {
-            const response = await fetch('/api/checkout/<?php echo $order['
-            trade_no
-            '];?>/select', {
+            const response = await fetch('/api/checkout/<?php echo $order["trade_no"];?>/select', {
                 method: 'POST',
                 headers: {
                     'Content-Type': 'application/x-www-form-urlencoded',
                 },
                 body: `payment_type=\${selectedPaymentType}&payment_channel_code=\${selectedChannelCode || ''}`
-            }
-        )
+            });
 
             const result = await response.json();
 
@@ -304,7 +265,7 @@
     }
 
     // 初始化
-    document.addEventListener('DOMContentLoaded', function () {
+    document.addEventListener('DOMContentLoaded', function() {
         renderPaymentMethods();
     });
 </script>
