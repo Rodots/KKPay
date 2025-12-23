@@ -31,7 +31,7 @@ class MerchantWithdrawalService
      *
      * @param int $merchantId 商户ID
      * @param int $payeeId    收款信息ID
-     * @return array ['success' => bool, 'message' => string, 'withdrawal_id' => ?int]
+     * @return array ['success' => bool, 'message' => string, 'withdrawal_id' => ?string]
      */
     public static function settleAccount(int $merchantId, int $payeeId): array
     {
@@ -123,7 +123,7 @@ class MerchantWithdrawalService
      * @param int    $merchantId 商户ID
      * @param int    $payeeId    收款信息ID
      * @param string $amount     提款金额
-     * @return array ['success' => bool, 'message' => string, 'withdrawal_id' => ?int]
+     * @return array ['success' => bool, 'message' => string, 'withdrawal_id' => ?string]
      */
     public static function applyWithdrawal(int $merchantId, int $payeeId, string $amount): array
     {
@@ -191,7 +191,7 @@ class MerchantWithdrawalService
      * @param string|null $reason 原因（驳回/失败时使用）
      * @return array ['success' => bool, 'message' => string]
      */
-    public static function changeStatus(int $id, string $status, ?string $reason = null): array
+    public static function changeStatus(string $id, string $status, ?string $reason = null): array
     {
         // 验证状态值有效性
         $validStatuses = [

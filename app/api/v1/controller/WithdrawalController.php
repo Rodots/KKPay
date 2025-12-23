@@ -85,7 +85,7 @@ class WithdrawalController extends BaseApiController
      * 取消提款接口
      *
      * biz_content 参数：
-     * - withdrawal_id: 提款记录ID
+     * - withdrawal_id: 提款流水号
      *
      * @param Request $request 请求对象
      * @return Response JSON响应
@@ -98,11 +98,11 @@ class WithdrawalController extends BaseApiController
                 return $this->fail($data);
             }
 
-            $withdrawalId = $this->getInt($data, 'withdrawal_id');
+            $withdrawalId = $this->getString($data, 'withdrawal_id');
 
             // 验证参数
-            if ($withdrawalId <= 0) {
-                return $this->fail('提款记录ID(withdrawal_id)无效');
+            if (empty($withdrawalId)) {
+                return $this->fail('提款流水号(withdrawal_id)无效');
             }
 
             // 验证提款记录是否属于该商户
@@ -132,7 +132,7 @@ class WithdrawalController extends BaseApiController
      * 提款记录查询接口
      *
      * biz_content 参数：
-     * - withdrawal_id: 提款记录ID（可选，不传则查询列表）
+     * - withdrawal_id: 提款流水号（可选，不传则查询列表）
      * - page: 页码（可选，默认1）
      * - page_size: 每页数量（可选，默认20，最大100）
      *
@@ -149,15 +149,15 @@ class WithdrawalController extends BaseApiController
 
             // 提取参数
             $bizContent = [
-                'withdrawal_id' => $this->getInt($data, 'withdrawal_id'),
+                'withdrawal_id' => $this->getString($data, 'withdrawal_id'),
                 'page'          => $this->getInt($data, 'page', 1),
                 'page_size'     => $this->getInt($data, 'page_size', 20),
             ];
 
             $merchantId = $this->getMerchantId($request);
 
-            // 如果指定了ID，查询单条记录
-            if ($bizContent['withdrawal_id'] > 0) {
+            // 如果指定了提款流水号，查询单条记录
+            if (!empty($bizContent['withdrawal_id'])) {
                 $withdrawal = MerchantWithdrawalRecord::where('id', $bizContent['withdrawal_id'])
                     ->where('merchant_id', $merchantId)
                     ->first(['id', 'amount', 'prepaid_deducted', 'received_amount', 'fee', 'status', 'reject_reason', 'created_at', 'updated_at']);

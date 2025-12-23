@@ -246,7 +246,7 @@ CREATE TABLE `kkpay_merchant_wallet_record`  (
 -- ----------------------------
 DROP TABLE IF EXISTS `kkpay_merchant_withdrawal_record`;
 CREATE TABLE `kkpay_merchant_withdrawal_record`  (
-  `id` int UNSIGNED NOT NULL AUTO_INCREMENT,
+  `id` char(16) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '提款流水号',
   `merchant_id` int UNSIGNED NOT NULL COMMENT '商户ID',
   `payee_info` json NOT NULL COMMENT '收款信息',
   `amount` decimal(12, 2) UNSIGNED NOT NULL COMMENT '提款金额',
@@ -262,7 +262,7 @@ CREATE TABLE `kkpay_merchant_withdrawal_record`  (
   INDEX `idx_merchant_id`(`merchant_id` ASC) USING BTREE,
   INDEX `idx_status` (`status` ASC) USING BTREE,
   INDEX `idx_created` (`created_at` ASC) USING BTREE
-) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '商户提款记录表' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '商户提款记录表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for kkpay_order

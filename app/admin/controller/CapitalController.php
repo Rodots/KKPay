@@ -343,7 +343,7 @@ class CapitalController extends AdminBase
             return $this->fail('必要参数缺失');
         }
 
-        $result = MerchantWithdrawalService::changeStatus((int)$id, $status, $reason);
+        $result = MerchantWithdrawalService::changeStatus($id, $status, $reason);
 
         if ($result['success']) {
             // 记录操作日志

@@ -22,6 +22,20 @@ class MerchantWithdrawalRecord extends Model
     protected $table = 'merchant_withdrawal_record';
 
     /**
+     * 指示模型的 ID 是否是自动递增的。
+     *
+     * @var bool
+     */
+    public $incrementing = false;
+
+    /**
+     * 主键 ID 的数据类型。
+     *
+     * @var string
+     */
+    protected $keyType = 'string';
+
+    /**
      * 获取应转换的属性。
      *
      * @return array
@@ -63,6 +77,21 @@ class MerchantWithdrawalRecord extends Model
     const string STATUS_FAILED     = 'FAILED';
     const string STATUS_REJECTED   = 'REJECTED';
     const string STATUS_CANCELED   = 'CANCELED';
+
+    /**
+     * 模型启动方法，用于注册模型事件
+     *
+     * @return void
+     */
+    protected static function boot(): void
+    {
+        parent::boot();
+
+        static::creating(function ($row) {
+            // 组合：业务类型(1) + 年份(2) + uniqid(13) = 16位
+            $row->id = strtoupper(uniqid('W' . date('y')));
+        });
+    }
 
     /**
      * 访问器：创建时间
