@@ -11,8 +11,3 @@ Route::get('/checkout/{orderNo}.html', [\app\api\controller\CheckoutController::
 
 // 网关扩展方法路由 - 支持 /pay/[方法名]/订单号/ 格式（无需签名验证）
 Route::any('/pay/{method}/{orderNo}.html', [\app\api\v1\controller\PaymentExtensionController::class, 'handle']);
-
-// 管理后台路由
-Route::group('/admin', function () {
-    // 管理员相关路由
-});
