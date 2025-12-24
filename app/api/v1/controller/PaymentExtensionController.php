@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace app\api\v1\controller;
 
+use app\model\Merchant;
 use app\model\Order;
+use app\model\OrderBuyer;
 use Core\Service\PaymentService;
 use Core\Traits\ApiResponse;
 use Core\Utils\PaymentGatewayUtil;
@@ -27,7 +29,6 @@ class PaymentExtensionController
      * 处理网关扩展方法调用
      *
      * 路由格式: /pay/{method}/{orderNo}.html
-     * 支持的方法: notify（异步回调）、return（同步回调）、qrcode（二维码展示）等
      *
      * @param Request $request 请求对象
      * @return Response 响应
@@ -75,11 +76,22 @@ class PaymentExtensionController
             $orderData = $order->toArray();
             unset($orderData['payment_channel_account']);
 
+            // 处理自定义商品名称变量替换
+            $subject  = $order->subject;
+            $merchant = Merchant::where('id', $order->merchant_id)->first(['diy_order_subject', 'email', 'mobile']);
+            if ($merchant && !empty($merchant->diy_order_subject)) {
+                $subject = str_replace(
+                    ['[name]', '[order]', '[outorder]', '[time]', '[email]', '[mobile]'],
+                    [$order->subject, $order->trade_no, $order->out_trade_no, (string)time(), $merchant->email ?? '', $merchant->mobile ?? ''],
+                    $merchant->diy_order_subject
+                );
+            }
+
             $items = [
                 'order'      => $orderData,
                 'channel'    => $paymentChannelAccount->config,
-                'buyer'      => $order->buyer->toArray(),
-                'subject'    => $order->subject,
+                'buyer'      => OrderBuyer::where('trade_no', $order->trade_no)->first(['ip', 'user_agent', 'user_id', 'buyer_open_id', 'real_name', 'cert_no', 'cert_type', 'min_age', 'mobile']),
+                'subject'    => $subject,
                 'return_url' => site_url("pay/return/$order->trade_no.html"),
                 'notify_url' => site_url("pay/notify/$order->trade_no.html"),
             ];

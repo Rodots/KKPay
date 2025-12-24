@@ -139,14 +139,16 @@ class Merchant extends Model
         Db::beginTransaction();
         try {
             // 创建商户
-            $merchantRow              = new self();
-            $merchantRow->email       = empty($data['email']) ? null : trim($data['email']);
-            $merchantRow->mobile      = empty($data['mobile']) ? null : trim($data['mobile']);
-            $merchantRow->remark      = empty($data['remark']) ? null : trim($data['remark']);
-            $merchantRow->salt        = random(4);
-            $merchantRow->password    = password_hash(hash('xxh128', trim($data['password'])) . $merchantRow->salt, PASSWORD_BCRYPT);
-            $merchantRow->status      = $data['status'];
-            $merchantRow->risk_status = $data['risk_status'];
+            $merchantRow                    = new self();
+            $merchantRow->email             = empty($data['email']) ? null : trim($data['email']);
+            $merchantRow->mobile            = empty($data['mobile']) ? null : trim($data['mobile']);
+            $merchantRow->remark            = empty($data['remark']) ? null : trim($data['remark']);
+            $merchantRow->diy_order_subject = empty($data['diy_order_subject']) ? null : trim($data['diy_order_subject']);
+            $merchantRow->buyer_pay_fee     = $data['buyer_pay_fee'];
+            $merchantRow->salt              = random(4);
+            $merchantRow->password          = password_hash(hash('xxh128', trim($data['password'])) . $merchantRow->salt, PASSWORD_BCRYPT);
+            $merchantRow->status            = $data['status'];
+            $merchantRow->risk_status       = $data['risk_status'];
             if (isset($data['competence'])) {
                 $merchantRow->competence = $data['competence'];
             }
@@ -200,11 +202,13 @@ class Merchant extends Model
             }
 
             // 更新商户基本信息
-            $merchant->email       = isset($data['email']) ? (empty($data['email']) ? null : trim($data['email'])) : $merchant->email;
-            $merchant->mobile      = isset($data['mobile']) ? (empty($data['mobile']) ? null : trim($data['mobile'])) : $merchant->mobile;
-            $merchant->remark      = empty($data['remark']) ? null : trim($data['remark']);
-            $merchant->status      = $data['status'];
-            $merchant->risk_status = $data['risk_status'];
+            $merchant->email             = isset($data['email']) ? (empty($data['email']) ? null : trim($data['email'])) : $merchant->email;
+            $merchant->mobile            = isset($data['mobile']) ? (empty($data['mobile']) ? null : trim($data['mobile'])) : $merchant->mobile;
+            $merchant->remark            = empty($data['remark']) ? null : trim($data['remark']);
+            $merchant->diy_order_subject = empty($data['diy_order_subject']) ? null : trim($data['diy_order_subject']);
+            $merchant->buyer_pay_fee     = $data['buyer_pay_fee'];
+            $merchant->status            = $data['status'];
+            $merchant->risk_status       = $data['risk_status'];
             if (isset($data['competence'])) {
                 $merchant->competence = $data['competence'];
             }
