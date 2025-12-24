@@ -378,7 +378,7 @@ class OrderController extends AdminBase
         if (empty($trade_no)) {
             return $this->fail('必要参数缺失');
         }
-        if (!$order = Order::where('trade_no', $trade_no)->first(['trade_no', 'trade_state'])) {
+        if (!$order = Order::where('trade_no', $trade_no)->first(['trade_no', 'trade_state', 'payment_channel_account_id'])) {
             return $this->fail('该订单不存在');
         }
         if ($order->payment_channel_account_id <= 0) {
