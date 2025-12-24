@@ -39,13 +39,13 @@ class MerchantController extends AdminBase
                 'mobile'          => ['number', 'max:11'],
                 'created_at'      => ['array']
             ], [
-                'merchant_number.startWith' => '商户编号是以M开头的16位数字+英文组合',
-                'merchant_number.alphaNum'  => '商户编号是以M开头的16位数字+英文组合',
-                'merchant_number.length'    => '商户编号是以M开头的16位数字+英文组合',
-                'email.max'                 => '邮箱长度不能超过64位',
-                'mobile.number'             => '手机号码只能是纯数字',
-                'mobile.max'                => '手机号码长度不能超过11位',
-                'created_at.array'          => '请重新选择时间范围'
+                'merchant_number.startWith' => '商户编号格式不正确（以M开头的16位字母数字组合）',
+                'merchant_number.alphaNum'  => '商户编号格式不正确（以M开头的16位字母数字组合）',
+                'merchant_number.length'    => '商户编号格式不正确（以M开头的16位字母数字组合）',
+                'email.max'                 => '邮箱不能超过64个字符',
+                'mobile.number'             => '手机号码只能包含数字',
+                'mobile.max'                => '手机号码不能超过11位',
+                'created_at.array'          => '创建时间范围格式不正确'
             ])->check($params);
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
@@ -131,13 +131,13 @@ class MerchantController extends AdminBase
                 'mobile'   => ['mobile'],
                 'password' => ['require', 'min:6']
             ], [
-                'margin.require'   => '保证金不能为空',
+                'margin.require'   => '请输入保证金',
                 'margin.float'     => '保证金必须为数字',
                 'email.email'      => '邮箱格式不正确',
-                'email.max'        => '邮箱长度不能超过64位',
+                'email.max'        => '邮箱不能超过64个字符',
                 'mobile.mobile'    => '手机号码格式不正确',
-                'password.require' => '密码不能为空',
-                'password.min'     => '密码长度不能小于6位'
+                'password.require' => '请输入密码',
+                'password.min'     => '密码不能少于6位'
             ])->check($params);
 
             Merchant::createMerchant($params);
@@ -179,10 +179,10 @@ class MerchantController extends AdminBase
                 'email'  => ['email', 'max:64'],
                 'mobile' => ['mobile'],
             ], [
-                'margin.require' => '保证金不能为空',
+                'margin.require' => '请输入保证金',
                 'margin.float'   => '保证金必须为数字',
                 'email.email'    => '邮箱格式不正确',
-                'email.max'      => '邮箱长度不能超过64位',
+                'email.max'      => '邮箱不能超过64个字符',
                 'mobile.mobile'  => '手机号码格式不正确',
             ])->check($params);
 
@@ -441,12 +441,12 @@ class MerchantController extends AdminBase
                 'ip'              => ['max:45'],
                 'created_at'      => ['array']
             ], [
-                'merchant_number.startWith' => '商户编号是以M开头的16位数字+英文组合',
-                'merchant_number.alphaNum'  => '商户编号是以M开头的16位数字+英文组合',
-                'merchant_number.length'    => '商户编号是以M开头的16位数字+英文组合',
+                'merchant_number.startWith' => '商户编号格式不正确（以M开头的16位字母数字组合）',
+                'merchant_number.alphaNum'  => '商户编号格式不正确（以M开头的16位字母数字组合）',
+                'merchant_number.length'    => '商户编号格式不正确（以M开头的16位字母数字组合）',
                 'content.max'               => '操作内容不能超过1024个字符',
-                'ip.max'                    => '操作IP长度不能超过45位',
-                'created_at.array'          => '请重新选择时间范围'
+                'ip.max'                    => 'IP地址不能超过45个字符',
+                'created_at.array'          => '时间范围格式不正确'
             ])->check($params);
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());

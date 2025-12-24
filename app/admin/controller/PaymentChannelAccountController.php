@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace app\admin\controller;
 
@@ -37,8 +37,8 @@ class PaymentChannelAccountController extends AdminBase
                 'name'   => ['max:64'],
                 'remark' => ['max:1024'],
             ], [
-                'name.max'   => '子账户名称长度不能超过64位',
-                'remark.max' => '备注长度不能超过1024位',
+                'name.max'   => '子账户名称不能超过64个字',
+                'remark.max' => '备注不能超过1024个字符',
             ])->check($params);
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
@@ -93,7 +93,7 @@ class PaymentChannelAccountController extends AdminBase
     {
         $id = $request->get('id');
 
-        $query = PaymentChannelAccount::find($id, ['id', 'name', 'payment_channel_id', 'inherit_config', 'rate', 'min_amount', 'max_amount', 'daily_limit', 'earliest_time', 'latest_time', 'config', 'status', 'remark', 'updated_at']);
+        $query = PaymentChannelAccount::find($id, ['id', 'name', 'payment_channel_id', 'inherit_config', 'rate', 'min_amount', 'max_amount', 'daily_limit', 'earliest_time', 'latest_time', 'config', 'status', 'remark', 'diy_order_subject', 'updated_at']);
         return $this->success(data: $query->toArray());
     }
 
@@ -263,17 +263,18 @@ class PaymentChannelAccountController extends AdminBase
     private function getPaymentChannelAccountValidationRules(): array
     {
         return [
-            'name'           => ['require', 'max:64'],
-            'inherit_config' => ['require', 'boolean'],
-            'rate'           => ['float', 'between:0,100'],
-            'min_amount'     => ['float', 'egt:0'],
-            'max_amount'     => ['float', 'egt:0'],
-            'daily_limit'    => ['float', 'egt:0'],
-            'earliest_time'  => ['regex' => '/^([01]\d|2[0-3]):([0-5]\d)$/'],
-            'latest_time'    => ['regex' => '/^([01]\d|2[0-3]):([0-5]\d)$/'],
-            'config'         => ['require', 'array'],
-            'status'         => ['require', 'boolean'],
-            'remark'         => ['max:1024'],
+            'name'              => ['require', 'max:64'],
+            'inherit_config'    => ['require', 'boolean'],
+            'rate'              => ['float', 'between:0,100'],
+            'min_amount'        => ['float', 'egt:0'],
+            'max_amount'        => ['float', 'egt:0'],
+            'daily_limit'       => ['float', 'egt:0'],
+            'earliest_time'     => ['regex' => '/^([01]\d|2[0-3]):([0-5]\d)$/'],
+            'latest_time'       => ['regex' => '/^([01]\d|2[0-3]):([0-5]\d)$/'],
+            'config'            => ['require', 'array'],
+            'status'            => ['require', 'boolean'],
+            'remark'            => ['max:1024'],
+            'diy_order_subject' => ['max:255'],
         ];
     }
 
@@ -283,25 +284,26 @@ class PaymentChannelAccountController extends AdminBase
     private function getPaymentChannelAccountValidationMessages(): array
     {
         return [
-            'name.require'           => '通道名称不能为空',
-            'name.max'               => '通道名称长度不能超过64位',
+            'name.require'           => '请输入子账户名称',
+            'name.max'               => '子账户名称不能超过64个字',
             'inherit_config.require' => '请选择是否继承配置',
-            'inherit_config.boolean' => '请选择是否继承配置',
-            'rate.float'             => '费率必须是数字',
-            'rate.between'           => '费率必须在0到100%之间',
-            'min_amount.float'       => '单笔最小金额必须是数字',
+            'inherit_config.boolean' => '继承配置的值不正确',
+            'rate.float'             => '费率必须为数字',
+            'rate.between'           => '费率须在0~100之间',
+            'min_amount.float'       => '单笔最小金额必须为数字',
             'min_amount.egt'         => '单笔最小金额不能为负数',
-            'max_amount.float'       => '单笔最大金额必须是数字',
+            'max_amount.float'       => '单笔最大金额必须为数字',
             'max_amount.egt'         => '单笔最大金额不能为负数',
-            'daily_limit.float'      => '单日收款限额必须是数字',
-            'daily_limit.egt'        => '单日收款限额不能为负数',
-            'earliest_time.regex'    => '最早可用时间格式不正确，应为 HH:MM 格式',
-            'latest_time.regex'      => '最晚可用时间格式不正确，应为 HH:MM 格式',
-            'config.require'         => '对接信息不得为空',
-            'config.array'           => '对接信息校验不通过',
-            'status.require'         => '请选择状态',
-            'status.boolean'         => '状态值必须是布尔值',
-            'remark.max'             => '备注长度不能超过1024位',
+            'daily_limit.float'      => '单日限额必须为数字',
+            'daily_limit.egt'        => '单日限额不能为负数',
+            'earliest_time.regex'    => '最早可用时间格式不正确，须为HH:MM格式',
+            'latest_time.regex'      => '最晚可用时间格式不正确，须为HH:MM格式',
+            'config.require'         => '请填写对接信息',
+            'config.array'           => '对接信息格式不正确',
+            'status.require'         => '请选择子账户状态',
+            'status.boolean'         => '状态值不正确',
+            'remark.max'             => '备注不能超过1024个字符',
+            'diy_order_subject.max'  => '自定义商品名称不能超过255个字',
         ];
     }
 }

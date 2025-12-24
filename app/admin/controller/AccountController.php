@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace app\admin\controller;
 
@@ -203,8 +203,8 @@ class AccountController extends AdminBase
                 'nickname' => ['require', 'max:16'],
                 'email'    => ['email'],
             ], [
-                'nickname.require' => '昵称不能为空',
-                'nickname.max'     => '昵称长度不能超过16个字符',
+                'nickname.require' => '请输入昵称',
+                'nickname.max'     => '昵称不能超过16个字',
                 'email.email'      => '邮箱格式不正确'
             ])->check($params);
         } catch (Throwable $e) {

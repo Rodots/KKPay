@@ -31,8 +31,8 @@ class RiskController extends AdminBase
                 'entity_value' => ['max:512'],
                 'expired_at'   => ['array']
             ], [
-                'entity_value.max' => '黑名单内容长度不能超过512位',
-                'expired_at.array' => '请重新选择时间范围'
+                'entity_value.max' => '黑名单内容不能超过512个字符',
+                'expired_at.array' => '过期时间范围格式不正确'
             ])->check($params);
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
@@ -96,11 +96,11 @@ class RiskController extends AdminBase
                 'expired_at'   => ['date']
             ], [
                 'entity_type.require'  => '请选择黑名单类型',
-                'entity_value.require' => '黑名单内容不能为空',
-                'entity_value.max'     => '黑名单内容字数不能超过512个',
-                'reason.require'       => '请填写黑名单原因',
-                'reason.max'           => '黑名单原因字数不能超过1024个',
-                'expired_at.date'      => '请选择正确的时间'
+                'entity_value.require' => '请输入黑名单内容',
+                'entity_value.max'     => '黑名单内容不能超过512个字符',
+                'reason.require'       => '请输入拉黑原因',
+                'reason.max'           => '拉黑原因不能超过1024个字符',
+                'expired_at.date'      => '过期时间格式不正确'
             ])->check($params);
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
@@ -169,12 +169,12 @@ class RiskController extends AdminBase
                 'content'         => ['max:512'],
                 'created_at'      => ['array']
             ], [
-                'merchant_number.startWith' => '商户编号是以M开头的16位数字+英文组合',
-                'merchant_number.alphaNum'  => '商户编号是以M开头的16位数字+英文组合',
-                'merchant_number.length'    => '商户编号是以M开头的16位数字+英文组合',
-                'type.number'               => '风控类型不正确',
+                'merchant_number.startWith' => '商户编号格式不正确（以M开头的16位字母数字组合）',
+                'merchant_number.alphaNum'  => '商户编号格式不正确（以M开头的16位字母数字组合）',
+                'merchant_number.length'    => '商户编号格式不正确（以M开头的16位字母数字组合）',
+                'type.number'               => '风控类型必须为数字',
                 'content.max'               => '风控内容不能超过512个字符',
-                'created_at.array' => '请重新选择时间范围'
+                'created_at.array'          => '时间范围格式不正确'
             ])->check($params);
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());

@@ -53,6 +53,15 @@ class PaymentChannel extends Model
         ];
     }
 
+    /**
+     * 可批量赋值的属性。
+     *
+     * @var array
+     */
+    protected $fillable = [
+        'status',
+    ];
+
     // 支付方式枚举
     const string PAYMENT_TYPE_ALIPAY    = 'Alipay';
     const string PAYMENT_TYPE_WECHATPAY = 'WechatPay';

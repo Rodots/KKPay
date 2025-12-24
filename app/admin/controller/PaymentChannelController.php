@@ -1,11 +1,10 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace app\admin\controller;
 
 use app\model\PaymentChannel;
-use app\model\PaymentChannelAccount;
 use Core\baseController\AdminBase;
 use Core\Utils\PaymentGatewayUtil;
 use SodiumException;
@@ -34,11 +33,11 @@ class PaymentChannelController extends AdminBase
                 'name'    => ['max:64'],
                 'gateway' => ['max:16', 'alphaNum']
             ], [
-                'code.max'         => '通道编码长度不能超过16位',
-                'code.regex'       => '通道编码只能是大写英文字母和数字',
-                'name.max'         => '通道名称长度不能超过64位',
-                'gateway.max'      => '网关代码长度不能超过16位',
-                'gateway.alphaNum' => '网关代码只能是英文字母和数字'
+                'code.max'         => '通道编码不能超过16个字符',
+                'code.regex'       => '通道编码只能包含大写字母和数字',
+                'name.max'         => '通道名称不能超过64个字',
+                'gateway.max'      => '网关代码不能超过16个字符',
+                'gateway.alphaNum' => '网关代码只能包含字母和数字'
             ])->check($params);
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
@@ -97,7 +96,7 @@ class PaymentChannelController extends AdminBase
     {
         $id = $request->get('id');
 
-        $query = PaymentChannel::find($id, ['id', 'code', 'name', 'payment_type', 'gateway', 'cost', 'fixed_cost', 'rate', 'fixed_fee', 'min_fee', 'max_fee', 'min_amount', 'max_amount', 'daily_limit', 'earliest_time', 'latest_time', 'roll_mode', 'settle_cycle', 'status', 'updated_at']);
+        $query = PaymentChannel::find($id, ['id', 'code', 'name', 'payment_type', 'gateway', 'cost', 'fixed_cost', 'rate', 'fixed_fee', 'min_fee', 'max_fee', 'min_amount', 'max_amount', 'daily_limit', 'earliest_time', 'latest_time', 'roll_mode', 'settle_cycle', 'diy_order_subject', 'status', 'updated_at']);
         return $this->success(data: $query->toArray());
     }
 
@@ -290,15 +289,14 @@ class PaymentChannelController extends AdminBase
     public function batchChangeStatus(Request $request): Response
     {
         $ids    = $request->post('ids');
-        $status = $request->post('status');
+        $status = (int)$request->post('status');
 
         // 检查参数是否为布尔值或可转换为布尔值
-        if (empty($ids) || !is_array($ids) || !is_bool($status)) {
+        if (empty($ids) || !is_array($ids)) {
             return $this->fail('必要参数缺失');
         }
 
         try {
-            // 确保 status 是布尔值
             PaymentChannel::whereIn('id', $ids)->update(['status' => $status]);
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
@@ -313,24 +311,25 @@ class PaymentChannelController extends AdminBase
     private function getPaymentChannelValidationRules(): array
     {
         return [
-            'code'          => ['require', 'max:16', 'regex' => '/^[A-Z0-9]+$/'],
-            'name'          => ['require', 'max:64'],
-            'payment_type'  => ['require', 'in:Alipay,WechatPay,Bank,UnionPay,QQWallet,JDPay,PayPal'],
-            'gateway'       => ['require', 'max:16', 'regex' => '/^[a-zA-Z0-9]+$/'],
-            'cost'          => ['require', 'float', 'between:0,100'],
-            'fixed_cost'    => ['require', 'float', 'egt:0'],
-            'rate'          => ['require', 'float', 'between:0,100'],
-            'fixed_fee'     => ['require', 'float', 'egt:0'],
-            'min_fee'       => ['float', 'egt:0'],
-            'max_fee'       => ['float', 'egt:0'],
-            'min_amount'    => ['float', 'egt:0'],
-            'max_amount'    => ['float', 'egt:0'],
-            'daily_limit'   => ['float', 'egt:0'],
-            'earliest_time' => ['regex' => '/^([01]\d|2[0-3]):([0-5]\d)$/'],
-            'latest_time'   => ['regex' => '/^([01]\d|2[0-3]):([0-5]\d)$/'],
-            'roll_mode'     => ['integer', 'egt:0'],
-            'settle_cycle'  => ['integer'],
-            'status'        => ['require', 'boolean'],
+            'code'              => ['require', 'max:16', 'regex' => '/^[A-Z0-9]+$/'],
+            'name'              => ['require', 'max:64'],
+            'payment_type'      => ['require', 'in:Alipay,WechatPay,Bank,UnionPay,QQWallet,JDPay,PayPal'],
+            'gateway'           => ['require', 'max:16', 'regex' => '/^[a-zA-Z0-9]+$/'],
+            'cost'              => ['require', 'float', 'between:0,100'],
+            'fixed_cost'        => ['require', 'float', 'egt:0'],
+            'rate'              => ['require', 'float', 'between:0,100'],
+            'fixed_fee'         => ['require', 'float', 'egt:0'],
+            'min_fee'           => ['float', 'egt:0'],
+            'max_fee'           => ['float', 'egt:0'],
+            'min_amount'        => ['float', 'egt:0'],
+            'max_amount'        => ['float', 'egt:0'],
+            'daily_limit'       => ['float', 'egt:0'],
+            'earliest_time'     => ['regex' => '/^([01]\d|2[0-3]):([0-5]\d)$/'],
+            'latest_time'       => ['regex' => '/^([01]\d|2[0-3]):([0-5]\d)$/'],
+            'roll_mode'         => ['integer', 'egt:0'],
+            'settle_cycle'      => ['integer'],
+            'diy_order_subject' => ['max:255'],
+            'status'            => ['require', 'boolean'],
         ];
     }
 
@@ -340,45 +339,46 @@ class PaymentChannelController extends AdminBase
     private function getPaymentChannelValidationMessages(): array
     {
         return [
-            'code.require'         => '通道编码不能为空',
-            'code.max'             => '通道编码长度不能超过16位',
-            'code.regex'           => '通道编码只能由大写英文字母和数字组成',
-            'name.require'         => '通道名称不能为空',
-            'name.max'             => '通道名称长度不能超过64位',
-            'payment_type.require' => '支付方式不能为空',
-            'payment_type.in'      => '支付方式不在允许范围内',
-            'gateway.require'      => '网关代码不能为空',
-            'gateway.max'          => '网关代码长度不能超过16位',
-            'gateway.regex'        => '网关代码只能由英文字母和数字组成',
-            'cost.require'         => '费率成本不能为空',
-            'cost.float'           => '费率成本必须是数字',
-            'cost.between'         => '费率成本必须在0到100%之间',
-            'fixed_cost.require'   => '固定成本不能为空',
-            'fixed_cost.float'     => '固定成本必须是数字',
-            'fixed_cost.egt'       => '固定成本不能为负数',
-            'rate.require'         => '费率不能为空',
-            'rate.float'           => '费率必须是数字',
-            'rate.between'         => '费率必须在0到100%之间',
-            'fixed_fee.require'    => '固定服务费不能为空',
-            'fixed_fee.float'      => '固定服务费必须是数字',
-            'fixed_fee.egt'        => '固定服务费不能为负数',
-            'min_fee.float'        => '最低服务费必须是数字',
-            'min_fee.egt'          => '最低服务费不能为负数',
-            'max_fee.float'        => '最高服务费必须是数字',
-            'max_fee.egt'          => '最高服务费不能为负数',
-            'min_amount.float'     => '单笔最小金额必须是数字',
-            'min_amount.egt'       => '单笔最小金额不能为负数',
-            'max_amount.float'     => '单笔最大金额必须是数字',
-            'max_amount.egt'       => '单笔最大金额不能为负数',
-            'daily_limit.float'    => '单日收款限额必须是数字',
-            'daily_limit.egt'      => '单日收款限额不能为负数',
-            'earliest_time.regex'  => '最早可用时间格式不正确，应为 HH:MM 格式',
-            'latest_time.regex'    => '最晚可用时间格式不正确，应为 HH:MM 格式',
-            'roll_mode.integer'    => '轮询模式必须是整数',
-            'roll_mode.egt'        => '轮询模式不能为负数',
-            'settle_cycle.integer' => '结算周期必须是整数',
-            'status.require'       => '请选择状态',
-            'status.boolean'       => '请选择状态',
+            'code.require'          => '请输入通道编码',
+            'code.max'              => '通道编码不能超过16个字符',
+            'code.regex'            => '通道编码只能包含大写字母和数字',
+            'name.require'          => '请输入通道名称',
+            'name.max'              => '通道名称不能超过64个字',
+            'payment_type.require'  => '请选择支付方式',
+            'payment_type.in'       => '选择的支付方式不在允许范围内',
+            'gateway.require'       => '请输入网关代码',
+            'gateway.max'           => '网关代码不能超过16个字符',
+            'gateway.regex'         => '网关代码只能包含字母和数字',
+            'cost.require'          => '请输入费率成本',
+            'cost.float'            => '费率成本必须为数字',
+            'cost.between'          => '费率成本须在0~100之间',
+            'fixed_cost.require'    => '请输入固定成本',
+            'fixed_cost.float'      => '固定成本必须为数字',
+            'fixed_cost.egt'        => '固定成本不能为负数',
+            'rate.require'          => '请输入费率',
+            'rate.float'            => '费率必须为数字',
+            'rate.between'          => '费率须在0~100之间',
+            'fixed_fee.require'     => '请输入固定服务费',
+            'fixed_fee.float'       => '固定服务费必须为数字',
+            'fixed_fee.egt'         => '固定服务费不能为负数',
+            'min_fee.float'         => '最低服务费必须为数字',
+            'min_fee.egt'           => '最低服务费不能为负数',
+            'max_fee.float'         => '最高服务费必须为数字',
+            'max_fee.egt'           => '最高服务费不能为负数',
+            'min_amount.float'      => '单笔最小金额必须为数字',
+            'min_amount.egt'        => '单笔最小金额不能为负数',
+            'max_amount.float'      => '单笔最大金额必须为数字',
+            'max_amount.egt'        => '单笔最大金额不能为负数',
+            'daily_limit.float'     => '单日限额必须为数字',
+            'daily_limit.egt'       => '单日限额不能为负数',
+            'earliest_time.regex'   => '最早可用时间格式不正确，须为HH:MM格式',
+            'latest_time.regex'     => '最晚可用时间格式不正确，须为HH:MM格式',
+            'roll_mode.integer'     => '轮询模式必须为整数',
+            'roll_mode.egt'         => '轮询模式不能为负数',
+            'settle_cycle.integer'  => '结算周期必须为整数',
+            'diy_order_subject.max' => '自定义商品名称不能超过255个字',
+            'status.require'        => '请选择通道状态',
+            'status.boolean'        => '通道状态值不正确',
         ];
     }
 }

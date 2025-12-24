@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace app\admin\controller;
 
@@ -33,10 +33,10 @@ class AdminController extends AdminBase
                 'email'      => ['max:64'],
                 'created_at' => ['array']
             ], [
-                'account.max'      => '账号长度不能超过32位',
-                'nickname.max'     => '昵称长度不能超过16位',
-                'email.max'        => '邮箱长度不能超过64位',
-                'created_at.array' => '请重新选择时间范围'
+                'account.max'      => '账号不能超过32个字符',
+                'nickname.max'     => '昵称不能超过16个字',
+                'email.max'        => '邮箱不能超过64个字符',
+                'created_at.array' => '创建时间范围格式不正确'
             ])->check($params);
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
@@ -119,15 +119,15 @@ class AdminController extends AdminBase
                 'email'    => ['email'],
                 'password' => ['require', 'min:5']
             ], [
-                'role.require'     => '角色为必选项',
+                'role.require'     => '请选择角色',
                 'role.gt'          => '只能创建比自己权限低的角色',
-                'account.require'  => '账号不能为空',
-                'account.max'      => '账号长度不能超过32位',
-                'nickname.require' => '昵称不能为空',
-                'nickname.max'     => '昵称长度不能超过16位',
+                'account.require'  => '请输入账号',
+                'account.max'      => '账号不能超过32个字符',
+                'nickname.require' => '请输入昵称',
+                'nickname.max'     => '昵称不能超过16个字',
                 'email.email'      => '邮箱格式不正确',
-                'password.require' => '密码不能为空',
-                'password.min'     => '密码长度不能小于5位'
+                'password.require' => '请输入密码',
+                'password.min'     => '密码不能少于5位'
             ])->check($params);
 
             Admin::createAdmin($params);
@@ -170,14 +170,14 @@ class AdminController extends AdminBase
                 'email'        => ['email'],
                 'new_password' => ['min:5']
             ], [
-                'role.require'     => '角色为必选项',
-                'role.gt'          => '只能创建比自己权限低的角色',
-                'account.require'  => '账号不能为空',
-                'account.max'      => '账号长度不能超过32位',
-                'nickname.require' => '昵称不能为空',
-                'nickname.max'     => '昵称长度不能超过16位',
+                'role.require'     => '请选择角色',
+                'role.gt'          => '只能修改为比自己权限低的角色',
+                'account.require'  => '请输入账号',
+                'account.max'      => '账号不能超过32个字符',
+                'nickname.require' => '请输入昵称',
+                'nickname.max'     => '昵称不能超过16个字',
                 'email.email'      => '邮箱格式不正确',
-                'new_password.min' => '密码长度不能小于5位'
+                'new_password.min' => '新密码不能少于5位'
             ])->check($params);
 
             Admin::updateAdmin($params['id'], $params);
@@ -269,7 +269,7 @@ class AdminController extends AdminBase
         $ids    = $request->post('ids');
         $status = (int)$request->post('status');
 
-        if (empty($ids) || !is_array($ids) || !in_array($status, [0, 1])) {
+        if (empty($ids) || !is_array($ids)) {
             return $this->fail('必要参数缺失');
         }
 
@@ -299,10 +299,10 @@ class AdminController extends AdminBase
                 'ip'         => 'max:45',
                 'created_at' => 'array'
             ], [
-                'account.max'      => '账号长度不能超过32位',
+                'account.max'      => '账号不能超过32个字符',
                 'content.max'      => '操作内容不能超过1024个字符',
-                'ip.max'           => '操作IP长度不能超过45位',
-                'created_at.array' => '请重新选择时间范围'
+                'ip.max'           => 'IP地址不能超过45个字符',
+                'created_at.array' => '时间范围格式不正确'
             ])->check($params);
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());

@@ -40,6 +40,15 @@ class Admin extends Model
     }
 
     /**
+     * 可批量赋值的属性。
+     *
+     * @var array
+     */
+    protected $fillable = [
+        'status',
+    ];
+
+    /**
      * 序列化时应隐藏的属性。
      *
      * @var array<string>
