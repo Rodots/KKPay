@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace app\model;
 
@@ -250,6 +250,9 @@ class PaymentChannel extends Model
         // 时间段
         $paymentChannel->earliest_time = $data['earliest_time'] ?? null;
         $paymentChannel->latest_time   = $data['latest_time'] ?? null;
+
+        // 自定义商品名称
+        $paymentChannel->diy_order_subject = empty($data['diy_order_subject']) ? null : trim($data['diy_order_subject']);
 
         // 整型字段
         $paymentChannel->roll_mode    = (int)($data['roll_mode'] ?? 0);

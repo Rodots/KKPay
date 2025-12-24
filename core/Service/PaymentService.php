@@ -27,17 +27,13 @@ class PaymentService
     {
         try {
             // 获取支付通道信息
-            $paymentChannel = $paymentChannelAccount->paymentChannel;
-            if (!$paymentChannel) {
+            if (!$paymentChannel = $paymentChannelAccount->paymentChannel) {
                 throw new PaymentException('支付通道信息缺失');
             }
 
-            // 处理自定义商品名称变量替换
-            $subject  = $order['subject'];
+            // 处理商品名称优先级（5级：子账户 > 通道 > 商户 > 全局配置 > 原始请求）
             $merchant = request()->merchant ?? null;
-            if ($merchant && !empty($merchant->diy_order_subject)) {
-                $subject = self::processOrderSubject($merchant->diy_order_subject, $order['subject'], $order['trade_no'], $order['out_trade_no'], $merchant->email, $merchant->mobile);
-            }
+            $subject  = self::resolveOrderSubject($order['subject'], $order['trade_no'], $order['out_trade_no'], $paymentChannelAccount, $paymentChannel, $merchant);
 
             $items = [
                 'order'      => $order,
@@ -183,6 +179,44 @@ class PaymentService
 </html>
 HTML;
         return new Response(200, ['Content-Type' => 'text/html; charset=utf-8', 'Cache-Control' => 'no-cache'], $html);
+    }
+
+    /**
+     * 解析商品名称（5级优先级）
+     *
+     * 优先级从高到低：
+     * 1. 通道子账户自定义商品名
+     * 2. 通道自定义商品名
+     * 3. 商户自定义商品名
+     * 4. 全局系统配置自定义商品名
+     * 5. 商户原始请求商品名（默认）
+     *
+     * @param string                           $originalSubject       原始商品名
+     * @param string                           $tradeNo               平台订单号
+     * @param string                           $outTradeNo            商户订单号
+     * @param \app\model\PaymentChannelAccount $paymentChannelAccount 通道子账户
+     * @param \app\model\PaymentChannel        $paymentChannel        支付通道
+     * @param \app\model\Merchant|null         $merchant              商户
+     * @return string
+     */
+    private static function resolveOrderSubject(string $originalSubject, string $tradeNo, string $outTradeNo, \app\model\PaymentChannelAccount $paymentChannelAccount, \app\model\PaymentChannel $paymentChannel, ?\app\model\Merchant $merchant): string
+    {
+        // 获取各级配置的自定义商品名
+        $accountSubject  = $paymentChannelAccount->diy_order_subject ?? null;
+        $channelSubject  = $paymentChannel->diy_order_subject ?? null;
+        $merchantSubject = $merchant?->diy_order_subject;
+        $globalSubject   = sys_config('payment', 'diy_order_subject');
+
+        // 按优先级选择第一个非空值
+        $template = $accountSubject ?: ($channelSubject ?: ($merchantSubject ?: ($globalSubject ?: null)));
+
+        // 如果没有配置任何自定义商品名，直接返回原始商品名
+        if (empty($template)) {
+            return $originalSubject;
+        }
+
+        // 应用变量替换
+        return self::processOrderSubject($template, $originalSubject, $tradeNo, $outTradeNo, $merchant?->email, $merchant?->mobile);
     }
 
     /**

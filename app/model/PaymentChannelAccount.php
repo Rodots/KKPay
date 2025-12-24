@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace app\model;
 
@@ -96,17 +96,17 @@ class PaymentChannelAccount extends Model
      * 创建支付通道子账户
      *
      * @param array $data 数据
-     * @return PaymentChannelAccount 成功返回模型对象，失败抛出错误
+     * @return true
      * @throws Exception
      */
-    public static function createPaymentChannelAccount(array $data): PaymentChannelAccount
+    public static function createPaymentChannelAccount(array $data): true
     {
         try {
             $paymentChannelAccountRow = new self();
 
             // 基本字段处理
             $paymentChannelAccountRow->name               = trim($data['name'] ?? '');
-            $paymentChannelAccountRow->payment_channel_id = (int)$data['payment_channel_id'];
+            $paymentChannelAccountRow->payment_channel_id = $data['payment_channel_id'];
             $paymentChannelAccountRow->config             = $data['config'];
             $paymentChannelAccountRow->earliest_time      = $data['earliest_time'] ?? null;
             $paymentChannelAccountRow->latest_time        = $data['latest_time'] ?? null;
@@ -120,9 +120,12 @@ class PaymentChannelAccount extends Model
             $paymentChannelAccountRow->max_amount  = empty($data['max_amount']) ? null : bcround((string)$data['max_amount'], 2);
             $paymentChannelAccountRow->daily_limit = empty($data['daily_limit']) ? null : bcround((string)$data['daily_limit'], 2);
 
+            // 自定义商品名称
+            $paymentChannelAccountRow->diy_order_subject = empty($data['diy_order_subject']) ? null : trim($data['diy_order_subject']);
+
             // bit类型字段
-            $paymentChannelAccountRow->inherit_config = (bool)$data['inherit_config'];
-            $paymentChannelAccountRow->status         = (bool)$data['status'];
+            $paymentChannelAccountRow->inherit_config = $data['inherit_config'];
+            $paymentChannelAccountRow->status         = $data['status'];
 
             // 保存
             $paymentChannelAccountRow->save();
@@ -131,7 +134,7 @@ class PaymentChannelAccount extends Model
             throw new Exception('创建失败');
         }
 
-        return $paymentChannelAccountRow;
+        return true;
     }
 
     /**
@@ -139,7 +142,7 @@ class PaymentChannelAccount extends Model
      *
      * @param int   $id   支付通道子账户ID
      * @param array $data 数据
-     * @return true 更新是否成功
+     * @return true
      * @throws Exception
      */
     public static function updatePaymentChannelAccount(int $id, array $data): true
@@ -152,7 +155,7 @@ class PaymentChannelAccount extends Model
         try {
             // 基本字段处理
             $paymentChannelAccount->name               = trim($data['name'] ?? '');
-            $paymentChannelAccount->payment_channel_id = (int)$data['payment_channel_id'];
+            $paymentChannelAccount->payment_channel_id = $data['payment_channel_id'];
             $paymentChannelAccount->config             = $data['config'];
             $paymentChannelAccount->earliest_time      = $data['earliest_time'] ?? null;
             $paymentChannelAccount->latest_time        = $data['latest_time'] ?? null;
@@ -166,9 +169,12 @@ class PaymentChannelAccount extends Model
             $paymentChannelAccount->max_amount  = empty($data['max_amount']) ? null : bcround((string)$data['max_amount'], 2);
             $paymentChannelAccount->daily_limit = empty($data['daily_limit']) ? null : bcround((string)$data['daily_limit'], 2);
 
+            // 自定义商品名称
+            $paymentChannelAccount->diy_order_subject = empty($data['diy_order_subject']) ? null : trim($data['diy_order_subject']);
+
             // bit类型字段
-            $paymentChannelAccount->inherit_config = (bool)$data['inherit_config'];
-            $paymentChannelAccount->status         = (bool)$data['status'];
+            $paymentChannelAccount->inherit_config = $data['inherit_config'];
+            $paymentChannelAccount->status         = $data['status'];
 
             // 保存
             $paymentChannelAccount->save();

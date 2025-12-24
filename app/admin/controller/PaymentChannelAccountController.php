@@ -93,7 +93,7 @@ class PaymentChannelAccountController extends AdminBase
     {
         $id = $request->get('id');
 
-        $query = PaymentChannelAccount::find($id, ['id', 'name', 'payment_channel_id', 'inherit_config', 'rate', 'min_amount', 'max_amount', 'daily_limit', 'earliest_time', 'latest_time', 'config', 'status', 'remark', 'diy_order_subject', 'updated_at']);
+        $query = PaymentChannelAccount::find($id, ['id', 'name', 'payment_channel_id', 'inherit_config', 'rate', 'min_amount', 'max_amount', 'daily_limit', 'earliest_time', 'latest_time', 'diy_order_subject', 'config', 'status', 'remark', 'updated_at']);
         return $this->success(data: $query->toArray());
     }
 
@@ -271,10 +271,10 @@ class PaymentChannelAccountController extends AdminBase
             'daily_limit'       => ['float', 'egt:0'],
             'earliest_time'     => ['regex' => '/^([01]\d|2[0-3]):([0-5]\d)$/'],
             'latest_time'       => ['regex' => '/^([01]\d|2[0-3]):([0-5]\d)$/'],
+            'diy_order_subject' => ['max:255'],
             'config'            => ['require', 'array'],
             'status'            => ['require', 'boolean'],
             'remark'            => ['max:1024'],
-            'diy_order_subject' => ['max:255'],
         ];
     }
 
@@ -298,12 +298,12 @@ class PaymentChannelAccountController extends AdminBase
             'daily_limit.egt'        => '单日限额不能为负数',
             'earliest_time.regex'    => '最早可用时间格式不正确，须为HH:MM格式',
             'latest_time.regex'      => '最晚可用时间格式不正确，须为HH:MM格式',
+            'diy_order_subject.max'  => '自定义商品名称不能超过255个字',
             'config.require'         => '请填写对接信息',
             'config.array'           => '对接信息格式不正确',
             'status.require'         => '请选择子账户状态',
             'status.boolean'         => '状态值不正确',
             'remark.max'             => '备注不能超过1024个字符',
-            'diy_order_subject.max'  => '自定义商品名称不能超过255个字',
         ];
     }
 }

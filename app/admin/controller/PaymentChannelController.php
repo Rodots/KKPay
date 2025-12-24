@@ -96,7 +96,7 @@ class PaymentChannelController extends AdminBase
     {
         $id = $request->get('id');
 
-        $query = PaymentChannel::find($id, ['id', 'code', 'name', 'payment_type', 'gateway', 'cost', 'fixed_cost', 'rate', 'fixed_fee', 'min_fee', 'max_fee', 'min_amount', 'max_amount', 'daily_limit', 'earliest_time', 'latest_time', 'roll_mode', 'settle_cycle', 'diy_order_subject', 'status', 'updated_at']);
+        $query = PaymentChannel::find($id, ['id', 'code', 'name', 'payment_type', 'gateway', 'cost', 'fixed_cost', 'rate', 'fixed_fee', 'min_fee', 'max_fee', 'min_amount', 'max_amount', 'daily_limit', 'earliest_time', 'latest_time', 'diy_order_subject', 'roll_mode', 'settle_cycle', 'status', 'updated_at']);
         return $this->success(data: $query->toArray());
     }
 
@@ -326,9 +326,9 @@ class PaymentChannelController extends AdminBase
             'daily_limit'       => ['float', 'egt:0'],
             'earliest_time'     => ['regex' => '/^([01]\d|2[0-3]):([0-5]\d)$/'],
             'latest_time'       => ['regex' => '/^([01]\d|2[0-3]):([0-5]\d)$/'],
+            'diy_order_subject' => ['max:255'],
             'roll_mode'         => ['integer', 'egt:0'],
             'settle_cycle'      => ['integer'],
-            'diy_order_subject' => ['max:255'],
             'status'            => ['require', 'boolean'],
         ];
     }
@@ -373,10 +373,10 @@ class PaymentChannelController extends AdminBase
             'daily_limit.egt'       => '单日限额不能为负数',
             'earliest_time.regex'   => '最早可用时间格式不正确，须为HH:MM格式',
             'latest_time.regex'     => '最晚可用时间格式不正确，须为HH:MM格式',
+            'diy_order_subject.max' => '自定义商品名称不能超过255个字',
             'roll_mode.integer'     => '轮询模式必须为整数',
             'roll_mode.egt'         => '轮询模式不能为负数',
             'settle_cycle.integer'  => '结算周期必须为整数',
-            'diy_order_subject.max' => '自定义商品名称不能超过255个字',
             'status.require'        => '请选择通道状态',
             'status.boolean'        => '通道状态值不正确',
         ];
