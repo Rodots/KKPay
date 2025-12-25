@@ -79,12 +79,12 @@ class MerchantWithdrawalService
                 // 可用余额 > 预付金：创建提款记录
                 // 提款金额 = 可用余额（即清账总金额）
                 // 实际到账 = 可用余额 - 预付金抵扣
-                $withdrawalAmount  = $availableBalance;
-                $prepaidDeducted   = $prepaid;
-                $receivedAmount    = bcsub($availableBalance, $prepaid, 2);
+                $withdrawalAmount = $availableBalance;
+                $prepaidDeducted  = $prepaid;
+                $receivedAmount   = bcsub($availableBalance, $prepaid, 2);
 
                 // 创建提款记录
-                $withdrawal = MerchantWithdrawalRecord::create([
+                $withdrawal   = MerchantWithdrawalRecord::create([
                     'merchant_id'      => $merchantId,
                     'payee_info'       => $payee->payee_info,
                     'amount'           => $withdrawalAmount,
@@ -186,7 +186,7 @@ class MerchantWithdrawalService
      *
      * 根据目标状态自动处理相关业务逻辑（如驳回/取消时退款）
      *
-     * @param int         $id     提款记录ID
+     * @param string      $id     提款流水号
      * @param string      $status 目标状态
      * @param string|null $reason 原因（驳回/失败时使用）
      * @return array ['success' => bool, 'message' => string]
@@ -249,7 +249,7 @@ class MerchantWithdrawalService
                 $statusText = match ($status) {
                     MerchantWithdrawalRecord::STATUS_REJECTED => '驳回',
                     MerchantWithdrawalRecord::STATUS_CANCELED => '取消',
-                    MerchantWithdrawalRecord::STATUS_FAILED   => '失败',
+                    MerchantWithdrawalRecord::STATUS_FAILED => '失败',
                 };
 
                 // 退还可用余额
@@ -265,7 +265,7 @@ class MerchantWithdrawalService
 
             // 更新提款记录状态
             $withdrawal->status = $status;
-            if ($reason !== null && in_array($status, [MerchantWithdrawalRecord::STATUS_REJECTED, MerchantWithdrawalRecord::STATUS_FAILED])) {
+            if (!empty($reason) && in_array($status, [MerchantWithdrawalRecord::STATUS_REJECTED, MerchantWithdrawalRecord::STATUS_FAILED])) {
                 $withdrawal->reject_reason = $reason;
             }
             $withdrawal->save();
