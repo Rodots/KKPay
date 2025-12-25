@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace Core\Service;
 
+use app\model\Merchant;
 use app\model\PaymentChannel;
 use app\model\PaymentChannelAccount;
 use Core\Exception\PaymentException;
@@ -26,33 +27,40 @@ class PaymentChannelSelectionService
      * 此方法用于指定特定通道编码的支付场景，会验证通道状态、风控规则，
      * 然后根据通道配置的轮询策略选择最合适的子账户
      *
-     * @param string $channelCode 支付通道编码
-     * @param string $paymentType 支付方式类型
-     * @param string $amount      支付金额
+     * @param string   $channelCode 支付通道编码
+     * @param string   $paymentType 支付方式类型
+     * @param string   $amount      支付金额
+     * @param Merchant $merchant    商户对象
      * @return PaymentChannelAccount 选中的支付通道子账户
      * @throws PaymentException 当通道不可用或无可用子账户时抛出异常
      */
-    public static function selectByCode(
-        string $channelCode,
-        string $paymentType,
-        string $amount
-    ): PaymentChannelAccount
+    public static function selectByCode(string $channelCode, string $paymentType, string $amount, Merchant $merchant): PaymentChannelAccount
     {
+        // 检查是否启用商户通道白名单功能
+        $whitelistEnabled = (bool)sys_config('payment', 'enable_merchant_channel_whitelist', true);
+
+        // 如果启用白名单，检查商户是否配置了通道白名单
+        if ($whitelistEnabled && !$merchant->hasChannelWhitelist()) {
+            throw new PaymentException('商户未配置可用通道，请联系管理员');
+        }
+
         // 查找指定的支付通道并验证基础状态
-        $paymentChannel = PaymentChannel::where('code', $channelCode)
-            ->where('payment_type', $paymentType)
-            ->where('status', true)
-            ->first();
+        $paymentChannel = PaymentChannel::where('code', $channelCode)->where('payment_type', $paymentType)->where('status', true)->first();
 
         if (!$paymentChannel) {
             throw new PaymentException('支付通道不可用');
         }
 
+        // 如果启用白名单，验证通道是否在商户白名单中
+        if ($whitelistEnabled && !$merchant->isChannelAllowed($paymentChannel->id)) {
+            throw new PaymentException('该支付通道未授权');
+        }
+
         // 验证通道级别的风控规则（金额限制、时间段、日限额等）
         self::validateChannelRiskControl($paymentChannel, $amount);
 
-        // 使用优化查询选择可用的子账户
-        $paymentChannelAccount = self::selectAvailableAccount($paymentChannel, $amount);
+        // 根据白名单配置选择可用的子账户
+        $paymentChannelAccount = self::selectAvailableAccount($paymentChannel, $amount, $whitelistEnabled ? $merchant : null);
 
         if (!$paymentChannelAccount) {
             throw new PaymentException('暂无可用的收款账户');
@@ -67,17 +75,33 @@ class PaymentChannelSelectionService
      * 此方法用于自动选择支付通道的场景，会遍历该支付方式下的所有可用通道，
      * 找到第一个通过风控校验且有可用子账户的通道
      *
-     * @param string $paymentType 支付方式类型
-     * @param string $amount      支付金额
+     * @param string   $paymentType 支付方式类型
+     * @param string   $amount      支付金额
+     * @param Merchant $merchant    商户对象
      * @return PaymentChannelAccount 选中的支付通道子账户
      * @throws PaymentException 当支付方式不可用或无可用子账户时抛出异常
      */
-    public static function selectByType(string $paymentType, string $amount): PaymentChannelAccount
+    public static function selectByType(string $paymentType, string $amount, Merchant $merchant): PaymentChannelAccount
     {
-        // 查找该支付方式下所有启用的支付通道
-        $paymentChannels = PaymentChannel::where('payment_type', $paymentType)
-            ->where('status', true)
-            ->get();
+        // 检查是否启用商户通道白名单功能
+        $whitelistEnabled = (bool)sys_config('payment', 'enable_merchant_channel_whitelist', true);
+
+        // 构建通道查询
+        $query = PaymentChannel::where('payment_type', $paymentType)->where('status', true);
+
+        if ($whitelistEnabled) {
+            // 如果启用白名单，检查商户是否配置了通道白名单
+            if (!$merchant->hasChannelWhitelist()) {
+                throw new PaymentException('商户未配置可用通道，请联系管理员');
+            }
+
+            // 获取商户白名单中的通道ID
+            $allowedChannelIds = $merchant->getAvailableChannelIds();
+            $query->whereIn('id', $allowedChannelIds);
+        }
+
+        // 查找该支付方式下可用的支付通道
+        $paymentChannels = $query->get();
 
         if ($paymentChannels->isEmpty()) {
             throw new PaymentException('该支付方式暂不可用');
@@ -90,8 +114,8 @@ class PaymentChannelSelectionService
                 // 验证通道级别的风控规则
                 self::validateChannelRiskControl($channel, $amount);
 
-                // 尝试从该通道选择可用的子账户
-                $paymentChannelAccount = self::selectAvailableAccount($channel, $amount);
+                // 根据白名单配置选择可用的子账户
+                $paymentChannelAccount = self::selectAvailableAccount($channel, $amount, $whitelistEnabled ? $merchant : null);
 
                 if ($paymentChannelAccount) {
                     // 设置关联关系，便于后续使用
@@ -149,16 +173,32 @@ class PaymentChannelSelectionService
     /**
      * 选择可用的支付通道账户
      *
+     * 统一的子账户选择方法，根据是否传入商户对象决定是否应用商户白名单过滤
+     *
      * @param PaymentChannel $paymentChannel 支付通道对象
      * @param string         $amount         支付金额
+     * @param Merchant|null  $merchant       商户对象（为null时不应用商户白名单过滤）
      * @return PaymentChannelAccount|null 选中的子账户，无可用账户时返回null
      */
-    private static function selectAvailableAccount(PaymentChannel $paymentChannel, string $amount): ?PaymentChannelAccount
+    private static function selectAvailableAccount(PaymentChannel $paymentChannel, string $amount, ?Merchant $merchant = null): ?PaymentChannelAccount
     {
+        // 如果传入了商户对象，获取商户在该通道下的可用子账户ID列表
+        $allowedAccountIds = null;
+        if ($merchant !== null) {
+            $allowedAccountIds = $merchant->getAllowedAccountIds($paymentChannel->id);
+            // 如果返回空数组，说明未配置子账户
+            if ($allowedAccountIds === []) {
+                return null;
+            }
+        }
+
         // 构建基础查询：只查询启用且非维护状态的账户
-        $query = $paymentChannel->paymentChannelAccount()
-            ->where('status', true)
-            ->where('maintenance', false);
+        $query = $paymentChannel->paymentChannelAccount()->where('status', true)->where('maintenance', false);
+
+        // 如果有商户白名单过滤且不是使用全部子账户（allowedAccountIds 不为 null），则过滤白名单
+        if ($allowedAccountIds !== null) {
+            $query->whereIn('id', $allowedAccountIds);
+        }
 
         // 在SQL层添加金额限制条件，利用数据库索引提升性能
         self::addAmountConstraintsToQuery($query, $amount);

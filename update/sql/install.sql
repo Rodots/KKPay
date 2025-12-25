@@ -91,6 +91,7 @@ CREATE TABLE `kkpay_merchant`  (
   `status` bit(1) NOT NULL DEFAULT b'1' COMMENT '账户状态',
   `risk_status` bit(1) NOT NULL DEFAULT b'0' COMMENT '风控状态',
   `competence` json NULL COMMENT '权限',
+  `channel_whitelist` json NULL COMMENT '通道白名单配置',
   `created_at` timestamp NULL DEFAULT NULL COMMENT '创建时间',
   `updated_at` timestamp NULL DEFAULT NULL COMMENT '更新时间',
   `deleted_at` timestamp NULL DEFAULT NULL COMMENT '删除时间',

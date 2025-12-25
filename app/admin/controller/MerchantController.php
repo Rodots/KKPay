@@ -890,4 +890,208 @@ class MerchantController extends AdminBase
             'private_key' => $keys['private_key']
         ]);
     }
+
+    /**
+     * 获取商户通道白名单配置详情
+     *
+     * 返回所有可配置的通道列表，并标注商户已配置的状态和自定义费率
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function channelWhitelistDetail(Request $request): Response
+    {
+        $id = $request->get('id');
+        if (empty($id)) {
+            return $this->fail('必要参数缺失');
+        }
+
+        $merchant = Merchant::find($id, ['id', 'merchant_number', 'channel_whitelist']);
+        if (!$merchant) {
+            return $this->fail('该商户不存在');
+        }
+
+        // 获取商户已配置的通道白名单
+        $configuredChannels = $merchant->channel_whitelist ?? [];
+
+        // 构建已配置通道的索引（channel_id => config）
+        $configuredMap = [];
+        foreach ($configuredChannels as $channelConfig) {
+            $configuredMap[$channelConfig['channel_id']] = $channelConfig;
+        }
+
+        // 获取所有可用通道
+        $channels = \app\model\PaymentChannel::where('status', true)->select(['id', 'code', 'name', 'payment_type', 'rate'])->get();
+
+        $result = [];
+        foreach ($channels as $channel) {
+            // 获取该通道下所有子账户
+            $accounts = \app\model\PaymentChannelAccount::where('payment_channel_id', $channel->id)->where('status', true)->select(['id', 'name', 'rate'])->get();
+
+            // 检查商户是否配置了该通道
+            $isConfigured  = isset($configuredMap[$channel->id]);
+            $channelConfig = $isConfigured ? $configuredMap[$channel->id] : null;
+
+            // 构建子账户配置索引
+            $accountConfigMap = [];
+            if ($channelConfig && !empty($channelConfig['accounts'])) {
+                foreach ($channelConfig['accounts'] as $accConfig) {
+                    $accountConfigMap[$accConfig['account_id']] = $accConfig;
+                }
+            }
+
+            // 构建子账户列表
+            $accountList = [];
+            foreach ($accounts as $account) {
+                $accIsConfigured = isset($accountConfigMap[$account->id]);
+                $accConfig       = $accIsConfigured ? $accountConfigMap[$account->id] : null;
+
+                $accountList[] = [
+                    'id'            => $account->id,
+                    'name'          => $account->name,
+                    'rate'          => bcmul($account->rate, '100', 2),
+                    'is_configured' => $accIsConfigured,
+                    'custom_rate'   => $accConfig && $accConfig['rate'] !== null ? bcmul($accConfig['rate'], '100', 2) : null,
+                ];
+            }
+
+            $result[] = [
+                'id'               => $channel->id,
+                'code'             => $channel->code,
+                'name'             => $channel->name,
+                'payment_type'     => $channel->payment_type,
+                'rate'             => bcmul($channel->rate, '100', 2),
+                'is_configured'    => $isConfigured,
+                'custom_rate'      => $channelConfig && $channelConfig['rate'] !== null ? bcmul((string)$channelConfig['rate'], '100', 2) : null,
+                'use_all_accounts' => $channelConfig['use_all_accounts'] ?? true,
+                'accounts'         => $accountList,
+            ];
+        }
+
+        return $this->success(data: [
+            'merchant_number' => $merchant->merchant_number,
+            'channels'        => $result,
+        ]);
+    }
+
+    /**
+     * 保存商户通道白名单配置
+     *
+     * 全量覆写模式，每次提交都会完全替换原有配置
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function channelWhitelistSave(Request $request): Response
+    {
+        $id       = $request->post('id');
+        $channels = $request->post('channels', []);
+
+        if (empty($id)) {
+            return $this->fail('必要参数缺失');
+        }
+
+        $merchant = Merchant::find($id);
+        if (!$merchant) {
+            return $this->fail('该商户不存在');
+        }
+
+        try {
+            // 验证并格式化通道配置
+            $formattedChannels = [];
+            foreach ($channels as $channelData) {
+                if (empty($channelData['channel_id'])) {
+                    continue;
+                }
+
+                // 验证通道是否存在
+                $channel = \app\model\PaymentChannel::find($channelData['channel_id']);
+                if (!$channel) {
+                    return $this->fail("通道ID {$channelData['channel_id']} 不存在");
+                }
+
+                // 格式化费率（百分比转小数）
+                $rate = null;
+                if (isset($channelData['rate']) && $channelData['rate'] !== '') {
+                    $rate = bcdiv((string)$channelData['rate'], '100', 4);
+                }
+
+                $formattedChannel = [
+                    'channel_id'       => (int)$channelData['channel_id'],
+                    'rate'             => $rate,
+                    'use_all_accounts' => (bool)($channelData['use_all_accounts'] ?? true),
+                    'accounts'         => [],
+                ];
+
+                // 如果不是使用全部子账户，则处理子账户配置
+                if (!$formattedChannel['use_all_accounts'] && !empty($channelData['accounts'])) {
+                    foreach ($channelData['accounts'] as $accountData) {
+                        if (empty($accountData['account_id'])) {
+                            continue;
+                        }
+
+                        // 验证子账户是否存在且属于该通道
+                        $account = \app\model\PaymentChannelAccount::where('id', $accountData['account_id'])->where('payment_channel_id', $channel->id)->first();
+                        if (!$account) {
+                            return $this->fail("子账户ID {$accountData['account_id']} 不存在或不属于该通道");
+                        }
+
+                        // 格式化子账户费率
+                        $accountRate = null;
+                        if (isset($accountData['rate']) && $accountData['rate'] !== '') {
+                            $accountRate = bcdiv((string)$accountData['rate'], '100', 4);
+                        }
+
+                        $formattedChannel['accounts'][] = [
+                            'account_id' => (int)$accountData['account_id'],
+                            'rate'       => $accountRate,
+                        ];
+                    }
+                }
+
+                $formattedChannels[] = $formattedChannel;
+            }
+
+            // 保存配置（全量覆写，直接存储数组）
+            $merchant->channel_whitelist = empty($formattedChannels) ? null : $formattedChannels;
+            $merchant->save();
+
+            $this->adminLog("更新商户【{$merchant->merchant_number}】的通道白名单配置");
+        } catch (Throwable $e) {
+            return $this->fail('保存失败：' . $e->getMessage());
+        }
+
+        return $this->success('保存成功');
+    }
+
+    /**
+     * 清空商户通道白名单配置
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function channelWhitelistClear(Request $request): Response
+    {
+        $id = $request->post('id');
+
+        if (empty($id)) {
+            return $this->fail('必要参数缺失');
+        }
+
+        $merchant = Merchant::find($id);
+        if (!$merchant) {
+            return $this->fail('该商户不存在');
+        }
+
+        try {
+            $merchant->channel_whitelist = null;
+            $merchant->save();
+
+            $this->adminLog("清空商户【{$merchant->merchant_number}】的通道白名单配置");
+        } catch (Throwable $e) {
+            return $this->fail('清空失败：' . $e->getMessage());
+        }
+
+        return $this->success('清空成功');
+    }
 }
