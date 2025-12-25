@@ -191,25 +191,21 @@ class PaymentChannelController extends AdminBase
     }
 
     /**
-     * 删除支付通道
+     * 批量删除支付通道
      *
      * @param Request $request
      * @return Response
      */
     public function delete(Request $request): Response
     {
-        $id = $request->post('id');
+        $ids = $request->post('ids');
 
-        if (empty($id)) {
+        if (empty($ids) || !is_array($ids)) {
             return $this->fail('必要参数缺失');
         }
 
-        if (!$row = PaymentChannel::find($id)) {
-            return $this->fail('该支付通道不存在');
-        }
-
         try {
-            $row->delete();
+            PaymentChannel::whereIn('id', $ids)->delete();
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
         }
@@ -252,47 +248,17 @@ class PaymentChannelController extends AdminBase
     }
 
     /**
-     * 快捷修改支付通道状态
+     * 修改支付通道状态（支持批量）
      *
      * @param Request $request
      * @return Response
      */
     public function changeStatus(Request $request): Response
     {
-        $id     = $request->post('id');
+        $ids    = $request->post('ids');
         $status = $request->post('status');
 
-        // 检查参数是否为布尔值或可转换为布尔值
-        if (empty($id) || !is_bool($status)) {
-            return $this->fail('必要参数缺失');
-        }
-
-        if (!$channel = PaymentChannel::find($id)) {
-            return $this->fail('该支付通道不存在');
-        }
-
-        // 确保 status 是布尔值
-        $channel->status = $status;
-
-        if (!$channel->save()) {
-            return $this->fail('修改失败');
-        }
-
-        return $this->success('修改成功');
-    }
-
-    /**
-     * 批量修改支付通道状态
-     * @param Request $request
-     * @return Response
-     */
-    public function batchChangeStatus(Request $request): Response
-    {
-        $ids    = $request->post('ids');
-        $status = (int)$request->post('status');
-
-        // 检查参数是否为布尔值或可转换为布尔值
-        if (empty($ids) || !is_array($ids)) {
+        if (empty($ids) || !is_array($ids) || !is_bool($status)) {
             return $this->fail('必要参数缺失');
         }
 

@@ -53,6 +53,15 @@ class PaymentChannelAccount extends Model
     }
 
     /**
+     * 可批量赋值的属性。
+     *
+     * @var array
+     */
+    protected $fillable = [
+        'status',
+    ];
+
+    /**
      * 访问器：创建时间
      */
     protected function createdAt(): Attribute

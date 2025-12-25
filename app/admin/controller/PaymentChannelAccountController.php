@@ -168,25 +168,21 @@ class PaymentChannelAccountController extends AdminBase
     }
 
     /**
-     * 删除支付通道子账户
+     * 批量删除支付通道子账户
      *
      * @param Request $request
      * @return Response
      */
     public function delete(Request $request): Response
     {
-        $id = $request->post('id');
+        $ids = $request->post('ids');
 
-        if (empty($id)) {
+        if (empty($ids) || !is_array($ids)) {
             return $this->fail('必要参数缺失');
         }
 
-        if (!$row = PaymentChannelAccount::find($id)) {
-            return $this->fail('该支付通道子账户不存在');
-        }
-
         try {
-            $row->delete();
+            PaymentChannelAccount::whereIn('id', $ids)->delete();
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
         }
@@ -228,30 +224,30 @@ class PaymentChannelAccountController extends AdminBase
     }
 
     /**
-     * 快捷修改支付通道子账户状态
+     * 修改支付通道子账户状态（支持批量）
      *
      * @param Request $request
      * @return Response
      */
     public function changeStatus(Request $request): Response
     {
-        $id     = $request->post('id');
+        $ids    = $request->post('ids');
         $status = $request->post('status');
         $field  = $request->post('field', 'status');
 
-        // 检查参数是否为布尔值
-        if (empty($id) || !is_bool($status)) {
+        if (empty($ids) || !is_array($ids) || !is_bool($status)) {
             return $this->fail('必要参数缺失');
         }
 
-        if (!$channel = PaymentChannelAccount::find($id)) {
-            return $this->fail('该子账户不存在');
+        // 检查字段是否在允许范围内
+        if (!in_array($field, ['status', 'maintenance'])) {
+            return $this->fail('不允许修改该字段');
         }
 
-        $channel->{$field} = $status;
-
-        if (!$channel->save()) {
-            return $this->fail('修改失败');
+        try {
+            PaymentChannelAccount::whereIn('id', $ids)->update([$field => $status]);
+        } catch (Throwable $e) {
+            return $this->fail($e->getMessage());
         }
 
         return $this->success('修改成功');
