@@ -70,8 +70,7 @@ CREATE TABLE `kkpay_config`  (
   `g` varchar(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '组别',
   `k` varchar(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '标识',
   `v` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '内容',
-  PRIMARY KEY (`g`) USING BTREE,
-  UNIQUE INDEX `group_key`(`g` ASC, `k` ASC) USING BTREE COMMENT '同组别下配置项是唯一的'
+  PRIMARY KEY (`g`, `k`) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '站点配置表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------

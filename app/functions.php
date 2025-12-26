@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 use app\model\Config;
 use support\Cache;
@@ -67,18 +67,32 @@ function sys_config(string $group = 'all', ?string $key = null, mixed $default =
 /**
  * 清除系统配置缓存
  *
- * @param string|null $group 配置组别，为null时清除所有缓存
+ * @param string|null $group 配置组别，为null或'all'时清除所有分组缓存
  * @return bool
  */
 function clear_sys_config_cache(?string $group = 'all'): bool
 {
     try {
-        Cache::delete('sysconfig:' . $group);
+        if ($group === null || $group === 'all') {
+            // 从数据库获取所有配置分组
+            $groups = Config::query()->distinct()->pluck('g')->toArray();
+
+            // 清除所有分组缓存
+            foreach ($groups as $g) {
+                Cache::delete('sysconfig_' . $g);
+            }
+
+            // 同时清除 'all' 缓存
+            Cache::delete('sysconfig_all');
+        } else {
+            // 仅清除指定分组缓存
+            Cache::delete('sysconfig_' . $group);
+        }
 
         return true;
     } catch (Throwable $e) {
         // 记录错误日志
-        Log::error('清除系统配置项获取失败: ' . $e->getMessage());
+        Log::error('清除系统配置缓存失败: ' . $e->getMessage());
         return false;
     }
 }
@@ -210,7 +224,6 @@ function isMobile(): bool
         return true;
     }
     return false;
-
 }
 
 /**
