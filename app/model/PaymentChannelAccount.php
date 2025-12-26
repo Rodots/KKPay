@@ -119,6 +119,9 @@ class PaymentChannelAccount extends Model
             $paymentChannelAccountRow->config             = $data['config'];
             $paymentChannelAccountRow->earliest_time      = $data['earliest_time'] ?? null;
             $paymentChannelAccountRow->latest_time        = $data['latest_time'] ?? null;
+            $paymentChannelAccountRow->inherit_config     = $data['inherit_config'];
+            $paymentChannelAccountRow->roll_weight        = $data['roll_weight'];
+            $paymentChannelAccountRow->status             = $data['status'];
             $paymentChannelAccountRow->remark             = empty($data['remark']) ? null : html_filter($data['remark']);
 
             // 成本与费率处理（百分比 → 四位小数）
@@ -131,10 +134,6 @@ class PaymentChannelAccount extends Model
 
             // 自定义商品名称
             $paymentChannelAccountRow->diy_order_subject = empty($data['diy_order_subject']) ? null : trim($data['diy_order_subject']);
-
-            // bit类型字段
-            $paymentChannelAccountRow->inherit_config = $data['inherit_config'];
-            $paymentChannelAccountRow->status         = $data['status'];
 
             // 保存
             $paymentChannelAccountRow->save();
@@ -168,6 +167,9 @@ class PaymentChannelAccount extends Model
             $paymentChannelAccount->config             = $data['config'];
             $paymentChannelAccount->earliest_time      = $data['earliest_time'] ?? null;
             $paymentChannelAccount->latest_time        = $data['latest_time'] ?? null;
+            $paymentChannelAccount->inherit_config     = $data['inherit_config'];
+            $paymentChannelAccount->roll_weight        = $data['roll_weight'];
+            $paymentChannelAccount->status             = $data['status'];
             $paymentChannelAccount->remark             = empty($data['remark']) ? null : html_filter($data['remark']);
 
             // 成本与费率处理（百分比 → 四位小数）
@@ -180,10 +182,6 @@ class PaymentChannelAccount extends Model
 
             // 自定义商品名称
             $paymentChannelAccount->diy_order_subject = empty($data['diy_order_subject']) ? null : trim($data['diy_order_subject']);
-
-            // bit类型字段
-            $paymentChannelAccount->inherit_config = $data['inherit_config'];
-            $paymentChannelAccount->status         = $data['status'];
 
             // 保存
             $paymentChannelAccount->save();

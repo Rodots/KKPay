@@ -93,7 +93,7 @@ class PaymentChannelAccountController extends AdminBase
     {
         $id = $request->get('id');
 
-        $query = PaymentChannelAccount::find($id, ['id', 'name', 'payment_channel_id', 'inherit_config', 'rate', 'min_amount', 'max_amount', 'daily_limit', 'earliest_time', 'latest_time', 'diy_order_subject', 'config', 'status', 'remark', 'updated_at']);
+        $query = PaymentChannelAccount::find($id, ['id', 'name', 'payment_channel_id', 'inherit_config', 'roll_weight', 'rate', 'min_amount', 'max_amount', 'daily_limit', 'earliest_time', 'latest_time', 'diy_order_subject', 'config', 'status', 'remark', 'updated_at']);
         return $this->success(data: $query->toArray());
     }
 
@@ -261,6 +261,7 @@ class PaymentChannelAccountController extends AdminBase
         return [
             'name'              => ['require', 'max:64'],
             'inherit_config'    => ['require', 'boolean'],
+            'roll_weight'       => ['integer'],
             'rate'              => ['float', 'between:0,100'],
             'min_amount'        => ['float', 'egt:0'],
             'max_amount'        => ['float', 'egt:0'],
@@ -284,6 +285,7 @@ class PaymentChannelAccountController extends AdminBase
             'name.max'               => '子账户名称不能超过64个字',
             'inherit_config.require' => '请选择是否继承配置',
             'inherit_config.boolean' => '继承配置的值不正确',
+            'roll_weight.integer'    => '轮询权重必须为整数',
             'rate.float'             => '费率必须为数字',
             'rate.between'           => '费率须在0~100之间',
             'min_amount.float'       => '单笔最小金额必须为数字',

@@ -293,7 +293,7 @@ class PaymentChannelController extends AdminBase
             'earliest_time'     => ['regex' => '/^([01]\d|2[0-3]):([0-5]\d)$/'],
             'latest_time'       => ['regex' => '/^([01]\d|2[0-3]):([0-5]\d)$/'],
             'diy_order_subject' => ['max:255'],
-            'roll_mode'         => ['integer', 'egt:0'],
+            'roll_mode'         => ['number', 'egt:0'],
             'settle_cycle'      => ['integer'],
             'status'            => ['require', 'boolean'],
         ];
@@ -340,7 +340,7 @@ class PaymentChannelController extends AdminBase
             'earliest_time.regex'   => '最早可用时间格式不正确，须为HH:MM格式',
             'latest_time.regex'     => '最晚可用时间格式不正确，须为HH:MM格式',
             'diy_order_subject.max' => '自定义商品名称不能超过255个字',
-            'roll_mode.integer'     => '轮询模式必须为整数',
+            'roll_mode.number'      => '轮询模式必须为数字',
             'roll_mode.egt'         => '轮询模式不能为负数',
             'settle_cycle.integer'  => '结算周期必须为整数',
             'status.require'        => '请选择通道状态',
