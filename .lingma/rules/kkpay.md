@@ -38,7 +38,7 @@ KKPay 是基于 **Webman v2.1** (PHP 8.4+) 的高性能聚合支付系统。系�
 - **代码风格**：
     - **导入顺序**：标准库 -> 第三方库 -> 本地模块（组间空一行）。
     - **空行规则**：类/函数定义/逻辑块之间空 **1行**。
-    - **简洁性**：优先使用链式调用和箭头函数，并且一行写完，避免冗余换行。
+    - **简洁性**：优先使用链式调用和箭头函数，链式调用与传参需一行写完，避免冗余换行。如必要时可换行，但需保持代码的可读性和简洁性。
     - **严格类型模式**：所有PHP文件头部必须声明`declare(strict_types=1);`。
 - **类型系统**：严格声明参数类型和返回类型（Strict Typing）。
 - **文档注释**：所有类、方法必须包含 PHPDoc，详细说明功能、参数及返回值。
@@ -71,6 +71,7 @@ KKPay/
 │   ├── queue/redis/           # 消费者 (OrderNotification, OrderSettle)
 │   └── functions.php          # 全局函数
 ├── core/
+│   ├── baseController/        # 控制器基类 (AdminBase, ApiBase)
 │   ├── Service/               # 核心业务 (OrderService, PaymentService)
 │   ├── Utils/                 # 工具类 (SignatureUtil, Helper)
 │   └── Constants/             # 系统常量
@@ -85,17 +86,17 @@ KKPay/
 
 ## 四、API 开发规范 (v1)
 
-### 4.1 BaseApiController 基类
-所有 API 控制器均继承自 `BaseApiController`，主要提供以下能力：
+### 4.1 ApiBase 基类 (Core\baseController\ApiBase)
+所有商户 API 控制器均继承自 `Core\baseController\ApiBase`，主要提供以下能力：
 - **签名验证**：自动挂载 `ApiSignatureVerification` 中间件。
 - **参数解析与获取**：
-  - `parseBizContent(Request $req)`: 解密并解析 JSON 业务参数。
-  - `getString($data, 'key')`: 类型安全的字符串提取。
-  - `getAmount($data, 'key')`: 金额格式化与校验。
-  - `getInt($data, 'key')`: 获取整数参数。
+    - `parseBizContent(Request $req)`: 解密并解析 JSON 业务参数。
+    - `getString($data, 'key')`: 类型安全的字符串提取。
+    - `getAmount($data, 'key')`: 金额格式化与校验。
+    - `getInt($data, 'key')`: 获取整数参数。
 - **商户上下文**：
-  - `getMerchantId(Request $req)`: 获取当前商户ID。
-  - `getMerchantNumber(Request $req)`: 获取当前商户编号。
+    - `getMerchantId(Request $req)`: 获取当前商户ID。
+    - `getMerchantNumber(Request $req)`: 获取当前商户编号。
 - **响应封装**：`success()`, `fail()`, `error()`。
 
 ### 4.2 关键控制器
@@ -115,23 +116,29 @@ KKPay/
 
 ---
 
+## 4.4 响应格式
+
+后台接口统一采用 `Core\Traits\AdminResponse` 封装响应，API接口统一采用 `Core\Traits\ApiResponse` 封装响应，设计开发文档时需严格按照对应格式
+
+---
+
 ## 五、核心业务服务 (Core\Service)
 
 ### 5.1 订单体系 (OrderService/OrderCreationService)
 - **创建流程**：参数校验 -> 路由选择 -> 费率计算 -> 落库 -> 调用网关。
 - **状态流转**：
-  - `WAIT_PAY` (待支付)
-  - `SUCCESS` (成功/待结算)
-  - `FROZEN` (冻结) / `REFUND` (已退款) / `CLOSED` (已关闭)
+    - `WAIT_PAY` (待支付)
+    - `SUCCESS` (成功/待结算)
+    - `FROZEN` (冻结) / `REFUND` (已退款) / `CLOSED` (已关闭)
 - **通知机制**：支付成功后异步触发 `OrderNotification` 队列。
 
 ### 5.2 资金与结算 (Capital & Settlement)
 - **自动结算**：订单完成后进入 `OrderSettle` 队列，根据 T+N 规则自动入账商户钱包。
 - **清账 (Settle)**：管理员通过 `CapitalController::settleAccount` 手动触发提现/转账逻辑。
 - **余额类型**：
-  - `available`: 可用余额
-  - `unavailable`: 冻结/不可用余额
-  - `prepaid`: 预付金 (用于代付产生的费用扣除)
+    - `available`: 可用余额
+    - `unavailable`: 冻结/不可用余额
+    - `prepaid`: 预付金 (用于代付产生的费用扣除)
 
 ### 5.3 风控系统 (RiskService)
 调用支付前自动检查：
@@ -168,7 +175,7 @@ KKPay/
 | `MerchantWallet` | kkpay_merchant_wallet | 商户余额 (Available, Unavailable, Prepaid) |
 | `MerchantWalletRecord` | kkpay_merchant_wallet_record | 余额变动流水 |
 | `MerchantWalletPrepaidRecord` | kkpay_merchant_wallet_prepaid_record | 预付金变动流水 |
-| `MerchantWithdrawalRecord` | kkpay_merchant_withdrawal_record | 商户提款/清账记录 |
+| `MerchantWithdrawalRecord` | kkpay_merchant_withdrawal_record | 商户提款记录 |
 | `MerchantPayee` | kkpay_merchant_payee | 商户收款账户信息 |
 
 ### 6.4 交易订单 (Order)
