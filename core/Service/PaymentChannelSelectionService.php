@@ -37,7 +37,7 @@ class PaymentChannelSelectionService
     public static function selectByCode(string $channelCode, string $paymentType, string $amount, Merchant $merchant): PaymentChannelAccount
     {
         // 检查是否启用商户通道白名单功能
-        $whitelistEnabled = sys_config('payment', 'enable_merchant_channel_whitelist', '1') === '1';
+        $whitelistEnabled = sys_config('payment', 'enable_merchant_channel_whitelist', 'on') === 'on';
 
         // 如果启用白名单，检查商户是否配置了通道白名单
         if ($whitelistEnabled && !$merchant->hasChannelWhitelist()) {
@@ -84,7 +84,7 @@ class PaymentChannelSelectionService
     public static function selectByType(string $paymentType, string $amount, Merchant $merchant): PaymentChannelAccount
     {
         // 检查是否启用商户通道白名单功能
-        $whitelistEnabled = sys_config('payment', 'enable_merchant_channel_whitelist', '1') === '1';
+        $whitelistEnabled = sys_config('payment', 'enable_merchant_channel_whitelist', 'on') === 'on';
 
         // 构建通道查询
         $query = PaymentChannel::where('payment_type', $paymentType)->where('status', true);
