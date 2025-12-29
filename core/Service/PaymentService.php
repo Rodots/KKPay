@@ -35,13 +35,15 @@ class PaymentService
             $merchant = request()->merchant ?? null;
             $subject  = self::resolveOrderSubject($order['subject'], $order['trade_no'], $order['out_trade_no'], $paymentChannelAccount, $paymentChannel, $merchant);
 
+            $notify_url = sys_config('system', 'notify_url');
+
             $items = [
                 'order'      => $order,
                 'channel'    => $paymentChannelAccount->config,
                 'buyer'      => $orderBuyer->toArray(),
                 'subject'    => $subject,
                 'return_url' => site_url("pay/return/{$order['trade_no']}.html"),
-                'notify_url' => site_url("pay/notify/{$order['trade_no']}.html"),
+                'notify_url' => empty($notify_url) ? site_url("pay/notify/{$order['trade_no']}.html") : $notify_url . "pay/notify/{$order['trade_no']}.html",
             ];
 
             // 加载网关
