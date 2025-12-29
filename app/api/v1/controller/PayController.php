@@ -132,6 +132,15 @@ class PayController extends ApiBase
         // 提取 buyer 数组,防 null 访问
         $buyerData = isset($data['buyer']) && is_array($data['buyer']) ? $data['buyer'] : [];
 
+        // 处理订单关闭时间
+        $closeTime = $this->getString($data, 'close_time');
+        if (empty($closeTime)) {
+            $sysExpireTime = sys_config('payment', 'order_expire_time');
+            if (is_numeric($sysExpireTime)) {
+                $closeTime = time() + (int)$sysExpireTime;
+            }
+        }
+
         // 构建参数数组
         return [
             'sign_type'            => $request->verifiedParams['sign_type'],
@@ -143,7 +152,7 @@ class PayController extends ApiBase
             'payment_type'         => $this->getString($data, 'payment_type'),
             'payment_channel_code' => $this->getString($data, 'payment_channel_code'),
             'attach'               => $this->getString($data, 'attach'),
-            'close_time'           => $this->getString($data, 'close_time'),
+            'close_time'           => $closeTime,
             'buyer'                => $this->parseBuyerData($buyerData, $request, $useDefaults),
         ];
     }
@@ -191,8 +200,18 @@ class PayController extends ApiBase
         }
 
         // 验证订单金额(最少1分钱，最多1亿)
-        if (bccomp($bizContent['total_amount'], '0.01', 2) < 0 || bccomp($bizContent['total_amount'], '100000000', 2) > 0) {
-            return '订单金额(total_amount)不规范';
+        $configMin = sys_config('payment', 'min_amount');
+        $configMax = sys_config('payment', 'max_amount');
+        $minAmount = '0.01';
+        $maxAmount = '100000000';
+        if (!empty($configMin) && is_numeric($configMin) && bccomp($configMin, '0.01', 2) === 1) {
+            $minAmount = $configMin;
+        }
+        if (!empty($configMax) && is_numeric($configMax) && bccomp($configMax, '0', 2) === 1 && bccomp($configMax, '100000000', 2) === -1) {
+            $maxAmount = $configMax;
+        }
+        if (bccomp($bizContent['total_amount'], $minAmount, 2) < 0 || bccomp($bizContent['total_amount'], $maxAmount, 2) > 0) {
+            return "订单金额(total_amount)超出允许范围[$minAmount-$maxAmount]";
         }
 
         // 验证商品名称
@@ -255,11 +274,10 @@ class PayController extends ApiBase
         if (!empty($bizContent['close_time'])) {
             try {
                 $timezone = config('app.default_timezone');
-                $now      = Carbon::now()->timezone($timezone);
+                $now      = Carbon::now()->timezone($timezone)->setMicrosecond(0);
 
                 // 解析关闭时间
                 $closeTimeInput = $bizContent['close_time'];
-                // 使用 is_numeric 检查，避免冗余 filter
                 if (is_numeric($closeTimeInput)) {
                     $closeTime = Carbon::createFromTimestamp((int)$closeTimeInput)->timezone($timezone);
                 } else {
