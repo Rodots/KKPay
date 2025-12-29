@@ -19,22 +19,22 @@ function sys_config(string $group = 'all', ?string $key = null, mixed $default =
     // 构建缓存键名
     $cacheKey = 'sysconfig_' . $group;
 
-    // 尝试从缓存获取
-    $value = Cache::get($cacheKey);
-
-    if ($value !== null) {
-        // 如果缓存存在且不需要特定key，直接返回
-        if ($key === null) {
-            return $value;
-        }
-
-        // 如果需要特定key，检查缓存中是否存在
-        if (isset($value[$key])) {
-            return $value[$key];
-        }
-    }
-
     try {
+        // 尝试从缓存获取
+        $value = Cache::get($cacheKey);
+
+        if ($value !== null) {
+            // 如果缓存存在且不需要特定key，直接返回
+            if ($key === null) {
+                return $value;
+            }
+
+            // 如果需要特定key，检查缓存中是否存在
+            if (isset($value[$key])) {
+                return $value[$key];
+            }
+        }
+
         // 从数据库查询
         if ($group === null || $group === 'all') {
             // 获取所有配置
@@ -47,7 +47,7 @@ function sys_config(string $group = 'all', ?string $key = null, mixed $default =
         }
 
         // 缓存配置
-        Cache::set($cacheKey, $configs, 600);
+        Cache::set($cacheKey, $configs, 3600);
 
         // 返回请求的配置
         if ($group === null) {
