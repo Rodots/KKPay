@@ -267,11 +267,7 @@ class AccountController extends AdminBase
             // 返回生成的密钥和二维码
             return $this->success('生成TOTP密钥成功，请在5分钟内完成绑定', [
                 'secret'  => $secret,
-                'qr_code' => $ga->getQRCodeUrl(
-                    $admin->account,
-                    $secret,
-                    '卡卡聚合支付系统'
-                )
+                'qr_code' => $ga->getQRCodeUrl($admin->account, $secret, sys_config('system', 'site_name', '卡卡聚合支付'))
             ]);
         } catch (Throwable $e) {
             // 记录错误日志并返回失败响应
