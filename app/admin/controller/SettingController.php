@@ -17,6 +17,11 @@ use Throwable;
 class SettingController extends AdminBase
 {
     /**
+     * 不需要登录的方法
+     */
+    protected array $noNeedLogin = ['frontendGet'];
+
+    /**
      * 获取所有站点配置
      *
      * @return Response
@@ -83,5 +88,18 @@ class SettingController extends AdminBase
             Db::rollBack();
             return $this->fail('保存失败: ' . $e->getMessage());
         }
+    }
+
+    /**
+     * 获取前端所需的配置项
+     *
+     * @return Response
+     */
+    public function frontendGet(): Response
+    {
+        $data = [
+            'site_name' => sys_config('system', 'site_name', '卡卡聚合支付')
+        ];
+        return $this->success(data: $data);
     }
 }
