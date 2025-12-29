@@ -52,20 +52,20 @@ class SettingController extends AdminBase
                     continue;
                 }
 
-                $group = filter((string)$group);
+                $group = filter($group);
                 if (empty($group)) {
                     continue;
                 }
 
                 foreach ($items as $key => $value) {
-                    $key = filter((string)$key);
+                    $key = filter($key);
                     if (empty($key)) {
                         continue;
                     }
 
                     // 使用 upsert 进行插入或更新
                     Config::upsert(
-                        [['g' => $group, 'k' => $key, 'v' => is_array($value) ? json_encode($value, JSON_UNESCAPED_UNICODE) : (string)$value]],
+                        [['g' => $group, 'k' => $key, 'v' => is_array($value) ? json_encode($value, JSON_UNESCAPED_UNICODE) : filter((string)$value)]],
                         ['g', 'k'],
                         ['v']
                     );
