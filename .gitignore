@@ -3,6 +3,8 @@
 /app/fake
 /.idea
 /.vscode
+/.agent
+/.lingma
 *.log
 .env
 composer.lock
