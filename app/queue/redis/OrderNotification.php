@@ -98,7 +98,7 @@ class OrderNotification implements Consumer
         // 在发送时生成实时时间戳和签名
         $fullData = array_merge($data, ['timestamp' => time()]);
 
-        $signKey = $data['sign_type'] === MerchantEncryption::SIGN_TYPE_SHA256withRSA ? sys_config('payment', 'system_rsa2_private_key', '') : MerchantEncryption::where('merchant_id', $merchant_id)->value('hash_key');
+        $signKey = $data['sign_type'] === MerchantEncryption::SIGN_TYPE_SHA256withRSA ? config('kkpay.payment_rsa2_private_key', '') : MerchantEncryption::where('merchant_id', $merchant_id)->value('hash_key');
 
         $signatureResult  = SignatureUtil::buildSignature($fullData, $data['sign_type'], $signKey);
         $fullData['sign'] = $signatureResult['sign'];

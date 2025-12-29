@@ -198,7 +198,7 @@ class OrderService
      */
     public static function getSignKey(string $signType, int $merchantId): string
     {
-        return $signType === MerchantEncryption::SIGN_TYPE_SHA256withRSA ? sys_config('payment', 'system_rsa2_private_key', '') : MerchantEncryption::where('merchant_id', $merchantId)->value('hash_key');
+        return $signType === MerchantEncryption::SIGN_TYPE_SHA256withRSA ? config('kkpay.payment_rsa2_private_key', '') : MerchantEncryption::where('merchant_id', $merchantId)->value('hash_key');
     }
 
     /**
