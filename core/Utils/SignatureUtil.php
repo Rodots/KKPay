@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace Core\Utils;
 
@@ -71,6 +71,24 @@ final class SignatureUtil
     }
 
     /**
+     * 验证SM3哈希签名（国密）
+     *
+     * @param string      $signString 签名字符串
+     * @param string      $signature  待验证签名
+     * @param string|null $hashKey    哈希密钥
+     * @return bool 验证结果
+     */
+    public static function verifySm3Signature(string $signString, string $signature, ?string $hashKey): bool
+    {
+        if (empty($hashKey)) {
+            return false;
+        }
+
+        $expectedSignature = openssl_digest($signString . $hashKey, 'sm3');
+        return hash_equals($expectedSignature, $signature);
+    }
+
+    /**
      * 验证SHA256withRSA签名
      *
      * @param string      $signString 签名字符串
@@ -108,6 +126,7 @@ final class SignatureUtil
             return match ($signType) {
                 'xxh' => self::verifyxxHash128Signature($signString, $params['sign'], $merchantEncryption['hash_key']),
                 'sha3' => self::verifySha3Signature($signString, $params['sign'], $merchantEncryption['hash_key']),
+                'sm3' => self::verifySm3Signature($signString, $params['sign'], $merchantEncryption['hash_key']),
                 'rsa2' => self::verifyRsa2Signature($signString, $params['sign'], $merchantEncryption['rsa2_key']),
                 default => false
             };
@@ -137,6 +156,7 @@ final class SignatureUtil
             $sign = match ($signType) {
                 'xxh' => hash('xxh128', $signString . $signKey),
                 'sha3' => hash('sha3-256', $signString . $signKey),
+                'sm3' => openssl_digest($signString . $signKey, 'sm3'),
                 'rsa2' => RSA2::fromPrivateKey($signKey)->sign($signString),
                 default => throw new Exception('不支持的签名类型')
             };

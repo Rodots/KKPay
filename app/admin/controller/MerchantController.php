@@ -821,7 +821,7 @@ class MerchantController extends AdminBase
 
         // 验证 hash_key 长度（如果提供）
         if (!empty($params['hash_key']) && strlen($params['hash_key']) !== 32) {
-            return $this->fail('散列算法对接密钥必须为32位字符串');
+            return $this->fail('摘要算法对接密钥必须为32位字符串');
         }
 
         // 验证 aes_key 长度（如果提供）

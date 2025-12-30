@@ -270,6 +270,7 @@ class ApiSignatureVerification implements MiddlewareInterface
         return match ($mode) {
             MerchantEncryption::MODE_ONLY_XXH => $signType === MerchantEncryption::SIGN_TYPE_XXH128,
             MerchantEncryption::MODE_ONLY_SHA3 => $signType === MerchantEncryption::SIGN_TYPE_SHA3_256,
+            MerchantEncryption::MODE_ONLY_SM3 => $signType === MerchantEncryption::SIGN_TYPE_SM3,
             MerchantEncryption::MODE_ONLY_RSA2 => $signType === MerchantEncryption::SIGN_TYPE_SHA256withRSA,
             MerchantEncryption::MODE_OPEN => true,
             default => false

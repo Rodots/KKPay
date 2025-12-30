@@ -43,12 +43,14 @@ class MerchantEncryption extends Model
     // 签名算法类型常量
     const string SIGN_TYPE_SHA256withRSA = 'rsa2';
     const string SIGN_TYPE_SHA3_256      = 'sha3';
+    const string SIGN_TYPE_SM3           = 'sm3';
     const string SIGN_TYPE_XXH128        = 'xxh';
 
     // 对接模式常量
     const string MODE_OPEN      = 'open';       // 不限制签名模式
     const string MODE_ONLY_XXH  = 'only_xxh';   // 仅 XXH128
     const string MODE_ONLY_SHA3 = 'only_sha3';  // 仅 SHA3-256
+    const string MODE_ONLY_SM3  = 'only_sm3';   // 仅 SM3
     const string MODE_ONLY_RSA2 = 'only_rsa2';  // 仅 RSA2
 
     /**
@@ -57,6 +59,7 @@ class MerchantEncryption extends Model
     public const array SUPPORTED_SIGN_TYPES = [
         self::SIGN_TYPE_XXH128,
         self::SIGN_TYPE_SHA3_256,
+        self::SIGN_TYPE_SM3,
         self::SIGN_TYPE_SHA256withRSA
     ];
 
@@ -67,6 +70,7 @@ class MerchantEncryption extends Model
         self::MODE_OPEN,
         self::MODE_ONLY_XXH,
         self::MODE_ONLY_SHA3,
+        self::MODE_ONLY_SM3,
         self::MODE_ONLY_RSA2
     ];
 
@@ -77,6 +81,7 @@ class MerchantEncryption extends Model
         self::MODE_OPEN      => '不限制',
         self::MODE_ONLY_XXH  => '仅 XXH128',
         self::MODE_ONLY_SHA3 => '仅 SHA3-256',
+        self::MODE_ONLY_SM3  => '仅 SM3',
         self::MODE_ONLY_RSA2 => '仅 RSA2'
     ];
 
