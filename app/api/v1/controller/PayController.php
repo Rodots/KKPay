@@ -39,6 +39,10 @@ class PayController extends ApiBase
         if (RiskService::checkIpBlacklist($bizContent['buyer']['ip'], $request->merchant->id)) {
             return $this->pageMsg('系统异常，无法完成付款');
         }
+        // IP每日订单限制检查
+        if (RiskService::checkIpOrderLimit($bizContent['buyer']['ip'])) {
+            return $this->pageMsg('今日支付次数已达上限，请明日再试');
+        }
 
         try {
             // 验证业务参数
@@ -87,6 +91,10 @@ class PayController extends ApiBase
         // 风控检查
         if (RiskService::checkIpBlacklist($bizContent['buyer']['ip'], $request->merchant->id)) {
             return $this->fail('系统异常，无法完成付款');
+        }
+        // IP每日订单限制检查
+        if (RiskService::checkIpOrderLimit($bizContent['buyer']['ip'])) {
+            return $this->fail('今日支付次数已达上限，请明日再试');
         }
 
         try {
@@ -187,6 +195,9 @@ class PayController extends ApiBase
      */
     private function validateBizContent(array $bizContent, bool $isStrictMode = false): string|true
     {
+        // 一次性获取整个 payment 配置组，避免多次Redis查询
+        $paymentConfig = sys_config('payment');
+
         // 验证商户订单号
         $outTradeNo = $this->filterString($bizContent['out_trade_no'] ?? null);
         if (empty($outTradeNo)) {
@@ -200,8 +211,8 @@ class PayController extends ApiBase
         }
 
         // 验证订单金额(最少1分钱，最多1亿)
-        $configMin = sys_config('payment', 'min_amount');
-        $configMax = sys_config('payment', 'max_amount');
+        $configMin = $paymentConfig['min_amount'] ?? null;
+        $configMax = $paymentConfig['max_amount'] ?? null;
         $minAmount = '0.01';
         $maxAmount = '100000000';
         if (!empty($configMin) && is_numeric($configMin) && bccomp($configMin, '0.01', 2) === 1) {
@@ -224,6 +235,16 @@ class PayController extends ApiBase
         }
         if (preg_match('/[\/=&]/', $subject)) {
             return '商品名称(subject)不可包含特殊字符（/、=、&）';
+        }
+        // 检查商品名称是否包含屏蔽关键词
+        $blockedKeywords = $paymentConfig['subject_blocked_keywords'] ?? '';
+        if (!empty($blockedKeywords)) {
+            $keywords = array_filter(explode('|', $blockedKeywords));
+            foreach ($keywords as $keyword) {
+                if (mb_stripos($subject, trim($keyword)) !== false) {
+                    return $paymentConfig['subject_blocked_keywords_prompt'] ?? '温馨提示：该商品禁止出售，如有疑问请联系网站客服！';
+                }
+            }
         }
 
         // 验证异步通知地址

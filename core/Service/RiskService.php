@@ -1,10 +1,11 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace Core\Service;
 
 use app\model\Blacklist;
+use app\model\OrderBuyer;
 use app\model\RiskLog;
 use InvalidArgumentException;
 use support\Log;
@@ -161,7 +162,6 @@ class RiskService
             }
 
             return true;
-
         } catch (Throwable $e) {
             Log::error('拉黑失败: ' . $e->getMessage());
             return false;
@@ -230,5 +230,51 @@ class RiskService
         }
 
         return $results;
+    }
+
+    /**
+     * 检查IP今日订单数是否超过限制
+     *
+     * @param string $ip 买家IP地址
+     * @return bool 超过限制返回true，否则返回false
+     */
+    public static function checkIpOrderLimit(string $ip): bool
+    {
+        $limit = sys_config('payment', 'ip_order_limit');
+        if (empty($limit) || !is_numeric($limit) || (int)$limit <= 0) {
+            return false;
+        }
+
+        $todayStart = Carbon::today()->timezone(config('app.default_timezone'));
+        $count = OrderBuyer::where('ip', $ip)
+            ->where('created_at', '>=', $todayStart)
+            ->count();
+
+        return $count >= (int)$limit;
+    }
+
+    /**
+     * 检查支付账号今日订单数是否超过限制
+     *
+     * @param string|null $userId 支付账号/用户ID
+     * @return bool 超过限制返回true，否则返回false
+     */
+    public static function checkAccountOrderLimit(?string $userId): bool
+    {
+        if (empty($userId)) {
+            return false;
+        }
+
+        $limit = sys_config('payment', 'account_order_limit');
+        if (empty($limit) || !is_numeric($limit) || (int)$limit <= 0) {
+            return false;
+        }
+
+        $todayStart = Carbon::today()->timezone(config('app.default_timezone'));
+        $count = OrderBuyer::where('user_id', $userId)
+            ->where('created_at', '>=', $todayStart)
+            ->count();
+
+        return $count >= (int)$limit;
     }
 }
