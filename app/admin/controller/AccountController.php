@@ -56,7 +56,7 @@ class AccountController extends AdminBase
         // 验证密码是否正确
         $hashedPassword = $row->salt . hash('xxh128', $params['password']) . 'kkpay';
         if (!password_verify($hashedPassword, $row->password)) {
-            $this->adminLog('登录失败', $row->id);
+            $this->adminLog("管理员【{$row->account}】登录失败", $row->id);
             return $this->fail('账号或密码不正确');
         }
 
@@ -86,7 +86,7 @@ class AccountController extends AdminBase
         }
 
         // 记录登录成功日志
-        $this->adminLog('登录成功', $row->id);
+        $this->adminLog("管理员【{$row->account}】登录成功", $row->id);
 
         // 返回登录成功响应
         return $this->success('登录成功', [
@@ -172,7 +172,7 @@ class AccountController extends AdminBase
 
         // 保存并返回结果
         if ($row->save()) {
-            $this->adminLog('修改密码', $row->id);
+            $this->adminLog("修改管理员【{$row->account}】密码", $row->id);
             return $this->success('密码修改成功');
         }
 
@@ -218,7 +218,7 @@ class AccountController extends AdminBase
 
         // 保存并返回结果
         if ($row->save()) {
-            $this->adminLog('修改基本信息', $row->id);
+            $this->adminLog("修改管理员【{$row->account}】基本信息", $row->id);
             return $this->success('基本信息修改成功', [
                 'nickname' => $row->nickname,
                 'email'    => $row->email,
@@ -320,7 +320,7 @@ class AccountController extends AdminBase
             }
 
             // 记录日志并返回成功响应
-            $this->adminLog('启用TOTP双重验证', $adminId);
+            $this->adminLog("管理员【{$admin->account}】启用TOTP双重验证", $adminId);
             return $this->success('启用成功');
         } catch (Throwable $e) {
             Log::error('TOTP绑定失败: ' . $e->getMessage());

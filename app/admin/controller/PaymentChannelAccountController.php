@@ -125,6 +125,7 @@ class PaymentChannelAccountController extends AdminBase
             validate($this->getPaymentChannelAccountValidationRules(), $this->getPaymentChannelAccountValidationMessages())->check($params);
 
             PaymentChannelAccount::createPaymentChannelAccount($params);
+            $this->adminLog("创建支付通道子账户【{$params['name']}】");
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
         }
@@ -160,6 +161,7 @@ class PaymentChannelAccountController extends AdminBase
             validate($this->getPaymentChannelAccountValidationRules(), $this->getPaymentChannelAccountValidationMessages())->check($params);
 
             PaymentChannelAccount::updatePaymentChannelAccount((int)$params['id'], $params);
+            $this->adminLog("编辑支付通道子账户【{$params['name']}】");
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
         }
@@ -183,6 +185,7 @@ class PaymentChannelAccountController extends AdminBase
 
         try {
             PaymentChannelAccount::whereIn('id', $ids)->delete();
+            $this->adminLog("批量删除支付通道子账户，ID列表：" . json_encode($ids));
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
         }
@@ -216,6 +219,7 @@ class PaymentChannelAccountController extends AdminBase
                     $newAccount->save(); // 插入新记录
                 }
             });
+            $this->adminLog("复制支付通道子账户【{$id}】，数量：$number");
         } catch (Throwable $e) {
             return $this->fail($e->getMessage() ?: '复制操作失败');
         }
@@ -246,6 +250,8 @@ class PaymentChannelAccountController extends AdminBase
 
         try {
             PaymentChannelAccount::whereIn('id', $ids)->update([$field => $status]);
+            $action = $field === 'status' ? ($status ? '启用' : '禁用') : ($status ? '开启维护' : '关闭维护');
+            $this->adminLog("批量{$action}支付通道子账户，ID列表：" . json_encode($ids));
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
         }

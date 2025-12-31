@@ -185,7 +185,8 @@ class CapitalController extends AdminBase
 
         // 验证商户是否存在
         $merchant_id = (int)$params['id'];
-        if (!Merchant::where('id', $merchant_id)->exists()) {
+        $merchant    = Merchant::find($merchant_id, ['id', 'merchant_number']);
+        if (!$merchant) {
             return $this->fail('该商户不存在');
         }
 
@@ -226,7 +227,7 @@ class CapitalController extends AdminBase
                 'unavailable' => '不可用余额',
                 'prepaid' => '预付金',
             };
-            $this->adminLog("为商户【{$merchant_id}】$action{$type}：{$amount}元");
+            $this->adminLog("为商户【{$merchant->merchant_number}】$action{$type}：{$amount}元");
         } catch (Throwable $e) {
             Db::rollBack();
             return $this->fail($e->getMessage());
@@ -320,7 +321,8 @@ class CapitalController extends AdminBase
 
         if ($result['success']) {
             // 记录操作日志
-            $this->adminLog("为商户【{$merchantId}】执行清账操作：{$result['message']}");
+            $merchant_number = Merchant::where('id', $merchantId)->value('merchant_number');
+            $this->adminLog("为商户【{$merchant_number}】执行清账操作：{$result['message']}");
             return $this->success($result['message'], ['withdrawal_id' => $result['withdrawal_id']]);
         }
 
@@ -347,7 +349,9 @@ class CapitalController extends AdminBase
 
         if ($result['success']) {
             // 记录操作日志
-            $this->adminLog("修改提款记录【{$id}】状态为【{$status}】");
+            $withdrawal      = MerchantWithdrawalRecord::with('merchant')->find($id);
+            $merchant_number = $withdrawal->merchant->merchant_number ?? '未知';
+            $this->adminLog("修改商户【{$merchant_number}】的提款记录【{$id}】状态为【{$status}】");
             return $this->success($result['message']);
         }
 

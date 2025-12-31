@@ -148,6 +148,7 @@ class PaymentChannelController extends AdminBase
             validate($this->getPaymentChannelValidationRules(), $this->getPaymentChannelValidationMessages())->check($params);
 
             PaymentChannel::createPaymentChannel($params);
+            $this->adminLog("创建支付通道【{$params['name']}】");
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
         }
@@ -183,6 +184,7 @@ class PaymentChannelController extends AdminBase
             validate($this->getPaymentChannelValidationRules(), $this->getPaymentChannelValidationMessages())->check($params);
 
             PaymentChannel::updatePaymentChannel((int)$params['id'], $params);
+            $this->adminLog("编辑支付通道【{$params['name']}】");
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
         }
@@ -206,6 +208,7 @@ class PaymentChannelController extends AdminBase
 
         try {
             PaymentChannel::whereIn('id', $ids)->delete();
+            $this->adminLog("批量删除支付通道，ID列表：" . json_encode($ids));
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
         }
@@ -240,6 +243,7 @@ class PaymentChannelController extends AdminBase
                     $newRow->save(); // 插入新记录
                 }
             });
+            $this->adminLog("复制支付通道【{$id}】，数量：$number");
         } catch (Throwable $e) {
             return $this->fail($e->getMessage() ?: '复制操作失败');
         }
@@ -264,6 +268,8 @@ class PaymentChannelController extends AdminBase
 
         try {
             PaymentChannel::whereIn('id', $ids)->update(['status' => $status]);
+            $statusText = $status ? '启用' : '禁用';
+            $this->adminLog("批量{$statusText}支付通道，ID列表：" . json_encode($ids));
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
         }

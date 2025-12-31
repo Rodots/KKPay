@@ -206,7 +206,7 @@ class OrderController extends AdminBase
             return $this->fail('必要参数缺失');
         }
 
-        if (!$order = Order::find($trade_no)) {
+        if (!$order = Order::with('merchant:id,merchant_number')->find($trade_no, ['trade_no', 'merchant_id'])) {
             return $this->fail('该订单不存在');
         }
 
@@ -220,6 +220,9 @@ class OrderController extends AdminBase
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
         }
+
+        $merchant_number = $order->merchant->merchant_number ?? '未知';
+        $this->adminLog("删除商户【{$merchant_number}】的订单【{$trade_no}】");
 
         return $this->success('删除成功');
     }
@@ -271,6 +274,8 @@ class OrderController extends AdminBase
 
             // server模式：提交到队列
             OrderService::sendAsyncNotification($trade_no, $order, true);
+            $merchant_number = $order->merchant->merchant_number ?? '未知';
+            $this->adminLog("重新通知商户【{$merchant_number}】订单【{$trade_no}】");
             return $this->success('重新通知任务已加入队列，系统将异步处理');
         } catch (Exception $e) {
             return $this->fail($e->getMessage());
@@ -359,6 +364,9 @@ class OrderController extends AdminBase
             if ($refund_type) {
                 $msg .= "，接口退款流水号: {$result['gateway_return']['api_refund_no']}";
             }
+            $order           = Order::with('merchant:id,merchant_number')->find($params['trade_no'], ['trade_no', 'merchant_id']);
+            $merchant_number = $order->merchant->merchant_number ?? '未知';
+            $this->adminLog("为商户【{$merchant_number}】的订单【{$params['trade_no']}】执行退款操作，金额：{$amount}元");
             return $this->success($msg);
         }
 
@@ -378,7 +386,7 @@ class OrderController extends AdminBase
         if (empty($trade_no)) {
             return $this->fail('必要参数缺失');
         }
-        if (!$order = Order::where('trade_no', $trade_no)->first(['trade_no', 'trade_state', 'payment_channel_account_id'])) {
+        if (!$order = Order::with('merchant')->where('trade_no', $trade_no)->first(['trade_no', 'trade_state', 'payment_channel_account_id', 'merchant_id'])) {
             return $this->fail('该订单不存在');
         }
         if ($order->payment_channel_account_id <= 0) {
@@ -393,6 +401,8 @@ class OrderController extends AdminBase
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
         }
+        $merchant_number = $order->merchant->merchant_number ?? '未知';
+        $this->adminLog("为商户【{$merchant_number}】的订单【{$order->trade_no}】执行补单操作");
         return $this->success('补单成功');
     }
 
@@ -413,7 +423,7 @@ class OrderController extends AdminBase
         if (!in_array($targetState, [Order::TRADE_STATE_FROZEN, Order::TRADE_STATE_SUCCESS], true)) {
             return $this->fail('参数异常');
         }
-        if (!$order = Order::where('trade_no', $trade_no)->first(['trade_no', 'trade_state'])) {
+        if (!$order = Order::with('merchant')->where('trade_no', $trade_no)->first(['trade_no', 'trade_state', 'merchant_id'])) {
             return $this->fail('该订单不存在');
         }
 
@@ -423,7 +433,9 @@ class OrderController extends AdminBase
             return $this->fail($e->getMessage());
         }
 
-        $operation = $targetState === Order::TRADE_STATE_FROZEN ? '冻结' : '解冻';
+        $operation       = $targetState === Order::TRADE_STATE_FROZEN ? '冻结' : '解冻';
+        $merchant_number = $order->merchant->merchant_number ?? '未知';
+        $this->adminLog("{$operation}商户【{$merchant_number}】的订单【{$order->trade_no}】");
         return $this->success("订单{$operation}成功");
     }
 }

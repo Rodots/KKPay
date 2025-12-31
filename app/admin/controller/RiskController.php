@@ -106,6 +106,7 @@ class RiskController extends AdminBase
             return $this->fail($e->getMessage());
         }
         if (RiskService::addToBlacklist(trim($params['entity_type']), trim($params['entity_value']), trim($params['reason']), expiredAt: $params['expired_at'])) {
+            $this->adminLog("新增黑名单: {$params['entity_value']} ({$params['entity_type']})");
             return $this->success('新增或更新黑名单成功');
         }
         return $this->fail('新增或更新黑名单失败');
@@ -126,6 +127,7 @@ class RiskController extends AdminBase
 
         try {
             Blacklist::where('id', $id)->delete();
+            $this->adminLog("解除黑名单【{$id}】");
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
         }
@@ -147,6 +149,7 @@ class RiskController extends AdminBase
 
         try {
             Blacklist::whereIn('id', $ids)->delete();
+            $this->adminLog("批量解除黑名单，ID列表：" . json_encode($ids));
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
         }

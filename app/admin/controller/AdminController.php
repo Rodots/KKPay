@@ -131,6 +131,7 @@ class AdminController extends AdminBase
             ])->check($params);
 
             Admin::createAdmin($params);
+            $this->adminLog("创建管理员【{$params['account']}】");
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
         }
@@ -181,6 +182,7 @@ class AdminController extends AdminBase
             ])->check($params);
 
             Admin::updateAdmin($params['id'], $params);
+            $this->adminLog("编辑管理员【{$params['account']}】信息");
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
         }
@@ -208,6 +210,8 @@ class AdminController extends AdminBase
         if (!$user->save()) {
             return $this->fail('修改失败');
         }
+        $statusText = $status ? '启用' : '禁用';
+        $this->adminLog("{$statusText}管理员【{$user->account}】");
         return $this->success('修改成功');
     }
 
@@ -226,6 +230,8 @@ class AdminController extends AdminBase
 
         try {
             if (Admin::resetPassword($id)) {
+                $account = Admin::where('id', $id)->value('account');
+                $this->adminLog("重置管理员【{$account}】密码");
                 return $this->success('重置成功');
             }
         } catch (Throwable $e) {
@@ -250,6 +256,8 @@ class AdminController extends AdminBase
 
         try {
             if (Admin::resetTotp($id)) {
+                $account = Admin::where('id', $id)->value('account');
+                $this->adminLog("重置管理员【{$account}】TOTP密钥");
                 return $this->success('重置成功');
             }
         } catch (Throwable $e) {
@@ -275,6 +283,8 @@ class AdminController extends AdminBase
 
         try {
             Admin::whereIn('id', $ids)->update(['status' => $status]);
+            $statusText = $status ? '启用' : '禁用';
+            $this->adminLog("批量{$statusText}管理员，ID列表：" . json_encode($ids));
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
         }

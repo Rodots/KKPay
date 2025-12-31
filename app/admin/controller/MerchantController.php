@@ -8,6 +8,8 @@ use app\model\Merchant;
 use app\model\MerchantEncryption;
 use app\model\MerchantLog;
 use app\model\MerchantPayee;
+use app\model\PaymentChannel;
+use app\model\PaymentChannelAccount;
 use Core\baseController\AdminBase;
 use Core\Service\OrderService;
 use SodiumException;
@@ -140,7 +142,8 @@ class MerchantController extends AdminBase
                 'password.min'     => '密码不能少于6位'
             ])->check($params);
 
-            Merchant::createMerchant($params);
+            $merchant = Merchant::createMerchant($params);
+            $this->adminLog("创建新商户【{$merchant->merchant_number}】");
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
         }
@@ -187,6 +190,7 @@ class MerchantController extends AdminBase
             ])->check($params);
 
             Merchant::updateMerchant($user->id, $params);
+            $this->adminLog("编辑商户【{$user->merchant_number}】的基本信息");
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
         }
@@ -214,6 +218,7 @@ class MerchantController extends AdminBase
 
         try {
             $user->delete();
+            $this->adminLog("删除商户【{$user->merchant_number}】");
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
         }
@@ -241,6 +246,8 @@ class MerchantController extends AdminBase
         if (!$user->save()) {
             return $this->fail('修改失败');
         }
+        $statusText = $status ? '启用' : '禁用';
+        $this->adminLog("{$statusText}商户【{$user->merchant_number}】");
         return $this->success('修改成功');
     }
 
@@ -264,6 +271,8 @@ class MerchantController extends AdminBase
         if (!$merchant->save()) {
             return $this->fail('修改失败');
         }
+        $statusText = $status ? '开启' : '关闭';
+        $this->adminLog("{$statusText}商户【{$merchant->merchant_number}】的风控状态");
         return $this->success('修改成功');
     }
 
@@ -282,7 +291,12 @@ class MerchantController extends AdminBase
         }
 
         try {
+            $merchant = Merchant::find($id, ['id', 'merchant_number']);
+            if (!$merchant) {
+                return $this->fail('商户不存在');
+            }
             if (Merchant::resetPassword($id, $password)) {
+                $this->adminLog("重置商户【{$merchant->merchant_number}】的登录密码");
                 return $this->success('重置成功');
             }
         } catch (Throwable $e) {
@@ -347,7 +361,8 @@ class MerchantController extends AdminBase
 
         try {
             OrderService::retryFailedSettlements($days, $id);
-            $this->adminLog('手动为商户【' . $id . '】重试结算失败的订单');
+            $merchant_number = Merchant::where('id', $id)->value('merchant_number');
+            $this->adminLog("手动为商户【{$merchant_number}】重试结算失败的订单");
         } catch (Throwable $e) {
             return $this->fail('操作失败：' . $e->getMessage());
         }
@@ -372,6 +387,8 @@ class MerchantController extends AdminBase
 
         try {
             Merchant::whereIn('id', $ids)->update(['status' => $status]);
+            $statusText = $status ? '启用' : '禁用';
+            $this->adminLog("批量{$statusText}商户，ID列表：" . json_encode($ids));
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
         }
@@ -921,12 +938,12 @@ class MerchantController extends AdminBase
         }
 
         // 获取所有可用通道
-        $channels = \app\model\PaymentChannel::where('status', true)->select(['id', 'code', 'name', 'payment_type', 'rate'])->get();
+        $channels = PaymentChannel::where('status', true)->select(['id', 'code', 'name', 'payment_type', 'rate'])->get();
 
         $result = [];
         foreach ($channels as $channel) {
             // 获取该通道下所有子账户
-            $accounts = \app\model\PaymentChannelAccount::where('payment_channel_id', $channel->id)->where('status', true)->select(['id', 'name', 'rate'])->get();
+            $accounts = PaymentChannelAccount::where('payment_channel_id', $channel->id)->where('status', true)->select(['id', 'name', 'rate'])->get();
 
             // 检查商户是否配置了该通道
             $isConfigured  = isset($configuredMap[$channel->id]);
@@ -1005,7 +1022,7 @@ class MerchantController extends AdminBase
                 }
 
                 // 验证通道是否存在
-                $channel = \app\model\PaymentChannel::find($channelData['channel_id']);
+                $channel = PaymentChannel::find($channelData['channel_id']);
                 if (!$channel) {
                     return $this->fail("通道ID {$channelData['channel_id']} 不存在");
                 }
@@ -1031,7 +1048,7 @@ class MerchantController extends AdminBase
                         }
 
                         // 验证子账户是否存在且属于该通道
-                        $account = \app\model\PaymentChannelAccount::where('id', $accountData['account_id'])->where('payment_channel_id', $channel->id)->first();
+                        $account = PaymentChannelAccount::where('id', $accountData['account_id'])->where('payment_channel_id', $channel->id)->first();
                         if (!$account) {
                             return $this->fail("子账户ID {$accountData['account_id']} 不存在或不属于该通道");
                         }
