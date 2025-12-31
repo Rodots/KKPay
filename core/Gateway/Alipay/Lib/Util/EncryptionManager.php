@@ -1,13 +1,13 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
-namespace Gateway\Alipay\Util;
+namespace Core\Gateway\Alipay\Lib\Util;
 
 use Exception;
-use Gateway\Alipay\AlipayConfig;
+use Core\Gateway\Alipay\Lib\AlipayConfig;
 
-use Gateway\Alipay\Trait\CryptoUtilTrait;
+use Core\Gateway\Alipay\Lib\Trait\CryptoUtilTrait;
 use Throwable;
 
 /**

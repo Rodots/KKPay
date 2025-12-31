@@ -1,8 +1,8 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
-namespace Gateway\Alipay\Trait;
+namespace Core\Gateway\Alipay\Lib\Trait;
 
 /**
  * HTTP 头部处理辅助特征

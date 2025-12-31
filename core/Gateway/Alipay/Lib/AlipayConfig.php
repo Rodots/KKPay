@@ -1,8 +1,8 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
-namespace Gateway\Alipay;
+namespace Core\Gateway\Alipay\Lib;
 
 /**
  * 支付宝配置对象（只读 DTO）

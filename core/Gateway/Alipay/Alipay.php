@@ -1,10 +1,10 @@
 <?php
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace Core\Gateway\Alipay;
 
 use Core\Gateway\AbstractGateway;
-use Gateway\Alipay\Factory;
+use Core\Gateway\Alipay\Lib\Factory;
 use Throwable;
 
 /**

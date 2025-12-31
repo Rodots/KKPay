@@ -1,11 +1,11 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
-namespace Gateway\Alipay;
+namespace Core\Gateway\Alipay\Lib;
 
 use Exception;
-use Gateway\Alipay\Util\ConfigManager;
+use Core\Gateway\Alipay\Lib\Util\ConfigManager;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use JsonException;

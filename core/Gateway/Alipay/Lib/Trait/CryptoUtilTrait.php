@@ -1,8 +1,8 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
-namespace Gateway\Alipay\Trait;
+namespace Core\Gateway\Alipay\Lib\Trait;
 
 /**
  * 加密辅助工具特征

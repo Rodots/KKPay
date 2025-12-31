@@ -1,10 +1,11 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
-namespace Gateway\Alipay\Util;
+namespace Core\Gateway\Alipay\Lib\Util;
 
-use Gateway\Alipay\AlipayConfig;
+use Core\Gateway\Alipay\Lib\AlipayConfig;
+use Exception;
 
 /**
  * 证书管理器
@@ -92,7 +93,7 @@ readonly class CertificateManager
     /**
      * 获取应用公钥证书序列号
      *
-     * @throws \Exception 当无法读取证书文件时抛出
+     * @throws Exception 当无法读取证书文件时抛出
      */
     public function getAppCertSerialNumber(): ?string
     {
@@ -102,7 +103,7 @@ readonly class CertificateManager
 
         $content = file_get_contents($this->config->appCertPath);
         if ($content === false) {
-            throw new \Exception("无法读取证书文件：{$this->config->appCertPath}", 400);
+            throw new Exception("无法读取证书文件：{$this->config->appCertPath}", 400);
         }
 
         return self::extractSerialNumber($content);
@@ -111,7 +112,7 @@ readonly class CertificateManager
     /**
      * 获取根证书序列号集合
      *
-     * @throws \Exception 当无法读取证书文件时抛出
+     * @throws Exception 当无法读取证书文件时抛出
      */
     public function getRootCertSerialNumber(): ?string
     {
@@ -121,7 +122,7 @@ readonly class CertificateManager
 
         $content = file_get_contents($this->config->rootCertPath);
         if ($content === false) {
-            throw new \Exception("无法读取证书文件：{$this->config->rootCertPath}", 400);
+            throw new Exception("无法读取证书文件：{$this->config->rootCertPath}", 400);
         }
 
         return self::extractRootCertSerialNumbers($content);
@@ -130,18 +131,18 @@ readonly class CertificateManager
     /**
      * 加载支付宝公钥证书并返回其序列号
      *
-     * @throws \Exception 当无法从证书中提取序列号或公钥时抛出
+     * @throws Exception 当无法从证书中提取序列号或公钥时抛出
      */
     public function loadAlipayPublicKeyCert(string $certContent): string
     {
         $serialNumber = self::extractSerialNumber($certContent);
         if ($serialNumber === null) {
-            throw new \Exception('无法从证书中提取序列号', 400);
+            throw new Exception('无法从证书中提取序列号', 400);
         }
 
         $publicKey = self::extractPublicKey($certContent);
         if ($publicKey === null) {
-            throw new \Exception('无法从证书中提取公钥', 400);
+            throw new Exception('无法从证书中提取公钥', 400);
         }
 
         return $serialNumber;

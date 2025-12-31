@@ -1,11 +1,12 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
-namespace Gateway\Alipay\Util;
+namespace Core\Gateway\Alipay\Lib\Util;
 
+use CURLFile;
 use Exception;
-use Gateway\Alipay\AlipayConfig;
+use Core\Gateway\Alipay\Lib\AlipayConfig;
 
 /**
  * 非对称签名管理器（RSA-SHA256）
@@ -146,7 +147,7 @@ readonly class SignatureManager
         $pairs = [];
 
         foreach ($params as $key => $value) {
-            if ($value instanceof \CURLFile || $this->isEmpty($value) || str_starts_with((string)$value, '@')) continue;
+            if ($value instanceof CURLFile || $this->isEmpty($value) || str_starts_with((string)$value, '@')) continue;
             $pairs[] = "$key=$value";
         }
 

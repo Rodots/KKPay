@@ -29,8 +29,7 @@
     "psr-4": {
       "app\\": "app/",
       "Core\\": "core/",
-      "support\\": "support/",
-      "Gateway\\": "support/Gateway/"
+      "support\\": "support/"
     }
   },
   "scripts": {
