@@ -24,15 +24,10 @@ function sys_config(string $group = 'all', ?string $key = null, mixed $default =
         $value = Cache::get($cacheKey);
 
         if ($value !== null) {
-            // 如果缓存存在且不需要特定key，直接返回
             if ($key === null) {
                 return $value;
             }
-
-            // 如果需要特定key，检查缓存中是否存在
-            if (isset($value[$key])) {
-                return $value[$key];
-            }
+            return $value[$key] ?? $default;
         }
 
         // 从数据库查询
