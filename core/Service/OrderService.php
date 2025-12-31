@@ -10,6 +10,7 @@ use app\model\MerchantWalletRecord;
 use app\model\Order;
 use app\model\OrderBuyer;
 use Carbon\Carbon;
+use Core\Service\RiskService;
 use Core\Utils\SignatureUtil;
 use Exception;
 use support\Log;
@@ -110,7 +111,10 @@ class OrderService
                     'user_agent'    => 0,
                     'user_id'       => 0,
                     'buyer_open_id' => 0,
-                    'mobile'        => 0
+                    'real_name'     => 0,
+                    'cert_no'       => 0,
+                    'cert_type'     => 0,
+                    'mobile'        => 0,
                 ]);
                 if (!empty($filteredBuyer)) {
                     OrderBuyer::where('trade_no', $order->trade_no)->update($filteredBuyer);
@@ -159,7 +163,22 @@ class OrderService
 
             // 如果是异步通知则同步通知下游
             if ($isAsync) {
-                self::sendAsyncNotification($trade_no, $order);
+                $shouldNotify = true;
+
+                // 当 ip、user_id、buyer_open_id 任一项存在时，检查是否需要进行黑名单校验
+                if (!empty($buyer['ip']) || !empty($buyer['user_id']) || !empty($buyer['buyer_open_id'])) {
+                    // 判断系统配置是否启用黑名单风控
+                    if (sys_config('payment', 'blacklist_order_action') === '1') {
+                        // 检查买家是否命中黑名单
+                        if (RiskService::checkPaymentBlacklist($order->merchant_id, $trade_no, $buyer['ip'], $buyer['user_id'], $buyer['buyer_open_id'])) {
+                            $shouldNotify = false;
+                        }
+                    }
+                }
+
+                if ($shouldNotify) {
+                    self::sendAsyncNotification($trade_no, $order);
+                }
             }
 
             Db::commit();

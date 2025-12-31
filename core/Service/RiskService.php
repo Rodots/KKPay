@@ -63,6 +63,22 @@ class RiskService
     }
 
     /**
+     * 检查支付渠道买家账户是否在黑名单中
+     */
+    public static function checkBuyerOpenIdBlacklist(string $buyerOpenId, int $merchantId, ?string $tradeNo = null): bool
+    {
+        $isBlack = self::checkBlacklist(Blacklist::ENTITY_TYPE_USER_ID, $buyerOpenId);
+        if ($isBlack) {
+            RiskLog::create([
+                'merchant_id' => $merchantId,
+                'type'        => RiskLog::TYPE_BLACKLIST,
+                'content'     => "发现支付账户“{$buyerOpenId}”为高风险用户，已成功拦截该用户" . ($tradeNo ? "对订单{$tradeNo}进行付款的通知。" : '创建订单。')
+            ]);
+        }
+        return $isBlack;
+    }
+
+    /**
      * 检查手机号是否在黑名单中
      */
     public static function checkMobileBlacklist(string $mobile, int $merchantId, ?string $tradeNo = null): bool
@@ -124,6 +140,91 @@ class RiskService
             ]);
         }
         return $isBlack;
+    }
+
+    /**
+     * 支付成功时检查买家是否在黑名单中
+     *
+     * @param int         $merchantId  商户ID
+     * @param string      $tradeNo     交易号
+     * @param string|null $ip          买家IP
+     * @param string|null $userId      用户ID
+     * @param string|null $buyerOpenId 支付渠道买家账户
+     * @return bool 命中黑名单返回true，否则返回false
+     */
+    public static function checkPaymentBlacklist(int $merchantId, string $tradeNo, ?string $ip = null, ?string $userId = null, ?string $buyerOpenId = null): bool
+    {
+        // 检查IP黑名单
+        if (!empty($ip) && self::checkBlacklist(Blacklist::ENTITY_TYPE_IP_ADDRESS, $ip)) {
+            RiskLog::create([
+                'merchant_id' => $merchantId,
+                'type'        => RiskLog::TYPE_BLACKLIST,
+                'content'     => "支付成功通知：经系统校验，IP地址“{$ip}”已被列入管控名单，已拦截订单{$tradeNo}的下游通知。"
+            ]);
+            return true;
+        }
+
+        // 检查用户ID黑名单
+        if (!empty($userId) && self::checkBlacklist(Blacklist::ENTITY_TYPE_USER_ID, $userId)) {
+            RiskLog::create([
+                'merchant_id' => $merchantId,
+                'type'        => RiskLog::TYPE_BLACKLIST,
+                'content'     => "支付成功通知：发现用户ID“{$userId}”为高风险用户，已拦截订单{$tradeNo}的下游通知。"
+            ]);
+            return true;
+        }
+
+        // 检查支付渠道买家账户黑名单
+        if (!empty($buyerOpenId) && self::checkBlacklist(Blacklist::ENTITY_TYPE_USER_ID, $buyerOpenId)) {
+            RiskLog::create([
+                'merchant_id' => $merchantId,
+                'type'        => RiskLog::TYPE_BLACKLIST,
+                'content'     => "支付成功通知：发现支付账户“{$buyerOpenId}”为高风险用户，已拦截订单{$tradeNo}的下游通知。"
+            ]);
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * 创建订单时的综合风控检查
+     *
+     * @param int   $merchantId 商户ID
+     * @param array $buyer      买家信息数组，包含 ip, user_id, cert_no, cert_type, mobile 等字段
+     * @return string|null 返回错误信息字符串，或 null 表示通过检查
+     */
+    public static function checkCreateOrderRisk(int $merchantId, array $buyer): ?string
+    {
+        $ip       = $buyer['ip'] ?? null;
+        $userId   = $buyer['user_id'] ?? null;
+        $certNo   = $buyer['cert_no'] ?? null;
+        $certType = $buyer['cert_type'] ?? null;
+        $mobile   = $buyer['mobile'] ?? null;
+
+        // 黑名单检查
+        if (!empty($ip) && self::checkIpBlacklist($ip, $merchantId)) {
+            return '系统异常，无法完成付款';
+        }
+        if (!empty($userId) && self::checkUserIdBlacklist($userId, $merchantId)) {
+            return '系统异常，无法完成付款';
+        }
+        if (!empty($certNo) && $certType === OrderBuyer::CERT_TYPE_IDENTITY_CARD && self::checkIdCardBlacklist($certNo, $merchantId)) {
+            return '系统异常，无法完成付款';
+        }
+        if (!empty($mobile) && self::checkMobileBlacklist($mobile, $merchantId)) {
+            return '系统异常，无法完成付款';
+        }
+
+        // 订单限制检查
+        if (!empty($ip) && self::checkIpOrderLimit($ip)) {
+            return '今日支付次数已达上限，请明日再试';
+        }
+        if (self::checkAccountOrderLimit($userId)) {
+            return '今日支付次数已达上限，请明日再试';
+        }
+
+        return null;
     }
 
     /**
@@ -246,7 +347,7 @@ class RiskService
         }
 
         $todayStart = Carbon::today()->timezone(config('app.default_timezone'));
-        $count = OrderBuyer::where('ip', $ip)
+        $count      = OrderBuyer::where('ip', $ip)
             ->where('created_at', '>=', $todayStart)
             ->count();
 
@@ -271,7 +372,7 @@ class RiskService
         }
 
         $todayStart = Carbon::today()->timezone(config('app.default_timezone'));
-        $count = OrderBuyer::where('user_id', $userId)
+        $count      = OrderBuyer::where('user_id', $userId)
             ->where('created_at', '>=', $todayStart)
             ->count();
 

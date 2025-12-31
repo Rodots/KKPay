@@ -35,13 +35,9 @@ class PayController extends ApiBase
             return $this->pageMsg($bizContent);
         }
 
-        // 风控检查
-        if (RiskService::checkIpBlacklist($bizContent['buyer']['ip'], $request->merchant->id)) {
-            return $this->pageMsg('系统异常，无法完成付款');
-        }
-        // IP每日订单限制检查
-        if (RiskService::checkIpOrderLimit($bizContent['buyer']['ip'])) {
-            return $this->pageMsg('今日支付次数已达上限，请明日再试');
+        // 综合风控检查（黑名单 + 订单限制）
+        if ($riskError = RiskService::checkCreateOrderRisk($request->merchant->id, $bizContent['buyer'])) {
+            return $this->pageMsg($riskError);
         }
 
         try {
@@ -88,13 +84,9 @@ class PayController extends ApiBase
             return $this->fail($bizContent);
         }
 
-        // 风控检查
-        if (RiskService::checkIpBlacklist($bizContent['buyer']['ip'], $request->merchant->id)) {
-            return $this->fail('系统异常，无法完成付款');
-        }
-        // IP每日订单限制检查
-        if (RiskService::checkIpOrderLimit($bizContent['buyer']['ip'])) {
-            return $this->fail('今日支付次数已达上限，请明日再试');
+        // 综合风控检查（黑名单 + 订单限制）
+        if ($riskError = RiskService::checkCreateOrderRisk($request->merchant->id, $bizContent['buyer'])) {
+            return $this->fail($riskError);
         }
 
         try {
