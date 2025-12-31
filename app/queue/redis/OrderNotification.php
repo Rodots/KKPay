@@ -1,12 +1,13 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace app\queue\redis;
 
 use app\model\MerchantEncryption;
 use app\model\Order;
 use app\model\OrderNotification as OrderNotificationModel;
+use Core\Utils\ProxyHelper;
 use Core\Utils\SignatureUtil;
 use GuzzleHttp\Client;
 use support\Rodots\Functions\Uuid;
@@ -36,7 +37,7 @@ class OrderNotification implements Consumer
         }
 
         $tradeNo = $data['trade_no'];
-        $order = Order::where([['trade_no', '=', $tradeNo], ['notify_retry_count', '<', 7]])->whereIn('notify_state', [Order::NOTIFY_STATE_WAITING, Order::NOTIFY_STATE_FAILED])->lockForUpdate()->first(['trade_no', 'merchant_id', 'notify_url', 'notify_state', 'notify_retry_count', 'notify_next_retry_time']);
+        $order   = Order::where([['trade_no', '=', $tradeNo], ['notify_retry_count', '<', 7]])->whereIn('notify_state', [Order::NOTIFY_STATE_WAITING, Order::NOTIFY_STATE_FAILED])->lockForUpdate()->first(['trade_no', 'merchant_id', 'notify_url', 'notify_state', 'notify_retry_count', 'notify_next_retry_time']);
 
         if (!$order) {
             return;
@@ -109,7 +110,7 @@ class OrderNotification implements Consumer
         $response  = $this->sendHttp($notify_url, $fullData, $headers);
         $duration  = (int)((microtime(true) - $startTime) * 1000); // 计算请求耗时（毫秒）
 
-        $notification->trade_no = $data['trade_no'];
+        $notification->trade_no         = $data['trade_no'];
         $notification->status           = $response === 'success';
         $notification->request_duration = $duration;
         $notification->response_content = mb_substr($response, 0, 2048, 'utf-8');
@@ -126,9 +127,8 @@ class OrderNotification implements Consumer
      */
     private function sendHttp(string $url, array $params = [], array $headers = []): string
     {
-        $client = new Client([
-            'timeout' => 8
-        ]);
+        $clientConfig = array_merge(['timeout' => 8], ProxyHelper::getGuzzleProxyConfig());
+        $client       = new Client($clientConfig);
 
         try {
             $response = $client->request('POST', $url, [

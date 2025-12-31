@@ -6,6 +6,7 @@ namespace app\queue\redis;
 
 use app\model\Order;
 use app\model\OrderNotification as OrderNotificationModel;
+use Core\Utils\ProxyHelper;
 use GuzzleHttp\Client;
 use support\Rodots\Functions\Uuid;
 use Throwable;
@@ -67,9 +68,8 @@ class OrderNotificationManual implements Consumer
      */
     private function sendHttp(string $url, array $params = [], array $headers = []): string
     {
-        $client = new Client([
-            'timeout' => 8
-        ]);
+        $clientConfig = array_merge(['timeout' => 8], ProxyHelper::getGuzzleProxyConfig());
+        $client       = new Client($clientConfig);
 
         try {
             $response = $client->request('POST', $url, [
