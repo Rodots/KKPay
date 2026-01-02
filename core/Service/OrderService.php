@@ -276,14 +276,14 @@ class OrderService
     /**
      * 构建同步通知参数
      *
-     * @param array $order 订单数据（包含['trade_no', 'out_trade_no', 'bill_trade_no', 'merchant_id', 'total_amount', 'attach', 'trade_state', 'return_url', 'create_time', 'payment_time', 'sign_type']）
+     * @param array $order 订单数据（包含['trade_no', 'out_trade_no', 'bill_trade_no', 'merchant_id', 'total_amount','buyer_pay_amount', 'attach', 'trade_state', 'return_url', 'create_time', 'payment_time', 'sign_type']）
      * @return string
      * @throws Exception
      */
     public static function buildSyncNotificationParams(array $order): string
     {
         // 过滤$order数组，只保留必要参数
-        $params = array_intersect_key($order, ['trade_no' => 0, 'out_trade_no' => 0, 'bill_trade_no' => 0, 'total_amount' => 0, 'attach' => 0, 'trade_state' => 0, 'create_time' => 0, 'payment_time' => 0, 'sign_type' => 0]);
+        $params = array_intersect_key($order, ['trade_no' => 0, 'out_trade_no' => 0, 'bill_trade_no' => 0, 'total_amount' => 0, 'buyer_pay_amount' => 0, 'attach' => 0, 'trade_state' => 0, 'create_time' => 0, 'payment_time' => 0, 'sign_type' => 0]);
 
         // 添加当前请求时间戳
         $params['timestamp'] = time();
