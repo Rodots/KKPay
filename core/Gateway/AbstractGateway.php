@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace Core\Gateway;
 
@@ -41,12 +41,17 @@ abstract class AbstractGateway
     }
 
     /**
-     * 核心支付方法 - 必须实现
+     * 【统一收单交易支付】核心方法 - 必须实现
      */
-    abstract public static function submit(array $items): array;
+    abstract public static function unified(array $items): array;
 
     /**
-     * 核心通知方法 - 必须实现
+     * 【页面跳转支付】核心方法 - 必须实现
+     */
+    abstract public static function page(array $items): array;
+
+    /**
+     * 【异步通知处理】核心方法 - 必须实现
      */
     abstract public static function notify(array $items): array;
 

@@ -103,7 +103,7 @@ class PaymentExtensionController
 
             $paymentResult = PaymentGatewayUtil::loadGateway($gateway, $method, $items);
 
-            return PaymentService::echoSubmit($paymentResult, $orderData);
+            return PaymentService::echoPage($paymentResult, $orderData);
         } catch (Throwable $e) {
             Log::error('支付拓展方法加载异常', [
                 'method'   => $method,

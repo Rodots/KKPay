@@ -18,12 +18,46 @@ use Throwable;
  */
 class PaymentService
 {
+    // 接口类型枚举
+    const string METHOD_WEB         = 'web';         // 通用网页支付（根据device自动返回跳转url/二维码/小程序跳转url等）
+    const string METHOD_REDIRECT    = 'redirect';    // 跳转支付（仅返回跳转url）
+    const string METHOD_JSAPI       = 'jsapi';       // JSAPI支付（小程序内支付，需传入sub_openid和sub_appid）
+    const string METHOD_APP         = 'app';         // APP支付（iOS/安卓APP内支付）
+    const string METHOD_SCAN        = 'scan';        // 付款码支付（需传入auth_code）
+    const string METHOD_MINIPROGRAM = 'miniprogram'; // 小程序支付（返回小程序插件参数或跳转小程序参数）
+
+    /**
+     * 检查传入的接口类型是否合法
+     */
+    public static function checkMethod(?string $method): bool
+    {
+        if ($method === null) {
+            return true;
+        }
+
+        return in_array($method, [
+            self::METHOD_WEB,
+            self::METHOD_REDIRECT,
+            self::METHOD_JSAPI,
+            self::METHOD_APP,
+            self::METHOD_SCAN,
+            self::METHOD_MINIPROGRAM,
+        ]);
+    }
+
     /**
      * 发起支付
      *
+     * @param array                 $order                 订单数据
+     * @param PaymentChannelAccount $paymentChannelAccount 支付通道账户
+     * @param OrderBuyer            $orderBuyer            订单买家
+     * @param string                $mode                  支付模式
+     * @param string                $method                接口类型
+     * @param array                 $extraParams           接口类型相关的额外参数
+     * @return array
      * @throws PaymentException
      */
-    public static function initiatePayment(array $order, PaymentChannelAccount $paymentChannelAccount, OrderBuyer $orderBuyer, string $mode = 'submit'): array
+    public static function initiatePayment(array $order, PaymentChannelAccount $paymentChannelAccount, OrderBuyer $orderBuyer, string $mode = 'submit', string $method = 'web', array $extraParams = []): array
     {
         try {
             // 获取支付通道信息
@@ -42,9 +76,15 @@ class PaymentService
                 'channel'    => $paymentChannelAccount->config,
                 'buyer'      => $orderBuyer->toArray(),
                 'subject'    => $subject,
+                'method'     => $method,
                 'return_url' => site_url("pay/return/{$order['trade_no']}.html"),
                 'notify_url' => empty($notify_url) ? site_url("pay/notify/{$order['trade_no']}.html") : $notify_url . "pay/notify/{$order['trade_no']}.html",
             ];
+
+            // 合并接口类型相关的额外参数
+            if (!empty($extraParams)) {
+                $items = array_merge($items, $extraParams);
+            }
 
             // 加载网关
             return PaymentGatewayUtil::loadGateway($paymentChannel->gateway, $mode, $items);
@@ -60,46 +100,7 @@ class PaymentService
     }
 
     /**
-     * 响应提交结果
-     *
-     * @throws PaymentException
-     */
-    public static function echoSubmit(array $result, array $order): Response
-    {
-        $type = $result['type'] ?? '';
-        if (!$type) {
-            throw new PaymentException('支付网关返回了未知的处理类型');
-        }
-        switch ($type) {
-            case 'redirect': //跳转
-                $url       = htmlspecialchars($result['url'] ?? '', ENT_QUOTES, 'UTF-8');
-                $html_text = '<script>window.location.replace(\'' . $url . '\');</script>';
-                return self::redirectTemplate($html_text);
-            case 'html': //显示HTML
-                $html_text = $result['data'] ?? '';
-                if (isset($result['template']) && $result['template'] && str_starts_with($html_text, '<form ')) {
-                    return self::redirectTemplate($html_text);
-                } else {
-                    return new Response(200, ['Content-Type' => 'text/html; charset=utf-8', 'Cache-Control' => 'no-cache'], $html_text);
-                }
-            case 'json': //显示JSON
-                return json($result['data'] ?? []);
-            case 'page': //显示指定页面
-                $page = $result['page'] ?? '404';
-                try {
-                    return raw_view("/app/api/view/pay_page/$page", array_merge($result['data'] ?? [], ['order' => $order]));
-                } catch (Throwable $e) {
-                    Log::error($e->getTraceAsString());
-                    throw new PaymentException("页面不存在: $page");
-                }
-            case 'error': //错误提示
-            default:
-                throw new PaymentException($result['message'] ?? '未知错误');
-        }
-    }
-
-    /**
-     * 响应提交结果
+     * 响应提交结果（统一收单交易支付，只输出JSON）
      *
      * @throws PaymentException
      */
@@ -140,6 +141,45 @@ class PaymentService
                 break;
         }
         return $json;
+    }
+
+    /**
+     * 响应提交结果（页面跳转支付，默认输出可视化界面）
+     *
+     * @throws PaymentException
+     */
+    public static function echoPage(array $result, array $order): Response
+    {
+        $type = $result['type'] ?? '';
+        if (!$type) {
+            throw new PaymentException('支付网关返回了未知的处理类型');
+        }
+        switch ($type) {
+            case 'redirect': //跳转
+                $url       = htmlspecialchars($result['url'] ?? '', ENT_QUOTES, 'UTF-8');
+                $html_text = '<script>window.location.replace(\'' . $url . '\');</script>';
+                return self::redirectTemplate($html_text);
+            case 'html': //显示HTML
+                $html_text = $result['data'] ?? '';
+                if (isset($result['template']) && $result['template'] && str_starts_with($html_text, '<form ')) {
+                    return self::redirectTemplate($html_text);
+                } else {
+                    return new Response(200, ['Content-Type' => 'text/html; charset=utf-8', 'Cache-Control' => 'no-cache'], $html_text);
+                }
+            case 'json': //显示JSON
+                return json($result['data'] ?? []);
+            case 'page': //显示指定页面
+                $page = $result['page'] ?? '404';
+                try {
+                    return raw_view("/app/api/view/pay_page/$page", array_merge($result['data'] ?? [], ['order' => $order]));
+                } catch (Throwable $e) {
+                    Log::error($e->getTraceAsString());
+                    throw new PaymentException("页面不存在: $page");
+                }
+            case 'error': //错误提示
+            default:
+                throw new PaymentException($result['message'] ?? '未知错误');
+        }
     }
 
     /**

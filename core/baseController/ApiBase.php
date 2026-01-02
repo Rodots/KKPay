@@ -41,11 +41,11 @@ class ApiBase
 
         $decoded = base64_decode($content, true);
         if ($decoded === false) {
-            return '业务参数base64解码失败';
+            return '业务参数(biz_content)进行base64解码失败';
         }
 
         if (!json_validate($decoded)) {
-            return '业务参数非JSON格式';
+            return '业务参数(biz_content)非JSON格式';
         }
 
         return json_decode($decoded, true);
@@ -61,9 +61,9 @@ class ApiBase
      * 4. 字符串自动 trim
      * 5. 空字符串根据 $allowEmpty 决定是否返回 null
      *
-     * @param array $data 数据源
-     * @param string $key 键名
-     * @param bool $allowEmpty 是否允许空字符串（false时空字符串转null）
+     * @param array  $data       数据源
+     * @param string $key        键名
+     * @param bool   $allowEmpty 是否允许空字符串（false时空字符串转null）
      * @return string|null
      */
     protected function getString(array $data, string $key, bool $allowEmpty = false): ?string
@@ -95,8 +95,8 @@ class ApiBase
      * 1. 自动转为字符串格式
      * 2. 非数字或空值返回默认值
      *
-     * @param array $data 数据源
-     * @param string $key 键名
+     * @param array  $data    数据源
+     * @param string $key     键名
      * @param string $default 默认值
      * @return string
      */
@@ -123,9 +123,9 @@ class ApiBase
     /**
      * 获取整数参数
      *
-     * @param array $data 数据源
-     * @param string $key 键名
-     * @param int $default 默认值
+     * @param array  $data    数据源
+     * @param string $key     键名
+     * @param int    $default 默认值
      * @return int
      */
     protected function getInt(array $data, string $key, int $default = 0): int

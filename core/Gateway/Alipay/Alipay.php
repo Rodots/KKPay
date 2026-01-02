@@ -86,11 +86,24 @@ class Alipay extends AbstractGateway
     ];
 
     /**
+     * 统一收单交易支付
+     * @param array $items
+     * @return array
+     */
+    public static function unified(array $items): array
+    {
+        $order         = $items['order'];
+        $payment_types = $items['channel']['payment_types'];
+
+        return ['type' => 'error', 'message' => '暂未匹配到可用的支付产品，请选择其他支付方式或稍后重试！'];
+    }
+
+    /**
      * 页面跳转支付
      * @param array $items
      * @return array
      */
-    public static function submit(array $items): array
+    public static function page(array $items): array
     {
         $order         = $items['order'];
         $payment_types = $items['channel']['payment_types'];

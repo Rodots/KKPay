@@ -24,10 +24,69 @@ use Throwable;
 class PayController extends ApiBase
 {
     /**
+     * 统一收单交易支付接口
+     * 仅接收POST JSON请求，返回JSON格式响应
+     *
+     * @param Request $request 请求对象（包含中间件注入的 merchant 和 verifiedParams）
+     * @return Response JSON格式响应
+     */
+    public function index(Request $request): Response
+    {
+        // 解析业务参数
+        $bizContent = $this->parsePayBizContent($request);
+        if (is_string($bizContent)) {
+            return $this->fail($bizContent);
+        }
+
+        // 综合风控检查
+        if ($riskError = RiskService::checkCreateOrderRisk($request->merchant->id, $bizContent['buyer'])) {
+            return $this->fail($riskError);
+        }
+
+        try {
+            // 验证业务参数
+            $validationResult = $this->validateBizContent($bizContent, true);
+            if ($validationResult !== true) {
+                return $this->fail($validationResult);
+            }
+
+            // 创建订单
+            [$order, $paymentChannelAccount, $orderBuyer] = OrderCreationService::createOrder($bizContent, $request->merchant);
+
+            // 获取接口类型
+            $method = $bizContent['method'];
+            $order  = $order->toArray();
+
+            // 如果是 redirect 类型，直接返回跳转链接，不调用网关
+            if ($method === 'redirect') {
+                return $this->success([
+                    'pay_type' => 'redirect',
+                    'pay_info' => site_url("pay/page/{$order['trade_no']}.html"),
+                ]);
+            }
+
+            // 构建额外参数（根据 method 类型）
+            $extraParams = $this->buildMethodExtraParams($bizContent);
+
+            // 发起支付
+            $paymentResult = PaymentService::initiatePayment($order, $paymentChannelAccount, $orderBuyer, 'create', $method, $extraParams);
+            // 处理网关支付数据
+            $echoJson = PaymentService::echoJson($paymentResult, $order);
+            return $this->success($echoJson);
+        } catch (PaymentException $e) {
+            Log::warning('[统一收单交易支付接口]失败:' . $e->getMessage());
+            return $this->fail($e->getMessage());
+        } catch (Throwable $e) {
+            Log::error('[统一收单交易支付接口]异常:' . $e->getMessage());
+            return $this->error('系统异常，请稍后重试');
+        }
+    }
+
+    /**
      * 页面跳转支付接口
      * 支持GET/POST表单，用于生成用户支付跳转链接
      */
-    public function submit(Request $request): Response
+    public function page(Request $request): Response
     {
         // 解析业务参数
         $bizContent = $this->parsePayBizContent($request, true);
@@ -35,7 +94,7 @@ class PayController extends ApiBase
             return $this->pageMsg($bizContent);
         }
 
-        // 综合风控检查（黑名单 + 订单限制）
+        // 综合风控检查
         if ($riskError = RiskService::checkCreateOrderRisk($request->merchant->id, $bizContent['buyer'])) {
             return $this->pageMsg($riskError);
         }
@@ -57,60 +116,15 @@ class PayController extends ApiBase
 
             // 发起支付
             $order         = $order->toArray();
-            $paymentResult = PaymentService::initiatePayment($order, $paymentChannelAccount, $orderBuyer);
+            $paymentResult = PaymentService::initiatePayment($order, $paymentChannelAccount, $orderBuyer, 'submit', 'web');
             // 处理网关支付数据
-            return PaymentService::echoSubmit($paymentResult, $order);
+            return PaymentService::echoPage($paymentResult, $order);
         } catch (PaymentException $e) {
             Log::warning('[页面跳转支付接口]失败:' . $e->getMessage());
             return $this->pageMsg($e->getMessage());
         } catch (Throwable $e) {
             Log::error('[页面跳转支付接口]异常:' . $e->getMessage());
             return $this->pageMsg('系统异常，请稍后重试');
-        }
-    }
-
-    /**
-     * 统一收单交易支付接口
-     * 仅接收POST JSON请求，返回JSON格式响应
-     *
-     * @param Request $request 请求对象（包含中间件注入的 merchant 和 verifiedParams）
-     * @return Response JSON格式响应
-     */
-    public function create(Request $request): Response
-    {
-        // 解析业务参数
-        $bizContent = $this->parsePayBizContent($request);
-        if (is_string($bizContent)) {
-            return $this->fail($bizContent);
-        }
-
-        // 综合风控检查（黑名单 + 订单限制）
-        if ($riskError = RiskService::checkCreateOrderRisk($request->merchant->id, $bizContent['buyer'])) {
-            return $this->fail($riskError);
-        }
-
-        try {
-            // 验证业务参数
-            $validationResult = $this->validateBizContent($bizContent, true);
-            if ($validationResult !== true) {
-                return $this->fail($validationResult);
-            }
-
-            // 创建订单
-            [$order, $paymentChannelAccount, $orderBuyer] = OrderCreationService::createOrder($bizContent, $request->merchant);
-
-            // 发起支付
-            $order         = $order->toArray();
-            $paymentResult = PaymentService::initiatePayment($order, $paymentChannelAccount, $orderBuyer);
-            // 处理网关支付数据
-            $echoJson = PaymentService::echoJson($paymentResult, $order);
-            return $this->success($echoJson);
-        } catch (PaymentException $e) {
-            Log::warning('[统一收单交易支付接口]失败:' . $e->getMessage());
-            return $this->fail($e->getMessage());
-        } catch (Throwable $e) {
-            Log::error('[统一收单交易支付接口]异常:' . $e->getMessage());
-            return $this->error('系统异常，请稍后重试');
         }
     }
 
@@ -153,6 +167,11 @@ class PayController extends ApiBase
             'payment_channel_code' => $this->getString($data, 'payment_channel_code'),
             'attach'               => $this->getString($data, 'attach'),
             'close_time'           => $closeTime,
+            'method'               => $useDefaults ? 'web' : $this->getString($data, 'method'),
+            // method相关的额外参数
+            'sub_openid'           => $useDefaults ? null : $this->getString($data, 'sub_openid'),
+            'sub_appid'            => $useDefaults ? null : $this->getString($data, 'sub_appid'),
+            'auth_code'            => $useDefaults ? null : $this->getString($data, 'auth_code'),
             'buyer'                => $this->parseBuyerData($buyerData, $request, $useDefaults),
         ];
     }
@@ -272,6 +291,30 @@ class PayController extends ApiBase
             return '附加参数(attach)长度不能超过128个字符';
         }
 
+        // 验证接口类型（仅统一收单交易支付接口需要，且为必传参数）
+        $method = $this->filterString($bizContent['method'] ?? null);
+        if ($isStrictMode) {
+            if (empty($method)) {
+                return '接口类型(method)缺失';
+            }
+            if (!PaymentService::checkMethod($method)) {
+                return '接口类型(method)不被允许，仅支持: web, redirect, jsapi, app, scan, miniprogram';
+            }
+            // 根据 method 类型验证额外必填参数
+            if ($method === 'jsapi') {
+                $subOpenid = $this->filterString($bizContent['sub_openid'] ?? null);
+                $subAppid  = $this->filterString($bizContent['sub_appid'] ?? null);
+                if (empty($subOpenid) || empty($subAppid)) {
+                    return 'JSAPI支付方式需要传入用户OpenID(sub_openid)和公众账号ID(sub_appid)参数';
+                }
+            } elseif ($method === 'scan') {
+                $authCode = $this->filterString($bizContent['auth_code'] ?? null);
+                if (empty($authCode)) {
+                    return '付款码支付方式需要传入支付授权码(auth_code)参数';
+                }
+            }
+        }
+
         // 验证买家IP
         $buyerIp = $this->filterString($bizContent['buyer']['ip'] ?? null);
         if ($isStrictMode && empty($buyerIp)) {
@@ -326,7 +369,6 @@ class PayController extends ApiBase
      */
     private function validateBuyerInfo(array $buyer): string|true
     {
-
         // 校验真实姓名
         $realName = $this->filterString($buyer['real_name'] ?? null);
         if ($realName !== null) {
@@ -358,8 +400,8 @@ class PayController extends ApiBase
 
         // 校验最小年龄
         $minAge = $buyer['min_age'] ?? 0;
-        if ($minAge !== 0 && ($minAge < 14 || $minAge > 120)) {
-            return '买家最小年龄(buyer.min_age)必须在14-120之间';
+        if ($minAge !== 0 && $minAge < 14) {
+            return '买家最小年龄(buyer.min_age)必须14岁以上';
         }
 
         // 校验手机号码
@@ -436,12 +478,6 @@ class PayController extends ApiBase
             return '身份证号码校验码错误';
         }
 
-        // 出生日期验证
-        $year = (int)substr($idCard, 6, 4);
-        if ($year < 1900 || $year > 2100) {
-            return '身份证号码出生日期不在合理范围内';
-        }
-
         return true;
     }
 
@@ -468,5 +504,31 @@ class PayController extends ApiBase
 
         // 如果过滤后为空字符串,返回null
         return $filtered === '' ? null : $filtered;
+    }
+
+    /**
+     * 构建接口类型相关的额外参数
+     *
+     * @param array $bizContent 业务参数
+     * @return array 额外参数数组
+     */
+    private function buildMethodExtraParams(array $bizContent): array
+    {
+        $method = $bizContent['method'] ?? 'web';
+        $params = [];
+
+        switch ($method) {
+            case 'jsapi':
+                // JSAPI支付需要 sub_openid 和 sub_appid
+                $params['sub_openid'] = $bizContent['sub_openid'] ?? null;
+                $params['sub_appid']  = $bizContent['sub_appid'] ?? null;
+                break;
+            case 'scan':
+                // 付款码支付需要 auth_code
+                $params['auth_code'] = $bizContent['auth_code'] ?? null;
+                break;
+        }
+
+        return $params;
     }
 }
