@@ -90,12 +90,13 @@ class PaymentExtensionController
             $notify_url = sys_config('system', 'notify_url');
 
             $items = [
-                'order'      => $orderData,
-                'channel'    => $paymentChannelAccount->config,
-                'buyer'      => OrderBuyer::where('trade_no', $order->trade_no)->first(['ip', 'user_agent', 'user_id', 'buyer_open_id', 'real_name', 'cert_no', 'cert_type', 'min_age', 'mobile']),
-                'subject'    => $subject,
-                'return_url' => site_url("pay/return/$order->trade_no.html"),
-                'notify_url' => empty($notify_url) ? site_url("pay/notify/$order->trade_no.html") : $notify_url . "pay/notify/$order->trade_no.html",
+                'isExtension' => true,
+                'order'       => $orderData,
+                'channel'     => $paymentChannelAccount->config,
+                'buyer'       => OrderBuyer::where('trade_no', $order->trade_no)->first(['ip', 'user_agent', 'user_id', 'buyer_open_id', 'real_name', 'cert_no', 'cert_type', 'min_age', 'mobile']),
+                'subject'     => $subject,
+                'return_url'  => site_url("pay/return/$order->trade_no.html"),
+                'notify_url'  => empty($notify_url) ? site_url("pay/notify/$order->trade_no.html") : $notify_url . "pay/notify/$order->trade_no.html",
             ];
             unset($order);
 

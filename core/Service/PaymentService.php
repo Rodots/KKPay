@@ -72,13 +72,14 @@ class PaymentService
             $notify_url = sys_config('system', 'notify_url');
 
             $items = [
-                'order'      => $order,
-                'channel'    => $paymentChannelAccount->config,
-                'buyer'      => $orderBuyer->toArray(),
-                'subject'    => $subject,
-                'method'     => $method,
-                'return_url' => site_url("pay/return/{$order['trade_no']}.html"),
-                'notify_url' => empty($notify_url) ? site_url("pay/notify/{$order['trade_no']}.html") : $notify_url . "pay/notify/{$order['trade_no']}.html",
+                'isExtension' => false,
+                'order'       => $order,
+                'channel'     => $paymentChannelAccount->config,
+                'buyer'       => $orderBuyer->toArray(),
+                'subject'     => $subject,
+                'method'      => $method,
+                'return_url'  => site_url("pay/return/{$order['trade_no']}.html"),
+                'notify_url'  => empty($notify_url) ? site_url("pay/notify/{$order['trade_no']}.html") : $notify_url . "pay/notify/{$order['trade_no']}.html",
             ];
 
             // 合并接口类型相关的额外参数
@@ -117,7 +118,7 @@ class PaymentService
                 break;
             case 'html': //显示HTML
                 $json['pay_type'] = 'html';
-                $json['pay_info'] = $result['data'] ?? '';
+                $json['pay_info'] = isset($result['data']) ? (is_array($result['data']) ? json_encode($result['data']) : $result['data']) : '';
                 break;
             case 'json': //显示JSON
                 $json['pay_type'] = 'json';
@@ -163,9 +164,8 @@ class PaymentService
                 $html_text = $result['data'] ?? '';
                 if (isset($result['template']) && $result['template'] && str_starts_with($html_text, '<form ')) {
                     return self::redirectTemplate($html_text);
-                } else {
-                    return new Response(200, ['Content-Type' => 'text/html; charset=utf-8', 'Cache-Control' => 'no-cache'], $html_text);
                 }
+                return new Response(200, ['Content-Type' => 'text/html; charset=utf-8', 'Cache-Control' => 'no-cache'], is_array($html_text) ? json_encode($html_text) : $html_text);
             case 'json': //显示JSON
                 return json($result['data'] ?? []);
             case 'page': //显示指定页面

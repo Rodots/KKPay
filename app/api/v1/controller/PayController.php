@@ -305,12 +305,12 @@ class PayController extends ApiBase
                 $subOpenid = $this->filterString($bizContent['sub_openid'] ?? null);
                 $subAppid  = $this->filterString($bizContent['sub_appid'] ?? null);
                 if (empty($subOpenid) || empty($subAppid)) {
-                    return 'JSAPI支付方式需要传入用户OpenID(sub_openid)和公众账号ID(sub_appid)参数';
+                    return '接口类型为jsapi时需要传入用户OpenID(sub_openid)和公众账号ID(sub_appid)参数';
                 }
             } elseif ($method === 'scan') {
                 $authCode = $this->filterString($bizContent['auth_code'] ?? null);
                 if (empty($authCode)) {
-                    return '付款码支付方式需要传入支付授权码(auth_code)参数';
+                    return '接口类型为scan时需要传入支付授权码(auth_code)参数';
                 }
             }
         }
