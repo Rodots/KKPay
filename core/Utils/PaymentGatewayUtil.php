@@ -1,11 +1,12 @@
 <?php
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace Core\Utils;
 
 use Core\Exception\PaymentException;
 use ReflectionClass;
 use ReflectionException;
+use ReflectionMethod;
 
 /**
  * 支付网关工具类
@@ -56,11 +57,15 @@ final class PaymentGatewayUtil
             return $fqcn;
         }
 
-        if (!method_exists($fqcn, $method)) {
-            throw new PaymentException("支付网关 '$gateway' 中不存在方法 '$method'。");
+        if (method_exists($fqcn, $method)) {
+            $reflection = new ReflectionMethod($fqcn, $method);
+            // 必须是 Public 且 Static
+            if ($reflection->isPublic() && $reflection->isStatic()) {
+                return $fqcn::$method($items);
+            }
         }
 
-        return $fqcn::$method($items);
+        throw new PaymentException("支付网关 '$gateway' 中不存在方法 '$method'。");
     }
 
     /**
