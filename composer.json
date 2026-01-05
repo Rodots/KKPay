@@ -12,7 +12,7 @@
     "firebase/php-jwt": "^6.11",
     "illuminate/events": "^12",
     "topthink/think-validate": "^3.0",
-    "monolog/monolog": "^3.9",
+    "monolog/monolog": "^3.10",
     "vectorface/googleauthenticator": "^3.4",
     "ext-bcmath": "*",
     "ext-curl": "*",
