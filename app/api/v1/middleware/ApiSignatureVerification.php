@@ -57,7 +57,7 @@ class ApiSignatureVerification implements MiddlewareInterface
     {
         try {
             // 获取并验证请求参数（支持 GET/POST）
-            $params = $this->getRequestParams($request);
+            $params       = $this->getRequestParams($request);
             $errorMessage = $this->validateAllParams($params);
             if ($errorMessage) {
                 return $this->fail($errorMessage);
@@ -115,7 +115,7 @@ class ApiSignatureVerification implements MiddlewareInterface
             $contentType = $request->header('content-type', '');
             if (str_contains($contentType, 'application/json')) {
                 $rawBody = $request->rawBody();
-                $params = json_validate($rawBody) ? json_decode($rawBody, true) : [];
+                $params  = json_validate($rawBody) ? json_decode($rawBody, true) : [];
             } else {
                 $params = $request->post();
             }
@@ -126,7 +126,7 @@ class ApiSignatureVerification implements MiddlewareInterface
         return [
             'merchant_number'  => $params['merchant_number'] ?? '',
             'encryption_param' => $params['encryption_param'] ?? null,
-            'timestamp'        => $params['timestamp'] ?? '',
+            'timestamp'        => isset($params['timestamp']) ? (string)$params['timestamp'] : '',
             'biz_content'      => $params['biz_content'] ?? '',
             'sign_type'        => $params['sign_type'] ?? '',
             'sign'             => $params['sign'] ?? ''

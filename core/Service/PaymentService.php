@@ -57,7 +57,7 @@ class PaymentService
      * @return array
      * @throws PaymentException
      */
-    public static function initiatePayment(array $order, PaymentChannelAccount $paymentChannelAccount, OrderBuyer $orderBuyer, string $mode = 'submit', string $method = 'web', array $extraParams = []): array
+    public static function initiatePayment(array $order, PaymentChannelAccount $paymentChannelAccount, OrderBuyer $orderBuyer, string $mode = 'page', string $method = 'web', array $extraParams = []): array
     {
         try {
             // 获取支付通道信息

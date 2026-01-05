@@ -69,7 +69,7 @@ class PayController extends ApiBase
             $extraParams = $this->buildMethodExtraParams($bizContent);
 
             // 发起支付
-            $paymentResult = PaymentService::initiatePayment($order, $paymentChannelAccount, $orderBuyer, 'create', $method, $extraParams);
+            $paymentResult = PaymentService::initiatePayment($order, $paymentChannelAccount, $orderBuyer, 'unified', $method, $extraParams);
             // 处理网关支付数据
             $echoJson = PaymentService::echoJson($paymentResult, $order);
             return $this->success($echoJson);
@@ -116,7 +116,7 @@ class PayController extends ApiBase
 
             // 发起支付
             $order         = $order->toArray();
-            $paymentResult = PaymentService::initiatePayment($order, $paymentChannelAccount, $orderBuyer, 'submit', 'web');
+            $paymentResult = PaymentService::initiatePayment($order, $paymentChannelAccount, $orderBuyer, 'page', 'web');
             // 处理网关支付数据
             return PaymentService::echoPage($paymentResult, $order);
         } catch (PaymentException $e) {
@@ -187,13 +187,15 @@ class PayController extends ApiBase
     private function parseBuyerData(array $buyerData, Request $request, bool $useDefaults): array
     {
         return [
-            'real_name'  => $this->getString($buyerData, 'real_name'),
-            'cert_no'    => $this->getString($buyerData, 'cert_no'),
-            'cert_type'  => $this->getString($buyerData, 'cert_type'),
-            'min_age'    => $this->getInt($buyerData, 'min_age'),
-            'mobile'     => $this->getString($buyerData, 'mobile'),
-            'ip'         => $useDefaults ? $request->getRealIp() : $this->getString($buyerData, 'ip'),
-            'user_agent' => $useDefaults ? $request->header('user-agent') : $this->getString($buyerData, 'user_agent'),
+            'user_id'       => $this->getString($buyerData, 'user_id'),
+            'buyer_open_id' => $this->getString($buyerData, 'buyer_open_id'),
+            'real_name'     => $this->getString($buyerData, 'real_name'),
+            'cert_no'       => $this->getString($buyerData, 'cert_no'),
+            'cert_type'     => $this->getString($buyerData, 'cert_type'),
+            'min_age'       => $this->getInt($buyerData, 'min_age'),
+            'mobile'        => $this->getString($buyerData, 'mobile'),
+            'ip'            => $useDefaults ? $request->getRealIp() : $this->getString($buyerData, 'ip'),
+            'user_agent'    => $useDefaults ? $request->header('user-agent') : $this->getString($buyerData, 'user_agent'),
         ];
     }
 

@@ -191,22 +191,26 @@ class RiskService
      * 创建订单时的综合风控检查
      *
      * @param int   $merchantId 商户ID
-     * @param array $buyer      买家信息数组，包含 ip, user_id, cert_no, cert_type, mobile 等字段
+     * @param array $buyer      买家信息数组，包含 ip, user_id, buyer_open_id, cert_no, cert_type, mobile 等字段
      * @return string|null 返回错误信息字符串，或 null 表示通过检查
      */
     public static function checkCreateOrderRisk(int $merchantId, array $buyer): ?string
     {
-        $ip       = $buyer['ip'] ?? null;
-        $userId   = $buyer['user_id'] ?? null;
-        $certNo   = $buyer['cert_no'] ?? null;
-        $certType = $buyer['cert_type'] ?? null;
-        $mobile   = $buyer['mobile'] ?? null;
+        $ip          = $buyer['ip'] ?? null;
+        $userId      = $buyer['user_id'] ?? null;
+        $buyerOpenId = $buyer['buyer_open_id'] ?? null;
+        $certNo      = $buyer['cert_no'] ?? null;
+        $certType    = $buyer['cert_type'] ?? null;
+        $mobile      = $buyer['mobile'] ?? null;
 
         // 黑名单检查
         if (!empty($ip) && self::checkIpBlacklist($ip, $merchantId)) {
             return '系统异常，无法完成付款';
         }
         if (!empty($userId) && self::checkUserIdBlacklist($userId, $merchantId)) {
+            return '系统异常，无法完成付款';
+        }
+        if (!empty($buyerOpenId) && self::checkBuyerOpenIdBlacklist($buyerOpenId, $merchantId)) {
             return '系统异常，无法完成付款';
         }
         if (!empty($certNo) && $certType === OrderBuyer::CERT_TYPE_IDENTITY_CARD && self::checkIdCardBlacklist($certNo, $merchantId)) {
