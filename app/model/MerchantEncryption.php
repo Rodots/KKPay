@@ -122,6 +122,7 @@ class MerchantEncryption extends Model
         $public_key_base64 = str_replace(['-----BEGIN PUBLIC KEY-----', '-----END PUBLIC KEY-----', "\n", "\r"], '', $details['key']);
         self::where('merchant_id', $merchant_id)->update(['rsa2_key' => $public_key_base64]);
 
-        return ['private_key' => $private_key];
+        // 返回私钥（仅返回 Base64 内容部分，去除 PEM 头尾）
+        return ['private_key' => str_replace(['-----BEGIN PRIVATE KEY-----', '-----END PRIVATE KEY-----', "\n", "\r"], '', $private_key)];
     }
 }
