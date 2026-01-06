@@ -73,8 +73,8 @@ class OrderNotification implements Consumer
 
             if ($order->notify_retry_count < 7) {
                 $baseDelay = self::RETRY_INTERVALS[$order->notify_retry_count - 1];
-                // 计算实际延迟时间，扣除本次请求耗时
-                $actualDelay                   = max(1, $baseDelay - $requestDuration);
+                // 计算实际延迟时间，扣除本次请求耗时（将毫秒转换为秒并四舍五入）
+                $actualDelay                   = max(1, $baseDelay - round($requestDuration / 1000));
                 $order->notify_next_retry_time = $now_time + $actualDelay;
 
                 // 重新加入队列等待下次重试
