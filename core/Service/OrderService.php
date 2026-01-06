@@ -208,7 +208,8 @@ class OrderService
             'trade_state'      => $order->trade_state,
             'create_time'      => $order->create_time_with_zone,
             'payment_time'     => $order->payment_time_with_zone,
-            'sign_type'        => $order->sign_type
+            'sign_type'        => $order->sign_type,
+            'buyer'            => $order->buyer()->first(['ip', 'user_agent', 'user_id', 'buyer_open_id', 'real_name', 'cert_no', 'cert_type', 'mobile'])->toArray()
         ];
     }
 
