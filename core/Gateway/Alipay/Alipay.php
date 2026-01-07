@@ -1,4 +1,5 @@
 <?php
+
 declare(strict_types=1);
 
 namespace Core\Gateway\Alipay;
@@ -64,7 +65,8 @@ class Alipay extends AbstractGateway
                 'label'        => '支付类型',
                 'required'     => true,
                 'options'      => [
-                    ['label' => '当面付', 'value' => 'dmf'],
+                    ['label' => '当面付(付款码支付)', 'value' => 'scan'],
+                    ['label' => '当面付扫码', 'value' => 'dmfscan'],
                     ['label' => '订单码支付', 'value' => 'ddm'],
                     ['label' => 'APP 支付', 'value' => 'app'],
                     ['label' => '手机网站支付', 'value' => 'wap'],
@@ -93,9 +95,16 @@ class Alipay extends AbstractGateway
     public static function unified(array $items): array
     {
         $order         = $items['order'];
+        $method        = $items['method'];
         $payment_types = $items['channel']['payment_types'];
 
-        return ['type' => 'error', 'message' => '暂未匹配到可用的支付产品，请选择其他支付方式或稍后重试！'];
+        return match (true) {
+            in_array($method, ['jsapi', 'miniprogram']) && in_array('jsapi', $payment_types) => self::jsapi($items),
+            $method === 'app' && in_array('app', $payment_types) => self::app($items),
+            $method === 'scan' && in_array('scan', $payment_types) => self::scan($items),
+            in_array('dmfscan', $payment_types) || in_array('ddm', $payment_types) => self::qrcode($items),
+            default => ['type' => 'redirect', 'url' => '/pay/web/' . $order['trade_no'] . '.html']
+        };
     }
 
     /**
@@ -107,20 +116,36 @@ class Alipay extends AbstractGateway
     {
         $order         = $items['order'];
         $payment_types = $items['channel']['payment_types'];
+        $trade_no      = $order['trade_no'];
 
-        $isMobile = isMobile();
-        $isAlipay = isAlipay();
+        // JSAPI 支付需要特殊处理：在支付宝环境内直接调用，否则先跳转获取用户标识
+        if (in_array('jsapi', $payment_types)) {
+            return isAlipay() ? self::jsapi($items) : ['type' => 'redirect', 'url' => '/pay/jsapi/' . $trade_no . '.html'];
+        }
 
-        if ($isAlipay && in_array('jsapi', $payment_types)) {
-            // 因为要先获取到买家支付宝用户唯一标识，所以要先跳转到新地址获取
-            return ['type' => 'redirect', 'url' => '/pay/jsapi/' . $order['trade_no'] . '.html'];
-        } elseif (in_array('wap', $payment_types) && $isMobile) {
+        return match (true) {
+            in_array('app', $payment_types) => ['type' => 'redirect', 'url' => '/pay/app/' . $trade_no . '.html'],
+            isMobile() && in_array('wap', $payment_types) => ['type' => 'redirect', 'url' => '/pay/wap/' . $trade_no . '.html'],
+            in_array('pc', $payment_types) => ['type' => 'redirect', 'url' => '/pay/pc/' . $trade_no . '.html'],
+            in_array('dmfscan', $payment_types) || in_array('ddm', $payment_types) => ['type' => 'redirect', 'url' => '/pay/qrcode/' . $trade_no . '.html'],
+            default => ['type' => 'error', 'message' => '暂未匹配到可用的支付产品，请选择其他支付方式或稍后重试！']
+        };
+    }
+
+    /**
+     * 网页支付（手机网站、电脑网站产品）
+     * @param array $items
+     * @return array
+     */
+    public static function web(array $items): array
+    {
+        $payment_types = $items['channel']['payment_types'];
+        if (isMobile() && in_array('wap', $payment_types)) {
             return self::wap($items);
         } elseif (in_array('pc', $payment_types)) {
             return self::pc($items);
-        } elseif (in_array('ddm', $payment_types)) {
-            return ['type' => 'redirect', 'url' => '/pay/ddm/' . $order['trade_no'] . '.html'];
         }
+
         return ['type' => 'error', 'message' => '暂未匹配到可用的支付产品，请选择其他支付方式或稍后重试！'];
     }
 
@@ -173,22 +198,28 @@ class Alipay extends AbstractGateway
     }
 
     /**
-     * 订单码支付
+     * 扫码支付（订单码支付、当面付扫码支付）
      * @param array $items
      * @return array
      */
-    public static function ddm(array $items): array
+    public static function qrcode(array $items): array
     {
-        $order = $items['order'];
+        $order         = $items['order'];
+        $payment_types = $items['channel']['payment_types'];
 
         $alipay = Factory::createFromArray(self::formatConfig($items['channel']));
 
         $params = [
-            'out_trade_no' => $order['trade_no'],
-            'total_amount' => $order['buyer_pay_amount'],
-            'subject'      => $items['subject'],
-            'product_code' => 'QR_CODE_OFFLINE'
+            'out_trade_no'      => $order['trade_no'],
+            'total_amount'      => $order['buyer_pay_amount'],
+            'subject'           => $items['subject'],
+            'merchant_order_no' => $order['out_trade_no']
         ];
+
+        if (in_array('ddm', $payment_types)) {
+            $params['product_code']    = 'QR_CODE_OFFLINE';
+            $params['business_params'] = ['mc_create_trade_ip' => $items['buyer']['ip']];
+        }
 
         return self::lockPaymentExt($order['trade_no'], function () use ($alipay, $params, $items) {
             $res = $alipay->v1Execute($params, 'alipay.trade.precreate', $items['return_url'], $items['notify_url']);
@@ -208,16 +239,45 @@ class Alipay extends AbstractGateway
         $alipay = Factory::createFromArray(self::formatConfig($items['channel']));
 
         $params = [
-            'out_trade_no' => $order['trade_no'],
-            'total_amount' => $order['buyer_pay_amount'],
-            'subject'      => $items['subject'],
-            'product_code' => 'JSAPI_PAY'
+            'out_trade_no'    => $order['trade_no'],
+            'total_amount'    => $order['buyer_pay_amount'],
+            'subject'         => $items['subject'],
+            'product_code'    => 'JSAPI_PAY',
+            'business_params' => ['mc_create_trade_ip' => $items['buyer']['ip']]
         ];
 
         return self::lockPaymentExt($order['trade_no'], function () use ($alipay, $params, $items) {
             $html = $alipay->v1Execute($params, 'alipay.trade.create', $items['return_url'], $items['notify_url']);
             return ['type' => 'html', 'data' => $html];
         });
+    }
+
+    /**
+     * APP 支付
+     * @param array $items
+     * @return array
+     */
+    public static function app(array $items): array
+    {
+        return ['type' => 'error', 'message' => '功能开发中'];
+    }
+
+    /**
+     * 当面付（付款码支付）[被扫]
+     *
+     * 因为只能通过统一收单交易支付接口调用此方法，所以需要设为私有方法
+     *
+     * @param array $items
+     * @return array
+     */
+    private static function scan(array $items): array
+    {
+        // 只能通过统一收单交易支付接口调用此方法，判断是否为路由直接请求，如果是则拦截并返回404页面
+        if ($items['isExtension']) {
+            return ['type' => 'page', 'message' => '404'];
+        }
+
+        return ['type' => 'error', 'message' => '功能开发中'];
     }
 
     /**
