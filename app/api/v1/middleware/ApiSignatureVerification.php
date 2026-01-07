@@ -9,7 +9,6 @@ use app\model\MerchantEncryption;
 use Core\Traits\ApiResponse;
 use Core\Utils\SignatureUtil;
 use support\Log;
-use support\Rodots\Crypto\AES;
 use Throwable;
 use Webman\Http\Request;
 use Webman\Http\Response;
@@ -20,7 +19,6 @@ use Webman\MiddlewareInterface;
  *
  * 支持 GET/POST 请求的签名验证，遵循以下请求参数规范：
  * - merchant_number: 商户编号
- * - encryption_param: 可选，AES加密内容
  * - timestamp: 请求时间戳
  * - biz_content: 业务参数（Base64编码的JSON）
  * - sign_type: 签名算法类型
@@ -57,35 +55,28 @@ class ApiSignatureVerification implements MiddlewareInterface
     {
         try {
             // 获取并验证请求参数（支持 GET/POST）
-            $params       = $this->getRequestParams($request);
+            $params = $this->getRequestParams($request);
+
+            // 验证所有参数
             $errorMessage = $this->validateAllParams($params);
             if ($errorMessage) {
                 return $this->fail($errorMessage);
             }
 
-            // 获取并验证商户信息
-            $merchant = $this->getMerchantAndValidate($params['merchant_number']);
+            // 验证商户信息
+            $merchant = $this->validateMerchant($params['merchant_number']);
             if (is_string($merchant)) {
                 return $this->fail($merchant);
             }
 
             // 获取商户密钥配置
-            $merchantEncryption = MerchantEncryption::find($merchant->id, ['mode', 'aes_key', 'hash_key', 'rsa2_key']);
+            $merchantEncryption = MerchantEncryption::find($merchant->id, ['mode', 'hash_key', 'rsa2_key']);
             if ($merchantEncryption === null) {
                 return $this->fail('无法获取当前商户密钥配置');
             }
-            $merchantEncryption = $merchantEncryption->toArray();
-
-            // 处理加密参数（如有）
-            if (!empty($params['encryption_param'])) {
-                $params = $this->processEncryptedParams($params, $merchantEncryption['aes_key']);
-                if (is_string($params)) {
-                    return $this->fail($params);
-                }
-            }
 
             // 执行所有验证
-            $errorMessage = $this->performAllValidations($params, $merchantEncryption);
+            $errorMessage = $this->performAllValidations($params, $merchantEncryption->toArray());
             if ($errorMessage) {
                 return $this->fail($errorMessage);
             }
@@ -124,37 +115,12 @@ class ApiSignatureVerification implements MiddlewareInterface
         }
 
         return [
-            'merchant_number'  => $params['merchant_number'] ?? '',
-            'encryption_param' => $params['encryption_param'] ?? null,
-            'timestamp'        => isset($params['timestamp']) ? (string)$params['timestamp'] : '',
-            'biz_content'      => $params['biz_content'] ?? '',
-            'sign_type'        => $params['sign_type'] ?? '',
-            'sign'             => $params['sign'] ?? ''
+            'merchant_number' => $params['merchant_number'] ?? '',
+            'timestamp'       => isset($params['timestamp']) ? (string)$params['timestamp'] : '',
+            'biz_content'     => $params['biz_content'] ?? '',
+            'sign_type'       => $params['sign_type'] ?? '',
+            'sign'            => $params['sign'] ?? ''
         ];
-    }
-
-    /**
-     * 验证必需参数
-     *
-     * @param array $params 参数数组
-     * @return string|null 错误消息，验证通过返回null
-     */
-    private function validateRequiredParams(array $params): ?string
-    {
-        $validations = [
-            'biz_content' => fn($v) => !empty($v),
-            'timestamp'   => fn($v) => !empty($v) && is_numeric($v),
-            'sign_type'   => fn($v) => !empty($v) && in_array($v, MerchantEncryption::SUPPORTED_SIGN_TYPES),
-            'sign'        => fn($v) => !empty($v)
-        ];
-
-        foreach ($validations as $field => $validator) {
-            if (!$validator($params[$field] ?? '')) {
-                return self::REQUIRED_PARAMS[$field];
-            }
-        }
-
-        return null;
     }
 
     /**
@@ -165,47 +131,49 @@ class ApiSignatureVerification implements MiddlewareInterface
      */
     private function validateAllParams(array $params): ?string
     {
-        // 验证商户编号格式
-        if (empty($params['merchant_number'])) {
-            return self::REQUIRED_PARAMS['merchant_number'];
+        // 基本参数验证
+        $validations = [
+            'merchant_number' => fn($v) => !empty($v),
+            'biz_content'     => fn($v) => !empty($v),
+            'timestamp'       => fn($v) => !empty($v) && is_numeric($v),
+            'sign_type'       => fn($v) => !empty($v) && in_array($v, MerchantEncryption::SUPPORTED_SIGN_TYPES),
+            'sign'            => fn($v) => !empty($v)
+        ];
+
+        foreach ($validations as $field => $validator) {
+            if (!$validator($params[$field] ?? '')) {
+                return self::REQUIRED_PARAMS[$field];
+            }
         }
+
+        // 商户编号格式验证
         if (!preg_match('/^M[A-Z0-9]{15}$/', $params['merchant_number'])) {
             return '商户编号(merchant_number)格式错误';
         }
 
-        // 如果没有加密参数，则继续验证其他必传明文参数
-        if (empty($params['encryption_param'])) {
-            return $this->validateRequiredParams($params);
+        // 时间戳验证
+        if (!is_numeric($params['timestamp']) || abs(time() - (int)$params['timestamp']) > self::OFFSET_VALID_TIME) {
+            return '请求时间偏移过大';
         }
 
         return null;
     }
 
     /**
-     * 检查商户状态
-     *
-     * @param Merchant $merchant 商户对象
-     * @return bool 商户状态是否正常
-     */
-    private function checkMerchantStatus(Merchant $merchant): bool
-    {
-        return $merchant->status === true && $merchant->risk_status === false && $merchant->hasPermission('pay');
-    }
-
-    /**
-     * 获取并验证商户信息
+     * 验证商户信息
      *
      * @param string $merchantNumber 商户编号
      * @return Merchant|string 商户对象或错误消息
      */
-    private function getMerchantAndValidate(string $merchantNumber): Merchant|string
+    private function validateMerchant(string $merchantNumber): Merchant|string
     {
         $merchant = Merchant::where('merchant_number', $merchantNumber)->first(['id', 'merchant_number', 'email', 'mobile', 'diy_order_subject', 'buyer_pay_fee', 'status', 'risk_status', 'competence', 'channel_whitelist']);
         if (!$merchant) {
             return '该商户不可用';
         }
 
-        if (!$this->checkMerchantStatus($merchant)) {
+        // 检查商户状态和权限
+        if ($merchant->status !== true || $merchant->risk_status === true || !$merchant->hasPermission('pay')) {
             return '无权限使用接口';
         }
 
@@ -213,49 +181,25 @@ class ApiSignatureVerification implements MiddlewareInterface
     }
 
     /**
-     * 处理加密参数
+     * 执行所有验证
      *
-     * @param array       $params 参数数组
-     * @param string|null $aesKey AES密钥
-     * @return array|string 解密后的参数数组或错误消息
+     * @param array $params             参数数组
+     * @param array $merchantEncryption 商户加密配置
+     * @return string|null 错误消息，验证通过返回null
      */
-    private function processEncryptedParams(array $params, ?string $aesKey): array|string
+    private function performAllValidations(array $params, array $merchantEncryption): ?string
     {
-        if (empty($aesKey)) {
-            return '商户未配置请求内容加密密钥';
+        // 验证签名算法类型
+        if (!$this->validateSignType($params['sign_type'], $merchantEncryption['mode'])) {
+            return '签名算法类型(sign_type)不被允许';
         }
 
-        try {
-            $decryptedParams = new AES($aesKey)->get($params['encryption_param']);
-
-            $errorMessage = $this->validateRequiredParams($decryptedParams);
-            if ($errorMessage) {
-                return $errorMessage;
-            }
-
-            // 合并参数并移除加密字段
-            $mergedParams = array_merge($params, $decryptedParams);
-            unset($mergedParams['encryption_param']);
-            return $mergedParams;
-        } catch (Throwable $e) {
-            Log::error('参数AES解密失败:' . $e->getMessage());
-            return '参数AES解密失败';
-        }
-    }
-
-    /**
-     * 验证时间戳
-     *
-     * @param string $timestamp 时间戳字符串
-     * @return bool 时间戳是否有效
-     */
-    private function validateTimestamp(string $timestamp): bool
-    {
-        if (!is_numeric($timestamp)) {
-            return false;
+        // 验证签名
+        if (!SignatureUtil::verifySignature($params, $params['sign_type'], $merchantEncryption)) {
+            return '签名验证失败';
         }
 
-        return abs(time() - (int)$timestamp) <= self::OFFSET_VALID_TIME;
+        return null;
     }
 
     /**
@@ -275,33 +219,6 @@ class ApiSignatureVerification implements MiddlewareInterface
             MerchantEncryption::MODE_OPEN => true,
             default => false
         };
-    }
-
-    /**
-     * 执行所有验证
-     *
-     * @param array $params             参数数组
-     * @param array $merchantEncryption 商户加密配置
-     * @return string|null 错误消息，验证通过返回null
-     */
-    private function performAllValidations(array $params, array $merchantEncryption): ?string
-    {
-        // 验证时间戳
-        if (!$this->validateTimestamp($params['timestamp'])) {
-            return '请求时间偏移过大';
-        }
-
-        // 验证签名算法类型
-        if (!$this->validateSignType($params['sign_type'], $merchantEncryption['mode'])) {
-            return '签名算法类型(sign_type)不被允许';
-        }
-
-        // 验证签名
-        if (!SignatureUtil::verifySignature($params, $params['sign_type'], $merchantEncryption)) {
-            return '签名验证失败';
-        }
-
-        return null;
     }
 
     /**
