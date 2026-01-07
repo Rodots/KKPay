@@ -109,11 +109,12 @@ class RefundService
                     throw new Exception('支付网关获取异常，无法完成API自动退款');
                 }
 
-                $items         = [
+                $items = [
                     'order'         => $order->toArray(),
                     'channel'       => $paymentChannelAccount->config,
                     'refund_record' => $orderRefund->toArray(),
                 ];
+
                 $gatewayReturn = PaymentGatewayUtil::loadGateway($gateway, 'refund', $items);
                 if ($gatewayReturn['state'] && !empty($gatewayReturn['api_refund_no'])) {
                     OrderRefund::where('id', $orderRefund->id)->update(['api_refund_no' => $gatewayReturn['api_refund_no']]);
@@ -142,7 +143,7 @@ class RefundService
      * @param string      $reason       退款原因
      * @param string|null $outBizNo     商户退款业务号（用于幂等）
      * @param int         $merchantId   商户ID
-     * @return array{success: bool, message: string, refund_id: int|null}
+     * @return array
      */
     public static function apiRefund(string $tradeNo, string $refundAmount, string $reason = '商户发起退款', ?string $outBizNo = null, int $merchantId = 0): array
     {
@@ -158,6 +159,7 @@ class RefundService
                     return ['success' => false, 'message' => '商户退款业务号已存在，但订单号或金额不一致', 'refund_id' => null];
                 }
                 // 幂等返回已有记录
+
                 return ['success' => true, 'message' => '退款成功', 'refund_id' => $existingRefund->id];
             }
         }
@@ -169,11 +171,10 @@ class RefundService
         }
 
         // 执行退款
-        $result = self::handle($tradeNo, $refundAmount, 'api', true, false, $outBizNo, $reason);
+        $fee_bearer = sys_config('payment', 'api_refund_fee_bearer', 'merchant') === 'platform';
+        $result     = self::handle($tradeNo, $refundAmount, 'api', true, $fee_bearer, $outBizNo, $reason);
 
-        return $result['state']
-            ? ['success' => true, 'message' => '退款成功', 'refund_id' => $result['refund_record']['id']]
-            : ['success' => false, 'message' => $result['msg'], 'refund_id' => null];
+        return $result['state'] ? ['success' => true, 'message' => '退款成功', 'refund_id' => $result['refund_record']['id']] : ['success' => false, 'message' => $result['msg'], 'refund_id' => null];
     }
 
     /**
