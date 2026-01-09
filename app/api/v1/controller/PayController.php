@@ -6,6 +6,7 @@ namespace app\api\v1\controller;
 
 use app\model\Order;
 use app\model\OrderBuyer;
+use app\model\RiskLog;
 use Carbon\Carbon;
 use Core\baseController\ApiBase;
 use Core\Exception\PaymentException;
@@ -45,7 +46,7 @@ class PayController extends ApiBase
 
         try {
             // 验证业务参数
-            $validationResult = $this->validateBizContent($bizContent, true);
+            $validationResult = $this->validateBizContent($bizContent, $request->merchant->id, true);
             if ($validationResult !== true) {
                 return $this->fail($validationResult);
             }
@@ -101,7 +102,7 @@ class PayController extends ApiBase
 
         try {
             // 验证业务参数
-            $validationResult = $this->validateBizContent($bizContent);
+            $validationResult = $this->validateBizContent($bizContent, $request->merchant->id);
             if ($validationResult !== true) {
                 return $this->pageMsg($validationResult);
             }
@@ -203,10 +204,11 @@ class PayController extends ApiBase
      * 验证业务参数
      *
      * @param array $bizContent   业务参数
+     * @param int   $merchantId   商户ID
      * @param bool  $isStrictMode 是否为严格验证模式
      * @return string|true 验证通过返回true,失败返回错误消息
      */
-    private function validateBizContent(array $bizContent, bool $isStrictMode = false): string|true
+    private function validateBizContent(array $bizContent, int $merchantId, bool $isStrictMode = false): string|true
     {
         // 一次性获取整个 payment 配置组，避免多次Redis查询
         $paymentConfig = sys_config('payment');
@@ -253,7 +255,12 @@ class PayController extends ApiBase
         $blockedKeywords = $paymentConfig['subject_blocked_keywords'] ?? '';
         if (!empty($blockedKeywords)) {
             $keywords = array_filter(explode('|', $blockedKeywords));
-            if (array_any($keywords, fn($keyword) => mb_stripos($subject, trim($keyword)) !== false)) {
+            if (array_any($keywords, fn($keyword) => mb_stripos($subject, $keyword) !== false)) {
+                RiskLog::create([
+                    'merchant_id' => $merchantId,
+                    'type'        => RiskLog::TYPE_SUBJECT_KEYWORD,
+                    'content'     => $subject
+                ]);
                 return $paymentConfig['subject_blocked_keywords_prompt'] ?? '温馨提示：该商品禁止出售，如有疑问请联系网站客服！';
             }
         }
