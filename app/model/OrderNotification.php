@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace app\model;
 
-use app\casts\BinaryUuidCast;
+use app\model\casts\BinaryUuidCast;
 use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use support\Model;
