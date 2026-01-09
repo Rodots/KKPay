@@ -7,8 +7,8 @@ namespace app\api\v1\controller;
 use app\model\MerchantPayee;
 use app\model\MerchantWithdrawalRecord;
 use Core\baseController\ApiBase;
-use Core\Exception\PaymentException;
 use Core\Service\MerchantWithdrawalService;
+use Exception;
 use support\Log;
 use support\Request;
 use support\Response;
@@ -66,7 +66,7 @@ class WithdrawalController extends ApiBase
                 'amount'        => $amount,
                 'status'        => 'PENDING',
             ], '提款申请成功');
-        } catch (PaymentException $e) {
+        } catch (Exception $e) {
             Log::warning('提款申请失败:' . $e->getMessage());
             return $this->fail($e->getMessage());
         } catch (Throwable $e) {
