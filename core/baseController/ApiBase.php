@@ -39,16 +39,11 @@ class ApiBase
             return '业务参数(biz_content)缺失';
         }
 
-        $decoded = base64_decode($content, true);
-        if ($decoded === false) {
-            return '业务参数(biz_content)进行base64解码失败';
-        }
-
-        if (!json_validate($decoded)) {
+        if (!json_validate($content)) {
             return '业务参数(biz_content)非JSON格式';
         }
 
-        return json_decode($decoded, true);
+        return json_decode($content, true);
     }
 
     /**

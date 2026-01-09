@@ -20,7 +20,7 @@ use Webman\MiddlewareInterface;
  * 支持 GET/POST 请求的签名验证，遵循以下请求参数规范：
  * - merchant_number: 商户编号
  * - timestamp: 请求时间戳
- * - biz_content: 业务参数（Base64编码的JSON）
+ * - biz_content: 业务参数（JSON）
  * - sign_type: 签名算法类型
  * - sign: 签名
  */
@@ -34,17 +34,6 @@ class ApiSignatureVerification implements MiddlewareInterface
     private const int OFFSET_VALID_TIME = 600; // 10分钟
 
     /**
-     * 必需参数错误提示
-     */
-    private const array REQUIRED_PARAMS = [
-        'merchant_number' => '商户编号(merchant_number)缺失',
-        'biz_content'     => '业务参数(biz_content)缺失',
-        'timestamp'       => '请求时间戳(timestamp)格式错误',
-        'sign_type'       => '签名算法类型(sign_type)不被允许',
-        'sign'            => '签名缺失'
-    ];
-
-    /**
      * 处理请求
      *
      * @param Request  $request 请求对象
@@ -54,7 +43,7 @@ class ApiSignatureVerification implements MiddlewareInterface
     public function process(Request $request, callable $handler): Response
     {
         try {
-            // 获取并验证请求参数（支持 GET/POST）
+            // 获取并验证请求参数
             $params = $this->getRequestParams($request);
 
             // 验证所有参数
@@ -94,14 +83,13 @@ class ApiSignatureVerification implements MiddlewareInterface
     /**
      * 获取请求参数
      *
-     * 支持 GET 查询参数和 POST JSON/表单参数
+     * 支持 POST JSON/表单参数
      *
      * @param Request $request 请求对象
      * @return array 请求参数数组
      */
     private function getRequestParams(Request $request): array
     {
-        // POST JSON 请求从 body 解析
         if ($request->method() === 'POST') {
             $contentType = $request->header('content-type', '');
             if (str_contains($contentType, 'application/json')) {
@@ -110,14 +98,12 @@ class ApiSignatureVerification implements MiddlewareInterface
             } else {
                 $params = $request->post();
             }
-        } else {
-            $params = $request->get();
         }
 
         return [
             'merchant_number' => $params['merchant_number'] ?? '',
-            'timestamp'       => isset($params['timestamp']) ? (string)$params['timestamp'] : '',
             'biz_content'     => $params['biz_content'] ?? '',
+            'timestamp'       => isset($params['timestamp']) ? (string)$params['timestamp'] : '',
             'sign_type'       => $params['sign_type'] ?? '',
             'sign'            => $params['sign'] ?? ''
         ];
@@ -133,22 +119,25 @@ class ApiSignatureVerification implements MiddlewareInterface
     {
         // 基本参数验证
         $validations = [
-            'merchant_number' => fn($v) => !empty($v),
-            'biz_content'     => fn($v) => !empty($v),
+            'merchant_number' => fn($v) => !empty($v) && preg_match('/^M[A-Z0-9]{15}$/', $params['merchant_number']),
+            'biz_content'     => fn($v) => !empty($v) && is_string($v),
             'timestamp'       => fn($v) => !empty($v) && is_numeric($v),
             'sign_type'       => fn($v) => !empty($v) && in_array($v, MerchantEncryption::SUPPORTED_SIGN_TYPES),
             'sign'            => fn($v) => !empty($v)
         ];
 
+        $validations_tips = [
+            'merchant_number' => '商户编号(merchant_number)缺失或格式错误',
+            'biz_content'     => '业务参数(biz_content)缺失或格式错误',
+            'timestamp'       => '请求时间戳(timestamp)格式错误',
+            'sign_type'       => '签名算法类型(sign_type)不被允许',
+            'sign'            => '签名缺失'
+        ];
+
         foreach ($validations as $field => $validator) {
             if (!$validator($params[$field] ?? '')) {
-                return self::REQUIRED_PARAMS[$field];
+                return $validations_tips[$field];
             }
-        }
-
-        // 商户编号格式验证
-        if (!preg_match('/^M[A-Z0-9]{15}$/', $params['merchant_number'])) {
-            return '商户编号(merchant_number)格式错误';
         }
 
         // 时间戳验证

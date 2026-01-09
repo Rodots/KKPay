@@ -116,7 +116,7 @@ class PayController extends ApiBase
 
             // 发起支付
             $order         = $order->toArray();
-            $paymentResult = PaymentService::initiatePayment($order, $paymentChannelAccount, $orderBuyer, 'page', 'web');
+            $paymentResult = PaymentService::initiatePayment($order, $paymentChannelAccount, $orderBuyer);
             // 处理网关支付数据
             return PaymentService::echoPage($paymentResult, $order);
         } catch (PaymentException $e) {
@@ -253,10 +253,8 @@ class PayController extends ApiBase
         $blockedKeywords = $paymentConfig['subject_blocked_keywords'] ?? '';
         if (!empty($blockedKeywords)) {
             $keywords = array_filter(explode('|', $blockedKeywords));
-            foreach ($keywords as $keyword) {
-                if (mb_stripos($subject, trim($keyword)) !== false) {
-                    return $paymentConfig['subject_blocked_keywords_prompt'] ?? '温馨提示：该商品禁止出售，如有疑问请联系网站客服！';
-                }
+            if (array_any($keywords, fn($keyword) => mb_stripos($subject, trim($keyword)) !== false)) {
+                return $paymentConfig['subject_blocked_keywords_prompt'] ?? '温馨提示：该商品禁止出售，如有疑问请联系网站客服！';
             }
         }
 
