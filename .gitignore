@@ -1,6 +1,7 @@
 /runtime
 /vendor
 /app/fake
+/config/plugin/webman/log
 /.idea
 /.vscode
 /.agent
