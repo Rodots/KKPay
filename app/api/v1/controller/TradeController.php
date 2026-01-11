@@ -67,7 +67,23 @@ class TradeController extends ApiBase
                 return $this->fail('订单不存在');
             }
 
-            return $this->success($order->toArray(), '查询成功');
+            // 加载退款记录（仅关键字段）
+            $order->load(['refunds' => function ($query) {
+                $query->select(['id', 'trade_no', 'amount', 'reason', 'created_at']);
+            }]);
+
+            $result = $order->toArray();
+            // 格式化退款记录输出
+            $result['refunds'] = array_map(function ($refund) {
+                return [
+                    'refund_id'   => $refund['id'],
+                    'amount'      => $refund['amount'],
+                    'reason'      => $refund['reason'],
+                    'refund_time' => $refund['created_at'],
+                ];
+            }, $result['refunds'] ?? []);
+
+            return $this->success($result, '查询成功');
         } catch (Throwable $e) {
             Log::error('订单查询异常:' . $e->getMessage());
             return $this->error('系统异常，请稍后重试');
@@ -118,13 +134,7 @@ class TradeController extends ApiBase
                 return $this->fail('订单不存在');
             }
 
-            $result = RefundService::apiRefund(
-                $order->trade_no,
-                $bizContent['refund_amount'],
-                $bizContent['refund_reason'] ?? '商户发起退款',
-                $bizContent['out_biz_no'],
-                $this->getMerchantId($request)
-            );
+            $result = RefundService::apiRefund($order->trade_no, $bizContent['refund_amount'], $bizContent['refund_reason'] ?? '商户发起退款', $bizContent['out_biz_no'], $this->getMerchantId($request));
 
             if (!$result['success']) {
                 return $this->fail($result['message']);
@@ -134,7 +144,7 @@ class TradeController extends ApiBase
                 'refund_id'     => $result['refund_id'],
                 'trade_no'      => $order->trade_no,
                 'refund_amount' => $bizContent['refund_amount'],
-            ], '退款申请成功');
+            ], '退款处理成功');
         } catch (PaymentException $e) {
             Log::warning('订单退款失败:' . $e->getMessage());
             return $this->fail($e->getMessage());
@@ -194,13 +204,83 @@ class TradeController extends ApiBase
     }
 
     /**
+     * 退款查询接口
+     *
+     * biz_content 参数：
+     * - trade_no: 平台订单号（与 out_trade_no 二选一）
+     * - out_trade_no: 商户订单号（与 trade_no 二选一）
+     *
+     * @param Request $request 请求对象
+     * @return Response JSON响应
+     */
+    public function refundQuery(Request $request): Response
+    {
+        try {
+            $data = $this->parseBizContent($request);
+            if (is_string($data)) {
+                return $this->fail($data);
+            }
+
+            // 提取参数
+            $bizContent = [
+                'trade_no'     => $this->getString($data, 'trade_no', true),
+                'out_trade_no' => $this->getString($data, 'out_trade_no', true),
+            ];
+
+            $order = $this->findOrder($request, $bizContent, ['trade_no', 'out_trade_no', 'total_amount']);
+            if ($order === null) {
+                return $this->fail('订单不存在');
+            }
+
+            // 查询退款记录详情
+            $refunds = $order->refunds()
+                ->select([
+                    'id',
+                    'trade_no',
+                    'out_biz_no',
+                    'api_refund_no',
+                    'amount',
+                    'refund_fee_amount',
+                    'reason',
+                    'created_at'
+                ])
+                ->get();
+
+            // 格式化退款记录
+            $refundList = $refunds->map(function ($refund) {
+                return [
+                    'refund_id'         => $refund->id,
+                    'out_biz_no'        => $refund->out_biz_no,
+                    'api_refund_no'     => $refund->api_refund_no,
+                    'refund_amount'     => $refund->amount,
+                    'refund_fee_amount' => $refund->refund_fee_amount,
+                    'reason'            => $refund->reason,
+                    'refund_time'       => $refund->created_at,
+                ];
+            })->toArray();
+
+            return $this->success([
+                'trade_no'      => $order->trade_no,
+                'out_trade_no'  => $order->out_trade_no,
+                'total_amount'  => $order->total_amount,
+                'refund_count'  => count($refundList),
+                'refund_amount' => $refunds->sum('amount'),
+                'refunds'       => $refundList,
+            ], '查询成功');
+        } catch (Throwable $e) {
+            Log::error('退款查询异常:' . $e->getMessage());
+            return $this->error('系统异常，请稍后重试');
+        }
+    }
+
+    /**
      * 查找订单
      *
      * 根据 trade_no 或 out_trade_no 查找订单
      *
-     * @param Request $request 请求对象
-     * @param array $bizContent 业务参数 (必须包含经过验证的 trade_no 或 out_trade_no)
-     * @param array $columns 查询字段
+     * @param Request $request    请求对象
+     * @param array   $bizContent 业务参数 (必须包含经过验证的 trade_no 或 out_trade_no)
+     * @param array   $columns    查询字段
      * @return Order|null 订单模型或null
      */
     private function findOrder(Request $request, array $bizContent, array $columns = ['*']): ?Order
