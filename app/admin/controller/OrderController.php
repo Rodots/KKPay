@@ -18,7 +18,6 @@ use SodiumException;
 use support\Db;
 use support\Request;
 use support\Response;
-use support\Rodots\Crypto\XChaCha20;
 use Throwable;
 
 class OrderController extends AdminBase
@@ -330,12 +329,10 @@ class OrderController extends AdminBase
      */
     public function refund(Request $request): Response
     {
-        $payload = $request->post('payload');
-        if (empty($payload)) {
+        $params = $this->decryptPayload($request);
+        if ($params === null) {
             return $this->fail('非法请求');
         }
-
-        $params = new XChaCha20(config('kkpay.api_crypto_key', ''))->get($payload);
 
         // 退款金额
         $amount = $params['amount'];

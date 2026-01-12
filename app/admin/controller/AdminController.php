@@ -7,10 +7,8 @@ namespace app\admin\controller;
 use app\model\Admin;
 use app\model\AdminLog;
 use Core\baseController\AdminBase;
-use SodiumException;
 use support\Request;
 use support\Response;
-use support\Rodots\Crypto\XChaCha20;
 use Throwable;
 
 class AdminController extends AdminBase
@@ -100,18 +98,15 @@ class AdminController extends AdminBase
      *
      * @param Request $request
      * @return Response
-     * @throws SodiumException
      */
     public function create(Request $request): Response
     {
-        $payload = $request->post('payload');
-        if (empty($payload)) {
-            return $this->fail('非法请求');
-        }
-
-        $params = new XChaCha20(config('kkpay.api_crypto_key', ''))->get($payload);
-
         try {
+            $params = $this->decryptPayload($request);
+            if ($params === null) {
+                return $this->fail('非法请求');
+            }
+
             validate([
                 'role'     => ['require', 'gt:' . $this->getRole()],
                 'account'  => ['require', 'max:32'],
@@ -144,26 +139,23 @@ class AdminController extends AdminBase
      *
      * @param Request $request
      * @return Response
-     * @throws SodiumException
      */
     public function edit(Request $request): Response
     {
-        $payload = $request->post('payload');
-        if (empty($payload)) {
-            return $this->fail('非法请求');
-        }
-
-        $params = new XChaCha20(config('kkpay.api_crypto_key', ''))->get($payload);
-
-        if (empty($params['id'])) {
-            return $this->fail('请求参数缺失');
-        }
-
-        if (!Admin::where('id', $params['id'])->exists()) {
-            return $this->fail('该管理员不存在');
-        }
-
         try {
+            $params = $this->decryptPayload($request);
+            if ($params === null) {
+                return $this->fail('非法请求');
+            }
+
+            if (empty($params['id'])) {
+                return $this->fail('请求参数缺失');
+            }
+
+            if (!Admin::where('id', $params['id'])->exists()) {
+                return $this->fail('该管理员不存在');
+            }
+
             validate([
                 'role'         => ['require', 'gt:' . $this->getRole()],
                 'account'      => ['require', 'max:32'],

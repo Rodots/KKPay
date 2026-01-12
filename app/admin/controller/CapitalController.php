@@ -14,7 +14,6 @@ use SodiumException;
 use support\Db;
 use support\Request;
 use support\Response;
-use support\Rodots\Crypto\XChaCha20;
 use Throwable;
 
 class CapitalController extends AdminBase
@@ -172,12 +171,10 @@ class CapitalController extends AdminBase
      */
     public function adjustBalance(Request $request): Response
     {
-        $payload = $request->post('payload');
-        if (empty($payload)) {
+        $params = $this->decryptPayload($request);
+        if ($params === null) {
             return $this->fail('非法请求');
         }
-
-        $params = new XChaCha20(config('kkpay.api_crypto_key', ''))->get($payload);
 
         if (empty($params['id'])) {
             return $this->fail('必要参数缺失');
@@ -190,6 +187,8 @@ class CapitalController extends AdminBase
             return $this->fail('该商户不存在');
         }
 
+        // 开启数据库事务
+        Db::beginTransaction();
         try {
             // 验证参数
             validate([
@@ -208,17 +207,12 @@ class CapitalController extends AdminBase
             $amount       = number_format((float)$params['amount'], 2, '.', '');
             $remark       = $params['remark'];
 
-            // 开启数据库事务
-            Db::beginTransaction();
-
             // 根据余额类型调用不同的变更方法
             match ($balance_type) {
                 'available' => MerchantWalletRecord::changeAvailable($merchant_id, $amount, '后台操作', null, $remark),
                 'unavailable' => MerchantWalletRecord::changeUnAvailable($merchant_id, $amount, '后台操作', null, $remark),
                 'prepaid' => MerchantWalletPrepaidRecord::changePrepaid($merchant_id, $amount, $remark),
             };
-
-            Db::commit();
 
             // 记录操作日志
             $action = bccomp($amount, '0.00', 2) === 1 ? '增加' : '减少';
@@ -228,6 +222,8 @@ class CapitalController extends AdminBase
                 'prepaid' => '预付金',
             };
             $this->adminLog("为商户【{$merchant->merchant_number}】$action{$type}：{$amount}元");
+
+            Db::commit();
         } catch (Throwable $e) {
             Db::rollBack();
             return $this->fail($e->getMessage());

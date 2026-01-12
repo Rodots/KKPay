@@ -7,11 +7,9 @@ namespace app\admin\controller;
 use app\model\PaymentChannel;
 use app\model\PaymentChannelAccount;
 use Core\baseController\AdminBase;
-use SodiumException;
 use support\Db;
 use support\Request;
 use support\Response;
-use support\Rodots\Crypto\XChaCha20;
 use Throwable;
 
 class PaymentChannelAccountController extends AdminBase
@@ -102,26 +100,23 @@ class PaymentChannelAccountController extends AdminBase
      *
      * @param Request $request
      * @return Response
-     * @throws SodiumException
      */
     public function create(Request $request): Response
     {
-        $payload = $request->post('payload');
-        if (empty($payload)) {
-            return $this->fail('非法请求');
-        }
-
-        $params = new XChaCha20(config('kkpay.api_crypto_key', ''))->get($payload);
-
-        if (empty($params['payment_channel_id'])) {
-            return $this->fail('请求参数缺失');
-        }
-
-        if (!PaymentChannel::where('id', $params['payment_channel_id'])->exists()) {
-            return $this->fail('关联的支付通道不存在，请尝试返回后重试');
-        }
-
         try {
+            $params = $this->decryptPayload($request);
+            if ($params === null) {
+                return $this->fail('非法请求');
+            }
+
+            if (empty($params['payment_channel_id'])) {
+                return $this->fail('请求参数缺失');
+            }
+
+            if (!PaymentChannel::where('id', $params['payment_channel_id'])->exists()) {
+                return $this->fail('关联的支付通道不存在，请尝试返回后重试');
+            }
+
             validate($this->getPaymentChannelAccountValidationRules(), $this->getPaymentChannelAccountValidationMessages())->check($params);
 
             PaymentChannelAccount::createPaymentChannelAccount($params);
@@ -138,26 +133,23 @@ class PaymentChannelAccountController extends AdminBase
      *
      * @param Request $request
      * @return Response
-     * @throws SodiumException
      */
     public function edit(Request $request): Response
     {
-        $payload = $request->post('payload');
-        if (empty($payload)) {
-            return $this->fail('非法请求');
-        }
-
-        $params = new XChaCha20(config('kkpay.api_crypto_key', ''))->get($payload);
-
-        if (empty($params['id']) || empty($params['payment_channel_id'])) {
-            return $this->fail('请求参数缺失');
-        }
-
-        if (!PaymentChannel::where('id', $params['payment_channel_id'])->exists()) {
-            return $this->fail('关联的支付通道不存在，请尝试返回后重试');
-        }
-
         try {
+            $params = $this->decryptPayload($request);
+            if ($params === null) {
+                return $this->fail('非法请求');
+            }
+
+            if (empty($params['id']) || empty($params['payment_channel_id'])) {
+                return $this->fail('请求参数缺失');
+            }
+
+            if (!PaymentChannel::where('id', $params['payment_channel_id'])->exists()) {
+                return $this->fail('关联的支付通道不存在，请尝试返回后重试');
+            }
+
             validate($this->getPaymentChannelAccountValidationRules(), $this->getPaymentChannelAccountValidationMessages())->check($params);
 
             PaymentChannelAccount::updatePaymentChannelAccount((int)$params['id'], $params);

@@ -9,10 +9,8 @@ use app\model\Merchant;
 use app\model\RiskLog;
 use Core\baseController\AdminBase;
 use Core\Service\RiskService;
-use SodiumException;
 use support\Request;
 use support\Response;
-use support\Rodots\Crypto\XChaCha20;
 use Throwable;
 
 class RiskController extends AdminBase
@@ -77,18 +75,15 @@ class RiskController extends AdminBase
      *
      * @param Request $request
      * @return Response
-     * @throws SodiumException
      */
     public function blackCreate(Request $request): Response
     {
-        $payload = $request->post('payload');
-        if (empty($payload)) {
-            return $this->fail('非法请求');
-        }
-
-        $params = new XChaCha20(config('kkpay.api_crypto_key', ''))->get($payload);
-
         try {
+            $params = $this->decryptPayload($request);
+            if ($params === null) {
+                return $this->fail('非法请求');
+            }
+
             validate([
                 'entity_type'  => ['require'],
                 'entity_value' => ['require', 'max:512'],

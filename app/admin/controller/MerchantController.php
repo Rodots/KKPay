@@ -16,7 +16,6 @@ use SodiumException;
 use support\Db;
 use support\Request;
 use support\Response;
-use support\Rodots\Crypto\XChaCha20;
 use support\Rodots\JWT\JwtToken;
 use Throwable;
 
@@ -119,12 +118,10 @@ class MerchantController extends AdminBase
      */
     public function create(Request $request): Response
     {
-        $payload = $request->post('payload');
-        if (empty($payload)) {
+        $params = $this->decryptPayload($request);
+        if ($params === null) {
             return $this->fail('非法请求');
         }
-
-        $params = new XChaCha20(config('kkpay.api_crypto_key', ''))->get($payload);
 
         try {
             validate([
@@ -160,12 +157,10 @@ class MerchantController extends AdminBase
      */
     public function edit(Request $request): Response
     {
-        $payload = $request->post('payload');
-        if (empty($payload)) {
+        $params = $this->decryptPayload($request);
+        if ($params === null) {
             return $this->fail('非法请求');
         }
-
-        $params = new XChaCha20(config('kkpay.api_crypto_key', ''))->get($payload);
 
         if (empty($params['id'])) {
             return $this->fail('必要参数缺失');
@@ -571,12 +566,10 @@ class MerchantController extends AdminBase
      */
     public function payeeCreate(Request $request): Response
     {
-        $payload = $request->post('payload');
-        if (empty($payload)) {
+        $params = $this->decryptPayload($request);
+        if ($params === null) {
             return $this->fail('非法请求');
         }
-
-        $params = new XChaCha20(config('kkpay.api_crypto_key', ''))->get($payload);
 
         try {
             // 验证参数
@@ -622,12 +615,10 @@ class MerchantController extends AdminBase
      */
     public function payeeEdit(Request $request): Response
     {
-        $payload = $request->post('payload');
-        if (empty($payload)) {
+        $params = $this->decryptPayload($request);
+        if ($params === null) {
             return $this->fail('非法请求');
         }
-
-        $params = new XChaCha20(config('kkpay.api_crypto_key', ''))->get($payload);
 
         if (empty($params['id'])) {
             return $this->fail('必要参数缺失');
@@ -820,12 +811,10 @@ class MerchantController extends AdminBase
      */
     public function encryptionEdit(Request $request): Response
     {
-        $payload = $request->post('payload');
-        if (empty($payload)) {
+        $params = $this->decryptPayload($request);
+        if ($params === null) {
             return $this->fail('非法请求');
         }
-
-        $params = new XChaCha20(config('kkpay.api_crypto_key', ''))->get($payload);
 
         if (empty($params['id'])) {
             return $this->fail('必要参数缺失');

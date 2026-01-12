@@ -7,11 +7,9 @@ namespace app\admin\controller;
 use app\model\PaymentChannel;
 use Core\baseController\AdminBase;
 use Core\Utils\PaymentGatewayUtil;
-use SodiumException;
 use support\Db;
 use support\Request;
 use support\Response;
-use support\Rodots\Crypto\XChaCha20;
 use Throwable;
 
 class PaymentChannelController extends AdminBase
@@ -133,18 +131,15 @@ class PaymentChannelController extends AdminBase
      *
      * @param Request $request
      * @return Response
-     * @throws SodiumException
      */
     public function create(Request $request): Response
     {
-        $payload = $request->post('payload');
-        if (empty($payload)) {
-            return $this->fail('非法请求');
-        }
-
-        $params = new XChaCha20(config('kkpay.api_crypto_key', ''))->get($payload);
-
         try {
+            $params = $this->decryptPayload($request);
+            if ($params === null) {
+                return $this->fail('非法请求');
+            }
+
             validate($this->getPaymentChannelValidationRules(), $this->getPaymentChannelValidationMessages())->check($params);
 
             PaymentChannel::createPaymentChannel($params);
@@ -161,26 +156,23 @@ class PaymentChannelController extends AdminBase
      *
      * @param Request $request
      * @return Response
-     * @throws SodiumException
      */
     public function edit(Request $request): Response
     {
-        $payload = $request->post('payload');
-        if (empty($payload)) {
-            return $this->fail('非法请求');
-        }
-
-        $params = new XChaCha20(config('kkpay.api_crypto_key', ''))->get($payload);
-
-        if (empty($params['id'])) {
-            return $this->fail('请求参数缺失');
-        }
-
-        if (!PaymentChannel::where('id', $params['id'])->exists()) {
-            return $this->fail('该支付通道不存在');
-        }
-
         try {
+            $params = $this->decryptPayload($request);
+            if ($params === null) {
+                return $this->fail('非法请求');
+            }
+
+            if (empty($params['id'])) {
+                return $this->fail('请求参数缺失');
+            }
+
+            if (!PaymentChannel::where('id', $params['id'])->exists()) {
+                return $this->fail('该支付通道不存在');
+            }
+
             validate($this->getPaymentChannelValidationRules(), $this->getPaymentChannelValidationMessages())->check($params);
 
             PaymentChannel::updatePaymentChannel((int)$params['id'], $params);

@@ -25,22 +25,6 @@ class AccountController extends AdminBase
     protected array $noNeedLogin = ['login'];
 
     /**
-     * 解密加密的请求载荷
-     *
-     * @param Request $request HTTP请求对象
-     * @return array|null 解密后的参数数组，失败返回null
-     * @throws SodiumException
-     */
-    private function decryptPayload(Request $request): ?array
-    {
-        $payload = $request->post('payload');
-        if (empty($payload)) {
-            return null;
-        }
-        return (new XChaCha20(config('kkpay.api_crypto_key', '')))->get($payload);
-    }
-
-    /**
      * 管理员登录接口
      *
      * @param Request $request HTTP请求对象
@@ -127,17 +111,23 @@ class AccountController extends AdminBase
     }
 
     /**
-     * 修改管理员登录密码
+     * 修改管理员密码（登录密码或资金密码）
      *
      * @param Request $request HTTP请求对象
      * @return Response 响应对象
      * @throws SodiumException
      */
-    public function LoginPasswordEdit(Request $request): Response
+    public function passwordEdit(Request $request): Response
     {
         $params = $this->decryptPayload($request);
         if ($params === null) {
             return $this->fail('非法请求');
+        }
+
+        // 验证密码类型
+        $type = $params['type'] ?? '';
+        if (!in_array($type, ['login', 'fund'], true)) {
+            return $this->fail('密码类型不正确');
         }
 
         if (empty($params['password']) || empty($params['newPassword'])) {
@@ -151,9 +141,14 @@ class AccountController extends AdminBase
 
         $admin = Admin::find($request->AdminInfo['id']);
 
+        // 根据类型确定字段名
+        $saltField     = $type . '_salt';
+        $passwordField = $type . '_password';
+        $typeName      = $type === 'login' ? '登录' : '资金';
+
         // 验证原密码
-        $hashedPassword = 'login' . $admin->login_salt . hash('xxh128', $params['password']) . 'kkpay';
-        if (!password_verify($hashedPassword, $admin->login_password)) {
+        $hashedPassword = $type . $admin->$saltField . hash('xxh128', $params['password']) . 'kkpay';
+        if (!password_verify($hashedPassword, $admin->$passwordField)) {
             return $this->fail('原密码错误');
         }
 
@@ -162,64 +157,16 @@ class AccountController extends AdminBase
             return $this->fail('TOTP一次性密码错误');
         }
 
-        // 更新登录密码
-        $admin->login_salt     = random(4);
-        $admin->login_password = password_hash('login' . $admin->login_salt . hash('xxh128', $newPassword) . 'kkpay', PASSWORD_BCRYPT);
+        // 更新密码
+        $admin->$saltField     = random(4);
+        $admin->$passwordField = password_hash($type . $admin->$saltField . hash('xxh128', $newPassword) . 'kkpay', PASSWORD_BCRYPT);
 
         if ($admin->save()) {
-            $this->adminLog("修改管理员【{$admin->account}】登录密码", $admin->id);
-            return $this->success('登录密码修改成功');
+            $this->adminLog("修改管理员【{$admin->account}】{$typeName}密码", $admin->id);
+            return $this->success("{$typeName}密码修改成功");
         }
 
-        return $this->fail('密码修改失败，请重试或联系运维');
-    }
-
-    /**
-     * 修改管理员资金密码
-     *
-     * @param Request $request HTTP请求对象
-     * @return Response 响应对象
-     * @throws SodiumException
-     */
-    public function FundPasswordEdit(Request $request): Response
-    {
-        $params = $this->decryptPayload($request);
-        if ($params === null) {
-            return $this->fail('非法请求');
-        }
-
-        if (empty($params['password']) || empty($params['newPassword'])) {
-            return $this->fail('原密码和新密码不能为空');
-        }
-
-        $newPassword = trim($params['newPassword']);
-        if (strlen($newPassword) < 5) {
-            return $this->fail('密码长度不能小于5位');
-        }
-
-        $admin = Admin::find($request->AdminInfo['id']);
-
-        // 验证原密码
-        $hashedPassword = 'fund' . $admin->fund_salt . hash('xxh128', $params['password']) . 'kkpay';
-        if (!password_verify($hashedPassword, $admin->fund_password)) {
-            return $this->fail('原密码错误');
-        }
-
-        // 验证TOTP双重验证代码（如果启用）
-        if (!empty($admin->totp_secret) && !$this->verifyTotpCode($admin->totp_secret, $params['totp_code'] ?? '')) {
-            return $this->fail('TOTP一次性密码错误');
-        }
-
-        // 更新资金密码
-        $admin->fund_salt     = random(4);
-        $admin->fund_password = password_hash('fund' . $admin->fund_salt . hash('xxh128', $newPassword) . 'kkpay', PASSWORD_BCRYPT);
-
-        if ($admin->save()) {
-            $this->adminLog("修改管理员【{$admin->account}】资金密码", $admin->id);
-            return $this->success('资金密码修改成功');
-        }
-
-        return $this->fail('资金密码修改失败，请重试或联系运维');
+        return $this->fail("{$typeName}密码修改失败，请重试或联系运维");
     }
 
     /**
@@ -325,7 +272,7 @@ class AccountController extends AdminBase
             return $this->fail('TOTP密钥已过期，请重新生成');
         }
 
-        if (!(new GoogleAuthenticator())->verifyCode($secret, $code)) {
+        if (!new GoogleAuthenticator()->verifyCode($secret, $code)) {
             return $this->fail('TOTP一次性密码不正确，请重新输入');
         }
 
@@ -333,7 +280,7 @@ class AccountController extends AdminBase
 
         try {
             $admin              = Admin::find($adminId);
-            $admin->totp_secret = (new XChaCha20(config('kkpay.totp_crypto_key', '')))->encrypt($secret);
+            $admin->totp_secret = new XChaCha20(config('kkpay.totp_crypto_key', ''))->encrypt($secret);
 
             if (!$admin->save()) {
                 return $this->fail('绑定失败，请稍后重试');
@@ -395,8 +342,8 @@ class AccountController extends AdminBase
         }
 
         try {
-            $decryptedSecret = (new XChaCha20(config('kkpay.totp_crypto_key', '')))->decrypt($totpSecret);
-            return (new GoogleAuthenticator())->verifyCode($decryptedSecret, $totpCode);
+            $decryptedSecret = new XChaCha20(config('kkpay.totp_crypto_key', ''))->decrypt($totpSecret);
+            return new GoogleAuthenticator()->verifyCode($decryptedSecret, $totpCode);
         } catch (Throwable $e) {
             Log::error('TOTP验证异常: ' . $e->getMessage());
             return false;
