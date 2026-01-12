@@ -12,19 +12,16 @@ CREATE TABLE `kkpay_admin`  (
   `nickname` varchar(16) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '昵称',
   `email` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '电子邮箱',
   `status` bit(1) NOT NULL DEFAULT b'1' COMMENT '状态 0:禁用 1:启用',
-  `password` char(60) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '密码哈希',
-  `salt` char(4) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '密码盐',
+  `login_salt` char(4) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '登录密码盐',
+  `login_password` char(60) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '登录密码',
+  `fund_salt` char(4) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '资金密码盐',
+  `fund_password` char(60) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '资金密码',
   `totp_secret` varchar(96) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT 'TOTP共享密钥',
   `created_at` timestamp NULL DEFAULT NULL COMMENT '创建时间',
   `updated_at` timestamp NULL DEFAULT NULL COMMENT '更新时间',
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `idx_account`(`account` ASC) USING BTREE COMMENT '账号是唯一的'
-) ENGINE = InnoDB AUTO_INCREMENT = 2 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '管理员表' ROW_FORMAT = DYNAMIC;
-
--- ----------------------------
--- Records of kkpay_admin
--- ----------------------------
-INSERT INTO `kkpay_admin` VALUES (1, 0, 'admin', 'Boss', NULL, b'1', '$2y$12$QLP94tIcr.6zH8OrqcdvA.TD1ilYWJ5DJvNn5xCKMlnn7N7i2Nmfe', 'uAhX', NULL, '2026-01-01 00:00:00', '2026-01-01 00:00:00');
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '管理员表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for kkpay_admin_log

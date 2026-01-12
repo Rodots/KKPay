@@ -200,13 +200,13 @@ class AdminController extends AdminBase
     {
         $id     = $request->post('id');
         $status = $request->post('status');
-        if (empty($id) || !in_array($status, [0, 1])) {
+        if (empty($id) || !in_array($status, [0, 1], true)) {
             return $this->fail('必要参数缺失');
         }
         if (!$user = Admin::find($id)) {
             return $this->fail('该管理员不存在');
         }
-        $user->status = (bool)$status;
+        $user->status = $status;
         if (!$user->save()) {
             return $this->fail('修改失败');
         }
@@ -216,22 +216,24 @@ class AdminController extends AdminBase
     }
 
     /**
-     * 重置管理员密码为123456
+     * 重置管理员密码
      *
      * @param Request $request
      * @return Response
      */
     public function resetPassword(Request $request): Response
     {
-        $id = $request->post('id');
-        if (empty($id)) {
+        $id   = $request->post('id');
+        $type = $request->post('type');
+        if (empty($id) || !in_array($type, ['login', 'fund'])) {
             return $this->fail('必要参数缺失');
         }
 
         try {
-            if (Admin::resetPassword($id)) {
-                $account = Admin::where('id', $id)->value('account');
-                $this->adminLog("重置管理员【{$account}】密码");
+            if (Admin::resetPassword($id, $type)) {
+                $account  = Admin::where('id', $id)->value('account');
+                $typeName = $type === 'login' ? '登录' : '资金';
+                $this->adminLog("重置管理员【{$account}】{$typeName}密码");
                 return $this->success('重置成功');
             }
         } catch (Throwable $e) {

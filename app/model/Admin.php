@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace app\model;
 
@@ -34,8 +34,8 @@ class Admin extends Model
     protected function casts(): array
     {
         return [
-            'role_id' => 'integer',
-            'status'  => 'boolean'
+            'role'   => 'integer',
+            'status' => 'boolean'
         ];
     }
 
@@ -53,7 +53,7 @@ class Admin extends Model
      *
      * @var array<string>
      */
-    protected $hidden = ['totp_secret'];
+    protected $hidden = ['login_password', 'fund_password', 'login_salt', 'fund_salt', 'totp_secret'];
 
     /**
      * 访问器：创建时间
@@ -122,59 +122,66 @@ class Admin extends Model
         if (self::where('account', $data['account'])->exists()) {
             throw new Exception('该账号/用户名已存在');
         }
+
         try {
-            $adminRow           = new self();
-            $adminRow->role     = (int)$data['role'];
-            $adminRow->account  = trim($data['account']);
-            $adminRow->nickname = trim($data['nickname']);
-            $adminRow->email    = empty($data['email']) ? null : trim($data['email']);
-            $adminRow->salt     = random(4);
-            $adminRow->password = password_hash($adminRow->salt . hash('xxh128', trim($data['password'])) . 'kkpay', PASSWORD_BCRYPT);
-            $adminRow->status   = (int)$data['status'];
-            $adminRow->save();
+            $row           = new self();
+            $row->role     = $data['role'];
+            $row->account  = trim($data['account']);
+            $row->nickname = trim($data['nickname']);
+            $row->email    = empty($data['email']) ? null : trim($data['email']);
+            $row->status   = (int)$data['status'];
+
+            // 登录密码
+            $row->login_salt     = random(4);
+            $row->login_password = password_hash('login' . $row->login_salt . hash('xxh128', trim($data['password'])) . 'kkpay', PASSWORD_BCRYPT);
+
+            // 资金密码（默认123456）
+            $row->fund_salt     = random(4);
+            $row->fund_password = password_hash('fund' . $row->fund_salt . '4c2b6eecc66547d595102682557afd52kkpay', PASSWORD_BCRYPT);
+
+            $row->save();
         } catch (Throwable $e) {
             Log::error('创建管理员失败: ' . $e->getMessage());
             throw new Exception('创建失败');
         }
 
-        return $adminRow;
+        return $row;
     }
 
     /**
      * 更新管理员
      *
-     * @param int   $id   商户ID
+     * @param int   $id   管理员ID
      * @param array $data 数据
      * @return true 更新是否成功
      * @throws Exception
      */
     public static function updateAdmin(int $id, array $data): true
     {
-        $admin = self::find($id);
-        if (!$admin) {
+        $row = self::find($id);
+        if (!$row) {
             throw new Exception('该管理员不存在');
         }
-        $account = trim($data['account']);
 
-        if ($admin->account !== $account && self::where('account', $account)->exists()) {
+        $account = trim($data['account']);
+        if ($row->account !== $account && self::where('account', $account)->exists()) {
             throw new Exception('该账号/用户名已存在');
         }
+
         try {
-            $admin->role = (int)$data['role'];
-            if ($admin->account !== $account) {
-                $admin->account = $account;
-            }
-            $admin->nickname = trim($data['nickname']);
-            $admin->email    = empty($data['email']) ? null : trim($data['email']);
-            $admin->status   = (int)$data['status'];
+            $row->role     = $data['role'];
+            $row->account  = $account;
+            $row->nickname = trim($data['nickname']);
+            $row->email    = empty($data['email']) ? null : trim($data['email']);
+            $row->status   = (int)$data['status'];
 
-            // 更新密码
-            if (isset($data['new_password'])) {
-                $admin->salt     = random(4);
-                $admin->password = password_hash($admin->salt . hash('xxh128', trim($data['new_password'])) . 'kkpay', PASSWORD_BCRYPT);
+            // 更新登录密码
+            if (!empty($data['new_password'])) {
+                $row->login_salt     = random(4);
+                $row->login_password = password_hash('login' . $row->login_salt . hash('xxh128', trim($data['new_password'])) . 'kkpay', PASSWORD_BCRYPT);
             }
 
-            $admin->save();
+            $row->save();
         } catch (Throwable $e) {
             Log::error('编辑管理员失败: ' . $e->getMessage());
             throw new Exception('编辑失败');
@@ -186,24 +193,29 @@ class Admin extends Model
     /**
      * 重置管理员密码为123456
      *
-     * @param int $id 管理员ID
+     * @param int    $id   管理员ID
+     * @param string $type 密码类型（login 或 fund）
      * @return true 重置是否成功
      * @throws Exception
      */
-    public static function resetPassword(int $id): true
+    public static function resetPassword(int $id, string $type = 'login'): true
     {
-        $admin = self::find($id);
-        if (!$admin) {
+        $row = self::find($id);
+        if (!$row) {
             throw new Exception('该管理员不存在');
         }
 
-        // 更新商户密码
-        $admin->salt     = random(4);
-        $admin->password = password_hash($admin->salt . hash('xxh128', '123456') . 'kkpay', PASSWORD_BCRYPT);
+        // 根据类型重置对应密码
+        $saltField     = $type . '_salt';
+        $passwordField = $type . '_password';
 
-        if (!$admin->save()) {
+        $row->$saltField     = random(4);
+        $row->$passwordField = password_hash($type . $row->$saltField . '4c2b6eecc66547d595102682557afd52kkpay', PASSWORD_BCRYPT);
+
+        if (!$row->save()) {
             throw new Exception('重置密码失败');
         }
+
         return true;
     }
 
@@ -216,16 +228,17 @@ class Admin extends Model
      */
     public static function resetTotp(int $id): true
     {
-        $admin = self::find($id);
-        if (!$admin) {
+        $row = self::find($id);
+        if (!$row) {
             throw new Exception('该管理员不存在');
         }
 
-        $admin->totp_secret = null;
+        $row->totp_secret = null;
 
-        if (!$admin->save()) {
+        if (!$row->save()) {
             throw new Exception('重置TOTP失败');
         }
+
         return true;
     }
 }
