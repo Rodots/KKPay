@@ -38,14 +38,9 @@ return [
                 base_path() . '/support',
             ], glob(base_path() . '/plugin/*/app'), glob(base_path() . '/plugin/*/config'), glob(base_path() . '/plugin/*/api')),
             // Files with these suffixes will be monitored
-            'monitorExtensions' => [
-                'php',
-                'html',
-                'htm',
-                'env'
-            ],
+            'monitorExtensions' => ['php', 'html', 'htm', 'env'],
             'options'           => [
-                'enable_file_monitor'   => !in_array('-d', $argv) && DIRECTORY_SEPARATOR === '/',
+                'enable_file_monitor'   => config('app.debug', true) && !in_array('-d', $argv) && DIRECTORY_SEPARATOR === '/',
                 'enable_memory_monitor' => DIRECTORY_SEPARATOR === '/',
             ]
         ]
@@ -55,21 +50,5 @@ return [
     ],
     'autoWithdraw' => [
         'handler' => app\process\MerchantAutoWithdraw::class
-    ],
-    'fake'         => [
-        'handler'     => Http::class,
-        'listen'      => 'http://0.0.0.0:8686',
-        'count'       => 1,
-        'user'        => '',
-        'group'       => '',
-        'reusePort'   => false,
-        'eventLoop'   => '',
-        'context'     => [],
-        'constructor' => [
-            'requestClass' => Request::class,
-            'logger'       => Log::channel(),
-            'appPath'      => app_path(),
-            'publicPath'   => public_path()
-        ]
     ]
 ];
