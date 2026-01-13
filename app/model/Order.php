@@ -104,6 +104,17 @@ class Order extends Model
     const string PAYMENT_TYPE_JDPAY     = 'JDPay';
     const string PAYMENT_TYPE_PAYPAL    = 'PayPal';
 
+    // 支付方式枚举值与中文名称映射
+    const array PAYMENT_TYPE_MAP = [
+        self::PAYMENT_TYPE_ALIPAY    => '支付宝',
+        self::PAYMENT_TYPE_WECHATPAY => '微信支付',
+        self::PAYMENT_TYPE_BANK      => '银联/银行卡',
+        self::PAYMENT_TYPE_UNIONPAY  => '云闪付',
+        self::PAYMENT_TYPE_QQWALLET  => 'QQ钱包',
+        self::PAYMENT_TYPE_JDPAY     => '京东支付',
+        self::PAYMENT_TYPE_PAYPAL    => 'PayPal',
+    ];
+
     // 交易状态枚举
     const string TRADE_STATE_WAIT_PAY = 'WAIT_PAY'; // 交易创建，等待买家付款。
     const string TRADE_STATE_CLOSED   = 'TRADE_CLOSED'; // 未付款交易超时关闭。
@@ -206,28 +217,12 @@ class Order extends Model
         );
     }
 
-    /***
-     * 访问器：交易状态文本
-     *
-     * @return Attribute
+    /**
+     * 访问器：支付方式文本
      */
     protected function paymentTypeText(): Attribute
     {
-        return Attribute::make(
-            get: function () {
-                $enum = [
-                    self::PAYMENT_TYPE_NONE      => '未选择',
-                    self::PAYMENT_TYPE_ALIPAY    => '支付宝',
-                    self::PAYMENT_TYPE_WECHATPAY => '微信支付',
-                    self::PAYMENT_TYPE_BANK      => '银联/银行卡',
-                    self::PAYMENT_TYPE_UNIONPAY  => '云闪付',
-                    self::PAYMENT_TYPE_QQWALLET  => 'QQ钱包',
-                    self::PAYMENT_TYPE_JDPAY     => '京东支付',
-                    self::PAYMENT_TYPE_PAYPAL    => 'PayPal',
-                ];
-                return $enum[$this->getOriginal('payment_type')] ?? '未知';
-            }
-        );
+        return Attribute::make(get: fn() => self::PAYMENT_TYPE_MAP[$this->getOriginal('payment_type')] ?? ($this->getOriginal('payment_type') === self::PAYMENT_TYPE_NONE ? '未选择' : '未知'));
     }
 
     /***
