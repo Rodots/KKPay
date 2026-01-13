@@ -60,6 +60,13 @@ class OrderBuyer extends Model
         'mobile'
     ];
 
+    /**
+     * 序列化时应隐藏的属性。
+     *
+     * @var array<string>
+     */
+    protected $hidden = ['trade_no', 'created_at', 'updated_at'];
+
     // 证件类型枚举
     const string CERT_TYPE_IDENTITY_CARD       = 'IDENTITY_CARD'; // 居民身份证
     const string CERT_TYPE_PASSPORT            = 'PASSPORT'; // 护照
@@ -85,6 +92,28 @@ class OrderBuyer extends Model
     {
         return Attribute::make(
             get: fn(?string $value) => $value ? Carbon::parse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
+        );
+    }
+
+    /***
+     * 访问器：证件类型文本
+     *
+     * @return Attribute
+     */
+    protected function certTypeText(): Attribute
+    {
+        return Attribute::make(
+            get: function () {
+                $enum = [
+                    self::CERT_TYPE_IDENTITY_CARD       => '居民身份证',
+                    self::CERT_TYPE_PASSPORT            => '护照',
+                    self::CERT_TYPE_OFFICER_CARD        => '军官证',
+                    self::CERT_TYPE_SOLDIER_CARD        => '士兵证',
+                    self::CERT_TYPE_HOKOU               => '户口簿',
+                    self::CERT_TYPE_PERMANENT_RESIDENCE => '外国人永久居留身份证',
+                ];
+                return $enum[$this->getOriginal('cert_type')] ?? '未知';
+            }
         );
     }
 

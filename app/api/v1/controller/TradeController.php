@@ -67,8 +67,8 @@ class TradeController extends ApiBase
                 return $this->fail('订单不存在');
             }
 
-            // 加载退款记录（仅关键字段）
-            $order->load(['refunds' => function ($query) {
+            // 加载付款人信息和退款记录（仅关键字段）
+            $order->load(['buyer', 'refunds' => function ($query) {
                 $query->select(['id', 'trade_no', 'amount', 'reason', 'created_at']);
             }]);
 

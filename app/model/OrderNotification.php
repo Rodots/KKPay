@@ -57,6 +57,13 @@ class OrderNotification extends Model
     }
 
     /**
+     * 序列化时应隐藏的属性。
+     *
+     * @var array<string>
+     */
+    protected $hidden = ['trade_no'];
+
+    /**
      * 访问器：通知时间
      */
     protected function createdAt(): Attribute
