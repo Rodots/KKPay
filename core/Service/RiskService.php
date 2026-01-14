@@ -21,12 +21,15 @@ class RiskService
     /**
      * 通用黑名单检查方法
      */
-    private static function checkBlacklist(string $entityType, string $entityValue): bool
+    private static function checkBlacklist(string $entityType, ?string $entityValue): bool
     {
+        if (is_null($entityValue)) {
+            return false;
+        }
+
         $entityHash = hash('sha3-224', $entityType . $entityValue);
-        return Blacklist::where('entity_hash', $entityHash)->where(function ($query) {
-            $query->whereNull('expired_at')
-                ->orWhere('expired_at', '>', Carbon::now()->timezone(config('app.default_timezone')));
+        return Blacklist::select(['id'])->where('entity_hash', $entityHash)->where(function ($query) {
+            $query->whereNull('expired_at')->orWhere('expired_at', '>', Carbon::now()->timezone(config('app.default_timezone')));
         })->exists();
     }
 
@@ -49,33 +52,26 @@ class RiskService
     /**
      * 检查用户ID是否在黑名单中
      */
-    public static function checkUserIdBlacklist(string $userId, int $merchantId, ?string $tradeNo = null): bool
+    public static function checkUserIdBlacklist(int $merchantId, ?string $userId, ?string $buyerOpenId, ?string $tradeNo = null): bool
     {
-        $isBlack = self::checkBlacklist(Blacklist::ENTITY_TYPE_USER_ID, $userId);
-        if ($isBlack) {
-            RiskLog::create([
-                'merchant_id' => $merchantId,
-                'type'        => RiskLog::TYPE_BLACKLIST,
-                'content'     => "发现用户ID“{$userId}”为高风险用户，已成功拦截该用户" . ($tradeNo ? "对订单{$tradeNo}进行付款。" : '创建订单。')
-            ]);
-        }
-        return $isBlack;
-    }
+        $hitId = null;
 
-    /**
-     * 检查支付渠道买家账户是否在黑名单中
-     */
-    public static function checkBuyerOpenIdBlacklist(string $buyerOpenId, int $merchantId, ?string $tradeNo = null): bool
-    {
-        $isBlack = self::checkBlacklist(Blacklist::ENTITY_TYPE_USER_ID, $buyerOpenId);
-        if ($isBlack) {
+        if (!empty($userId) && self::checkBlacklist(Blacklist::ENTITY_TYPE_USER_ID, $userId)) {
+            $hitId = $userId;
+        } elseif (!empty($buyerOpenId) && self::checkBlacklist(Blacklist::ENTITY_TYPE_USER_ID, $buyerOpenId)) {
+            $hitId = $buyerOpenId;
+        }
+
+        if ($hitId) {
             RiskLog::create([
                 'merchant_id' => $merchantId,
                 'type'        => RiskLog::TYPE_BLACKLIST,
-                'content'     => "发现支付账户“{$buyerOpenId}”为高风险用户，已成功拦截该用户" . ($tradeNo ? "对订单{$tradeNo}进行付款的通知。" : '创建订单。')
+                'content'     => sprintf("发现用户ID“%s”为高风险用户，已成功拦截该用户%s", $hitId, $tradeNo ? "对订单{$tradeNo}进行付款。" : '创建订单。')
             ]);
+            return true;
         }
-        return $isBlack;
+
+        return false;
     }
 
     /**
@@ -143,6 +139,22 @@ class RiskService
     }
 
     /**
+     * 批量检查黑名单
+     */
+    public static function batchCheckBlacklist(array $entities): array
+    {
+        $results = [];
+
+        foreach ($entities as $entityType => $entityValue) {
+            if (in_array($entityType, Blacklist::getSupportedEntityTypes()) && !empty($entityValue)) {
+                $results[$entityType] = self::checkBlacklist($entityType, $entityValue);
+            }
+        }
+
+        return $results;
+    }
+
+    /**
      * 支付成功时检查买家是否在黑名单中
      *
      * @param int         $merchantId  商户ID
@@ -152,7 +164,7 @@ class RiskService
      * @param string|null $buyerOpenId 支付渠道买家账户
      * @return bool 命中黑名单返回true，否则返回false
      */
-    public static function checkPaymentBlacklist(int $merchantId, string $tradeNo, ?string $ip = null, ?string $userId = null, ?string $buyerOpenId = null): bool
+    public static function PaymentedCheck(int $merchantId, string $tradeNo, ?string $ip = null, ?string $userId = null, ?string $buyerOpenId = null): bool
     {
         // 检查IP黑名单
         if (!empty($ip) && self::checkBlacklist(Blacklist::ENTITY_TYPE_IP_ADDRESS, $ip)) {
@@ -179,7 +191,7 @@ class RiskService
             RiskLog::create([
                 'merchant_id' => $merchantId,
                 'type'        => RiskLog::TYPE_BLACKLIST,
-                'content'     => "支付成功通知：发现支付账户“{$buyerOpenId}”为高风险用户，已拦截订单{$tradeNo}的下游通知。"
+                'content'     => "支付成功通知：发现用户ID“{$buyerOpenId}”为高风险用户，已拦截订单{$tradeNo}的下游通知。"
             ]);
             return true;
         }
@@ -194,7 +206,7 @@ class RiskService
      * @param array $buyer      买家信息数组，包含 ip, user_id, buyer_open_id, cert_no, cert_type, mobile 等字段
      * @return string|null 返回错误信息字符串，或 null 表示通过检查
      */
-    public static function checkCreateOrderRisk(int $merchantId, array $buyer): ?string
+    public static function createOrderCheck(int $merchantId, array $buyer): ?string
     {
         $ip          = $buyer['ip'] ?? null;
         $userId      = $buyer['user_id'] ?? null;
@@ -203,29 +215,26 @@ class RiskService
         $certType    = $buyer['cert_type'] ?? null;
         $mobile      = $buyer['mobile'] ?? null;
 
-        // 黑名单检查
-        if (!empty($ip) && self::checkIpBlacklist($ip, $merchantId)) {
+        if (!empty($ip)) {
+            if (self::checkIpBlacklist($ip, $merchantId)) {
+                return '系统异常，无法完成付款';
+            }
+            if (self::checkIpOrderLimit($ip)) {
+                return '今日支付次数已达上限，请明日再试';
+            }
+        }
+        if (self::checkUserIdBlacklist($merchantId, $userId, $buyerOpenId)) {
             return '系统异常，无法完成付款';
         }
-        if (!empty($userId) && self::checkUserIdBlacklist($userId, $merchantId)) {
-            return '系统异常，无法完成付款';
+        if (self::checkAccountOrderLimit($userId, $buyerOpenId)) {
+            return '今日支付次数已达上限，请明日再试';
         }
-        if (!empty($buyerOpenId) && self::checkBuyerOpenIdBlacklist($buyerOpenId, $merchantId)) {
-            return '系统异常，无法完成付款';
-        }
+
         if (!empty($certNo) && $certType === OrderBuyer::CERT_TYPE_IDENTITY_CARD && self::checkIdCardBlacklist($certNo, $merchantId)) {
             return '系统异常，无法完成付款';
         }
         if (!empty($mobile) && self::checkMobileBlacklist($mobile, $merchantId)) {
             return '系统异常，无法完成付款';
-        }
-
-        // 订单限制检查
-        if (!empty($ip) && self::checkIpOrderLimit($ip)) {
-            return '今日支付次数已达上限，请明日再试';
-        }
-        if (self::checkAccountOrderLimit($userId)) {
-            return '今日支付次数已达上限，请明日再试';
         }
 
         return null;
@@ -274,70 +283,6 @@ class RiskService
     }
 
     /**
-     * 添加IP到黑名单
-     */
-    public static function addIpToBlacklist(string $ip, string $reason, string $origin = Blacklist::ORIGIN_MANUAL_REVIEW, ?string $expiredAt = null): bool
-    {
-        return self::addToBlacklist(Blacklist::ENTITY_TYPE_IP_ADDRESS, $ip, $reason, $origin, $expiredAt);
-    }
-
-    /**
-     * 添加用户ID到黑名单
-     */
-    public static function addUserIdToBlacklist(string $userId, string $reason, string $origin = Blacklist::ORIGIN_MANUAL_REVIEW, ?string $expiredAt = null): bool
-    {
-        return self::addToBlacklist(Blacklist::ENTITY_TYPE_USER_ID, $userId, $reason, $origin, $expiredAt);
-    }
-
-    /**
-     * 添加手机号到黑名单
-     */
-    public static function addMobileToBlacklist(string $mobile, string $reason, string $origin = Blacklist::ORIGIN_MANUAL_REVIEW, ?string $expiredAt = null): bool
-    {
-        return self::addToBlacklist(Blacklist::ENTITY_TYPE_MOBILE, $mobile, $reason, $origin, $expiredAt);
-    }
-
-    /**
-     * 添加银行卡号到黑名单
-     */
-    public static function addBankCardToBlacklist(string $bankCard, string $reason, string $origin = Blacklist::ORIGIN_MANUAL_REVIEW, ?string $expiredAt = null): bool
-    {
-        return self::addToBlacklist(Blacklist::ENTITY_TYPE_BANK_CARD, $bankCard, $reason, $origin, $expiredAt);
-    }
-
-    /**
-     * 添加身份证号到黑名单
-     */
-    public static function addIdCardToBlacklist(string $idCard, string $reason, string $origin = Blacklist::ORIGIN_MANUAL_REVIEW, ?string $expiredAt = null): bool
-    {
-        return self::addToBlacklist(Blacklist::ENTITY_TYPE_ID_CARD, $idCard, $reason, $origin, $expiredAt);
-    }
-
-    /**
-     * 添加设备指纹到黑名单
-     */
-    public static function addDeviceFingerprintToBlacklist(string $deviceFingerprint, string $reason, string $origin = Blacklist::ORIGIN_AUTO_DETECTION, ?string $expiredAt = null): bool
-    {
-        return self::addToBlacklist(Blacklist::ENTITY_TYPE_DEVICE_FINGERPRINT, $deviceFingerprint, $reason, $origin, $expiredAt);
-    }
-
-    /**
-     * 批量检查黑名单
-     */
-    public static function batchCheckBlacklist(array $entities): array
-    {
-        $results = [];
-
-        foreach ($entities as $entityType => $entityValue) {
-            if (in_array($entityType, Blacklist::getSupportedEntityTypes()) && !empty($entityValue)) {
-                $results[$entityType] = self::checkBlacklist($entityType, $entityValue);
-            }
-        }
-
-        return $results;
-    }
-
-    /**
      * 检查IP今日订单数是否超过限制
      *
      * @param string $ip 买家IP地址
@@ -351,9 +296,7 @@ class RiskService
         }
 
         $todayStart = Carbon::today()->timezone(config('app.default_timezone'));
-        $count      = OrderBuyer::where('ip', $ip)
-            ->where('created_at', '>=', $todayStart)
-            ->count();
+        $count      = OrderBuyer::where('ip', $ip)->where('created_at', '>=', $todayStart)->count();
 
         return $count >= (int)$limit;
     }
@@ -361,23 +304,38 @@ class RiskService
     /**
      * 检查支付账号今日订单数是否超过限制
      *
-     * @param string|null $userId 支付账号/用户ID
      * @return bool 超过限制返回true，否则返回false
      */
-    public static function checkAccountOrderLimit(?string $userId): bool
+    public static function checkAccountOrderLimit(?string $userId, ?string $buyerOpenId): bool
     {
-        if (empty($userId)) {
+
+        // 1. 如果两个标识都为空，无需查询数据库，直接视为未超限
+        if (empty($userId) && empty($buyerOpenId)) {
             return false;
         }
 
+        // 2. 获取配置并校验
         $limit = sys_config('payment', 'account_order_limit');
         if (empty($limit) || !is_numeric($limit) || (int)$limit <= 0) {
             return false;
         }
 
         $todayStart = Carbon::today()->timezone(config('app.default_timezone'));
-        $count      = OrderBuyer::where('user_id', $userId)
+
+        // 3. 构建查询
+        $count = OrderBuyer::query()
             ->where('created_at', '>=', $todayStart)
+            ->where(function ($query) use ($userId, $buyerOpenId) {
+                // 只有当 userId 不为空时，才加入统计条件
+                if (!empty($userId)) {
+                    $query->orWhere('user_id', $userId);
+                }
+
+                // 只有当 buyerOpenId 不为空时，才加入统计条件
+                if (!empty($buyerOpenId)) {
+                    $query->orWhere('buyer_open_id', $buyerOpenId);
+                }
+            })
             ->count();
 
         return $count >= (int)$limit;

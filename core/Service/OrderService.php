@@ -169,7 +169,7 @@ class OrderService
                     // 判断系统配置是否启用黑名单风控
                     if (sys_config('payment', 'blacklist_order_action') === '1') {
                         // 检查买家是否命中黑名单
-                        if (RiskService::checkPaymentBlacklist($order->merchant_id, $trade_no, $buyer['ip'], $buyer['user_id'], $buyer['buyer_open_id'])) {
+                        if (RiskService::PaymentedCheck($order->merchant_id, $trade_no, $buyer['ip'], $buyer['user_id'], $buyer['buyer_open_id'])) {
                             $shouldNotify = false;
                         }
                     }

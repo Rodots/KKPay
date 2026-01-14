@@ -49,14 +49,14 @@ CREATE TABLE `kkpay_blacklist`  (
   `entity_hash` char(56) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '实体值的SHA3-224哈希',
   `reason` varchar(1024) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '封禁原因',
   `origin` enum('MANUAL_REVIEW','AUTO_DETECTION','THIRD_PARTY','MERCHANT_REPORT') CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '来源',
-  `expired_at` timestamp NULL DEFAULT NULL COMMENT '过期时间',
+  `expired_at` timestamp NULL DEFAULT NULL COMMENT '过期时间（NULL表示永久）',
   `created_at` timestamp NULL DEFAULT NULL COMMENT '创建时间',
   `updated_at` timestamp NULL DEFAULT NULL COMMENT '更新时间',
   PRIMARY KEY (`id`) USING BTREE,
   UNIQUE INDEX `uk_entity_hash`(`entity_hash` ASC) USING BTREE,
+  INDEX `idx_entity_hash_expired_cover`(`entity_hash` ASC, `expired_at` ASC) USING BTREE,
   INDEX `idx_entity_type_value`(`entity_type` ASC, `entity_value` ASC) USING BTREE,
-  INDEX `idx_expired_at`(`expired_at` ASC) USING BTREE,
-  INDEX `idx_created_at`(`created_at` ASC) USING BTREE
+  INDEX `idx_expired_at`(`expired_at` ASC) USING BTREE
 ) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '用户/客户黑名单表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------

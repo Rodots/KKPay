@@ -43,7 +43,7 @@ class PayController extends ApiBase
         }
 
         // 综合风控检查
-        if ($riskError = RiskService::checkCreateOrderRisk($request->merchant->id, $bizContent['buyer'])) {
+        if ($riskError = RiskService::createOrderCheck($request->merchant->id, $bizContent['buyer'])) {
             return $this->fail($riskError);
         }
 
@@ -99,7 +99,7 @@ class PayController extends ApiBase
         }
 
         // 综合风控检查
-        if ($riskError = RiskService::checkCreateOrderRisk($request->merchant->id, $bizContent['buyer'])) {
+        if ($riskError = RiskService::createOrderCheck($request->merchant->id, $bizContent['buyer'])) {
             return $this->pageMsg($riskError);
         }
 
@@ -282,17 +282,11 @@ class PayController extends ApiBase
 
         // 验证支付类型
         $paymentType = $this->filterString($bizContent['payment_type'] ?? null);
-        if ($isStrictMode && empty($paymentType)) {
+        if (empty($paymentType)) {
             return '支付类型(payment_type)缺失';
         }
-        if ($paymentType && !Order::checkPaymentType($paymentType)) {
+        if (!Order::checkPaymentType($paymentType)) {
             return '支付类型(payment_type)不被允许';
-        }
-
-        // 如果传了payment_channel_code但没传payment_type，需要拦截
-        $paymentChannelCode = $this->filterString($bizContent['payment_channel_code'] ?? null);
-        if (!empty($paymentChannelCode) && empty($paymentType)) {
-            return '指定支付通道编码(payment_channel_code)时必须同时指定支付方式(payment_type)';
         }
 
         // 验证附加参数
