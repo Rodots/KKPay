@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace app\api\v1\controller;
 
+use app\api\v1\middleware\ApiSignatureVerification;
 use app\model\Order;
 use Carbon\Carbon;
 use Core\baseController\ApiBase;
 use Core\Exception\PaymentException;
 use Core\Service\RefundService;
+use support\annotation\Middleware;
 use support\Log;
 use support\Request;
 use support\Response;
@@ -19,6 +21,7 @@ use Throwable;
  *
  * 提供订单查询、退款、关闭等API接口
  */
+#[Middleware(ApiSignatureVerification::class)]
 class TradeController extends ApiBase
 {
     /**

@@ -4,6 +4,7 @@ declare(strict_types=1);
 
 namespace app\api\v1\controller;
 
+use app\api\v1\middleware\ApiSignatureVerification;
 use app\model\Order;
 use app\model\OrderBuyer;
 use app\model\RiskLog;
@@ -13,6 +14,7 @@ use Core\Exception\PaymentException;
 use Core\Service\PaymentService;
 use Core\Service\OrderCreationService;
 use Core\Service\RiskService;
+use support\annotation\Middleware;
 use support\Log;
 use support\Request;
 use support\Response;
@@ -22,6 +24,7 @@ use Throwable;
  * 支付控制器
  * 处理商户支付请求
  */
+#[Middleware(ApiSignatureVerification::class)]
 class PayController extends ApiBase
 {
     /**

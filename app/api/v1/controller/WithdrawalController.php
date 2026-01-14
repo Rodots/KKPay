@@ -4,11 +4,13 @@ declare(strict_types=1);
 
 namespace app\api\v1\controller;
 
+use app\api\v1\middleware\ApiSignatureVerification;
 use app\model\MerchantPayee;
 use app\model\MerchantWithdrawalRecord;
 use Core\baseController\ApiBase;
 use Core\Service\MerchantWithdrawalService;
 use Exception;
+use support\annotation\Middleware;
 use support\Log;
 use support\Request;
 use support\Response;
@@ -19,6 +21,7 @@ use Throwable;
  *
  * 提供提款申请、取消、查询等API接口
  */
+#[Middleware(ApiSignatureVerification::class)]
 class WithdrawalController extends ApiBase
 {
     /**

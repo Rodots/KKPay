@@ -4,10 +4,12 @@ declare(strict_types=1);
 
 namespace app\api\v1\controller;
 
+use app\api\v1\middleware\ApiSignatureVerification;
 use app\model\Order;
 use app\model\MerchantWallet;
 use Carbon\Carbon;
 use Core\baseController\ApiBase;
+use support\annotation\Middleware;
 use support\Log;
 use support\Request;
 use support\Response;
@@ -18,6 +20,7 @@ use Throwable;
  *
  * 提供商户信息查询、余额查询等API接口
  */
+#[Middleware(ApiSignatureVerification::class)]
 class MerchantApiController extends ApiBase
 {
     /**

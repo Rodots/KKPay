@@ -4,21 +4,17 @@ declare(strict_types=1);
 
 namespace Core\baseController;
 
-use app\api\v1\middleware\ApiSignatureVerification;
 use Core\Traits\ApiResponse;
-use support\annotation\Middleware;
 use support\Request;
 
 /**
  * API v1 基类控制器
  *
  * 为所有商户 API 控制器提供统一的功能：
- * - API 签名验证中间件
  * - 响应格式化方法 (success, fail, error)
  * - 业务参数解析方法 (parseBizContent, getString, getAmount, getInt)
  * - 商户上下文获取 (getMerchantId, getMerchantNumber)
  */
-#[Middleware(ApiSignatureVerification::class)]
 class ApiBase
 {
     use ApiResponse;
