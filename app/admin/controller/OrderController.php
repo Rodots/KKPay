@@ -89,11 +89,7 @@ class OrderController extends AdminBase
                     case 'fuzzy_trade_no':
                         $q->where(function ($query) use ($value) {
                             $value = trim($value);
-                            $query->orWhere('trade_no', $value)
-                                ->orWhere('out_trade_no', $value)
-                                ->orWhere('api_trade_no', $value)
-                                ->orWhere('bill_trade_no', $value)
-                                ->orWhere('mch_trade_no', $value);
+                            $query->orWhere('trade_no', $value)->orWhere('out_trade_no', $value)->orWhere('api_trade_no', $value)->orWhere('bill_trade_no', $value)->orWhere('mch_trade_no', $value);
                         });
                         break;
                     case 'trade_no':
@@ -434,5 +430,155 @@ class OrderController extends AdminBase
         $merchant_number = $order->merchant->merchant_number ?? '未知';
         $this->adminLog("{$operation}商户【{$merchant_number}】的订单【{$order->trade_no}】");
         return $this->success("订单{$operation}成功");
+    }
+
+    /**
+     * 批量补单
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function batchRepair(Request $request): Response
+    {
+        $ids = $request->post('ids');
+
+        if (empty($ids) || !is_array($ids)) {
+            return $this->fail('必要参数缺失');
+        }
+
+        $success = [];
+        $failed  = [];
+
+        foreach ($ids as $trade_no) {
+            try {
+                $order = Order::with('merchant:id,merchant_number')->where('trade_no', $trade_no)->first(['trade_no', 'trade_state', 'payment_channel_account_id', 'merchant_id']);
+
+                if (!$order) {
+                    $failed[$trade_no] = '订单不存在';
+                    continue;
+                }
+                if ($order->payment_channel_account_id <= 0) {
+                    $failed[$trade_no] = '未匹配收款账户，禁止补单';
+                    continue;
+                }
+                if ($order->trade_state !== Order::TRADE_STATE_WAIT_PAY && $order->trade_state !== Order::TRADE_STATE_CLOSED) {
+                    $failed[$trade_no] = '订单已被冻结或无需补单';
+                    continue;
+                }
+
+                OrderService::handlePaymentSuccess(true, $order->trade_no, isAdmin: true);
+                $success[] = $trade_no;
+
+                $merchant_number = $order->merchant->merchant_number ?? '未知';
+                $this->adminLog("批量补单：商户【{$merchant_number}】订单【{$trade_no}】");
+            } catch (Throwable $e) {
+                $failed[$trade_no] = $e->getMessage();
+            }
+        }
+
+        return $this->success('批量补单完成', [
+            'success_count' => count($success),
+            'failed_count'  => count($failed),
+            'success'       => $success,
+            'failed'        => $failed,
+        ]);
+    }
+
+    /**
+     * 批量重新通知下游
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function batchReNotification(Request $request): Response
+    {
+        $ids = $request->post('ids');
+
+        if (empty($ids) || !is_array($ids)) {
+            return $this->fail('必要参数缺失');
+        }
+
+        $success = [];
+        $failed  = [];
+
+        foreach ($ids as $trade_no) {
+            try {
+                $order = Order::with('merchant:id,merchant_number')->find($trade_no);
+
+                if (!$order) {
+                    $failed[$trade_no] = '订单不存在';
+                    continue;
+                }
+                if (!in_array($order->trade_state, [Order::TRADE_STATE_SUCCESS, Order::TRADE_STATE_FINISHED], true)) {
+                    $failed[$trade_no] = '订单非交易成功或交易完结状态';
+                    continue;
+                }
+
+                OrderService::sendAsyncNotification($trade_no, $order, true);
+                $success[] = $trade_no;
+
+                $merchant_number = $order->merchant->merchant_number ?? '未知';
+                $this->adminLog("批量重新通知：商户【{$merchant_number}】订单【{$trade_no}】");
+            } catch (Throwable $e) {
+                $failed[$trade_no] = $e->getMessage();
+            }
+        }
+
+        return $this->success('批量重新通知任务已加入队列', [
+            'success_count' => count($success),
+            'failed_count'  => count($failed),
+            'success'       => $success,
+            'failed'        => $failed,
+        ]);
+    }
+
+    /**
+     * 批量删除订单
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function batchDelete(Request $request): Response
+    {
+        $ids = $request->post('ids');
+
+        if (empty($ids) || !is_array($ids)) {
+            return $this->fail('必要参数缺失');
+        }
+
+        $success = [];
+        $failed  = [];
+
+        foreach ($ids as $trade_no) {
+            try {
+                $order = Order::with('merchant:id,merchant_number')->find($trade_no, ['trade_no', 'merchant_id']);
+
+                if (!$order) {
+                    $failed[$trade_no] = '订单不存在';
+                    continue;
+                }
+
+                DB::transaction(function () use ($order) {
+                    $order->buyer()->delete();
+                    $order->refunds()->delete();
+                    $order->notifications()->delete();
+                    $order->delete();
+                });
+
+                $success[] = $trade_no;
+
+                $merchant_number = $order->merchant->merchant_number ?? '未知';
+                $this->adminLog("批量删除：商户【{$merchant_number}】订单【{$trade_no}】");
+            } catch (Throwable $e) {
+                $failed[$trade_no] = $e->getMessage();
+            }
+        }
+
+        return $this->success('批量删除完成', [
+            'success_count' => count($success),
+            'failed_count'  => count($failed),
+            'success'       => $success,
+            'failed'        => $failed,
+        ]);
     }
 }
