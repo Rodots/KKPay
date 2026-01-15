@@ -1,6 +1,7 @@
 /runtime
 /vendor
 /app/fake
+/config/kkpay.php
 /config/plugin/webman/log
 /.idea
 /.vscode
@@ -8,4 +9,3 @@
 /.lingma
 *.log
 .env
-composer.lock
