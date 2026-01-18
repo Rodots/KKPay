@@ -121,7 +121,7 @@ class ApiSignatureVerification implements MiddlewareInterface
         $validations = [
             'merchant_number' => fn($v) => !empty($v) && preg_match('/^M[A-Z0-9]{15}$/', $params['merchant_number']),
             'biz_content'     => fn($v) => !empty($v) && is_string($v),
-            'timestamp'       => fn($v) => !empty($v) && is_numeric($v),
+            'timestamp'       => fn($v) => !empty($v) && is_numeric($v) && strlen($v) === 10,
             'sign_type'       => fn($v) => !empty($v) && in_array($v, MerchantEncryption::SUPPORTED_SIGN_TYPES),
             'sign'            => fn($v) => !empty($v)
         ];
