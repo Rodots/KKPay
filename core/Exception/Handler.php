@@ -89,7 +89,6 @@ class Handler extends ExceptionHandler
 
         $result = [
             'code'    => $code,
-            'data'    => [],
             'message' => $message,
             'state'   => false
         ];
