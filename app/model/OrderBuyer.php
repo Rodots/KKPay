@@ -53,6 +53,7 @@ class OrderBuyer extends Model
         'ip',
         'user_agent',
         'user_id',
+        'buyer_open_id',
         'real_name',
         'cert_no',
         'cert_type',

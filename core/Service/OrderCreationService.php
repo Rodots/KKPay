@@ -54,14 +54,16 @@ class OrderCreationService
 
             // 创建订单关联信息
             $orderBuyer = OrderBuyer::create([
-                'trade_no'   => $order->trade_no,
-                'ip'         => $bizContent['buyer']['ip'],
-                'user_agent' => $bizContent['buyer']['user_agent'],
-                'real_name'  => $bizContent['buyer']['real_name'],
-                'cert_no'    => $bizContent['buyer']['cert_no'],
-                'cert_type'  => $bizContent['buyer']['cert_type'],
-                'min_age'    => $bizContent['buyer']['min_age'],
-                'mobile'     => $bizContent['buyer']['mobile'],
+                'trade_no'      => $order->trade_no,
+                'ip'            => $bizContent['buyer']['ip'],
+                'user_agent'    => $bizContent['buyer']['user_agent'],
+                'user_id'       => $bizContent['buyer']['user_id'],
+                'buyer_open_id' => $bizContent['buyer']['buyer_open_id'],
+                'real_name'     => $bizContent['buyer']['real_name'],
+                'cert_no'       => $bizContent['buyer']['cert_no'],
+                'cert_type'     => $bizContent['buyer']['cert_type'],
+                'min_age'       => $bizContent['buyer']['min_age'],
+                'mobile'        => $bizContent['buyer']['mobile'],
             ]);
 
             Db::commit();
