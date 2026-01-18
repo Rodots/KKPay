@@ -27,7 +27,7 @@ final class SignatureUtil
         return http_build_query(
             data: array_filter(
                 $params,
-                fn($v, $k) => !in_array($k, ['sign', 'encryption_param'], true) && $v !== '' && $v !== null && !is_array($v),
+                fn($v, $k) => $k !== 'sign' && $v !== '' && $v !== null && !is_array($v),
                 ARRAY_FILTER_USE_BOTH
             ),
             encoding_type: PHP_QUERY_RFC3986,
