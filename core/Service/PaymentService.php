@@ -124,6 +124,10 @@ class PaymentService
                 $json['pay_type'] = 'json';
                 $json['pay_info'] = $result['data'] ?? [];
                 break;
+            case 'scan': //付款码支付
+                $json['pay_type'] = 'scan';
+                $json['pay_info'] = $result['data'] ?? [];
+                break;
             case 'page': //显示指定页面
                 $page = $result['page'] ?? '404';
                 if (strpos($page, 'qrcode')) {
