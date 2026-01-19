@@ -2,6 +2,8 @@
 
 namespace Core\Gateway\BaiExcellent\lib;
 
+use RuntimeException;
+
 class Aes
 {
     /**
@@ -31,11 +33,11 @@ class Aes
     public function __construct(string $securityKey, string $method = 'AES-128-CBC', string $iv = '')
     {
         if (empty($securityKey)) {
-            throw new \RuntimeException('秘钥不能为空');
+            throw new RuntimeException('秘钥不能为空');
         }
         $this->securityKey = $securityKey;
         if (false === $this->isSupportCipherMethod($method)) {
-            throw new \RuntimeException('暂不支持该加密方式');
+            throw new RuntimeException('暂不支持该加密方式');
         }
         $this->method = $method;
 
@@ -49,7 +51,7 @@ class Aes
      */
     public function encrypt(string $plainText): bool|string
     {
-        $originData = (openssl_encrypt($this->addPkcs7Padding($plainText, 16), $this->method, $this->securityKey, OPENSSL_NO_PADDING, $this->iv));
+        $originData = (openssl_encrypt($this->addPkcs7Padding($plainText), $this->method, $this->securityKey, OPENSSL_NO_PADDING, $this->iv));
         return $originData === false ? false : base64_encode($originData);
     }
 
@@ -133,7 +135,6 @@ class Aes
         $char = substr($source, -1);
         $num  = ord($char);
         if ($num === 62) return $source;
-        $source = substr($source, 0, -$num);
-        return $source;
+        return substr($source, 0, -$num);
     }
 }

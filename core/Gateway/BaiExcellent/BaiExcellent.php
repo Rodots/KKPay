@@ -7,6 +7,7 @@ namespace Core\Gateway\BaiExcellent;
 use Core\Gateway\AbstractGateway;
 use Core\Gateway\BaiExcellent\lib\Aes;
 use Exception;
+use GuzzleHttp\Exception\GuzzleException;
 use Throwable;
 use GuzzleHttp\Client;
 
@@ -128,6 +129,10 @@ class BaiExcellent extends AbstractGateway
     /*
      * 统一对接方法
      */
+    /**
+     * @throws GuzzleException
+     * @throws Exception
+     */
     private static function apiExecute(string $path, array $params, array $channel): array
     {
         $httpClient = new Client([
@@ -189,17 +194,46 @@ class BaiExcellent extends AbstractGateway
      */
     public static function notify(array $items): array
     {
-        $order   = $items['order'];
-        $channel = $items['channel'];
-        $post    = request()->post();
+        $order     = $items['order'];
+        $channel   = $items['channel'];
+        $post      = request()->post();
+        $timeStamp = request()->header('timeStamp');
+        $visitAuth = request()->header('visitAuth');
+
+        if (empty($visitAuth)) {
+            return ['type' => 'html', 'data' => 'error auth'];
+        }
+
+        $plainText = md5($channel['md5_key'] . ':' . $timeStamp);
+        $iv        = substr($channel['aes_key'], 0, 16);
 
         try {
+            $aes = new Aes($channel['aes_key'], 'AES-192-CBC', $iv);
+
+            if ($plainText !== $aes->decrypt($visitAuth)) {
+                return ['type' => 'html', 'data' => 'fail'];
+            }
+
+            if (isset($post['tradeStatus']) && $post['tradeStatus'] === 'TRADE_SUCCESS') {
+                if ($post['merchantTradeNo'] === $order['trade_no'] && bccomp($post['totalAmount'], $order['buyer_pay_amount'], 2) === 0) {
+                    // 买家支付宝信息
+                    $buyer = [
+                        'user_id' => $post['buyerUserId'] ?: null,
+                    ];
+                    // 处理支付异步通知
+                    self::processNotify(trade_no: $order['trade_no'], api_trade_no: $post['platformOutTradeNo'], bill_trade_no: $post['thirdOutTradeNo'], payment_time: $post['gmt_payment'], buyer: $buyer);
+                }
+            }
+
             return ['type' => 'html', 'data' => 'success'];
         } catch (Throwable) {
             return ['type' => 'html', 'data' => 'fail'];
         }
     }
 
+    /*
+     * 订单退款
+     */
     public static function refund(array $items): array
     {
         $order         = $items['order'];
