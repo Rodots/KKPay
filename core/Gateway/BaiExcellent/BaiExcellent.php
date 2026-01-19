@@ -89,7 +89,7 @@ class BaiExcellent extends AbstractGateway
      */
     public static function alipay(array $items): array
     {
-        if (!isMobile() || !isAlipay()) {
+        if (!isMobile()) {
             return ['type' => 'page', 'page' => 'alipay_qrcode', 'data' => ['url' => site_url('pay/alipay/' . $items['order']['trade_no'] . '.html')]];
         }
 
@@ -112,12 +112,12 @@ class BaiExcellent extends AbstractGateway
             'merchantPayNotifyUrl' => $items['notify_url'],
             'accountName'          => $buyer['real_name'],
             'accountPhone'         => $buyer['mobile'],
-            'clientIp'             => '1.1.1.1',
+            'clientIp'             => $buyer['ip'],
             'riskControlNotifyUrl' => $items['notify_url'],
         ];
 
         return self::lockPaymentExt($order['trade_no'], function () use ($params, $channel) {
-            $res = self::createOrder($params, $channel);
+            $res = self::apiExecute('apiv2/payment/pay', $params, $channel);
             if ($res['evoke_mode'] === 1) {
                 return ['type' => 'redirect', 'url' => $res['pay_url']];
             }
@@ -126,9 +126,9 @@ class BaiExcellent extends AbstractGateway
     }
 
     /*
-     * 统一创建订单方法
+     * 统一对接方法
      */
-    private static function createOrder(array $params, array $channel): array
+    private static function apiExecute(string $path, array $params, array $channel): array
     {
         $httpClient = new Client([
             'base_uri'    => $channel['gateway'],
@@ -138,7 +138,7 @@ class BaiExcellent extends AbstractGateway
 
         $timestamps = time();
         $visitAuth  = self::visitAuth($timestamps, $channel);
-        $response   = $httpClient->post('apiv2/payment/pay', [
+        $response   = $httpClient->post($path, [
             'headers'     => [
                 'timeStamp' => $timestamps,
                 'visitAuth' => $visitAuth
@@ -189,32 +189,11 @@ class BaiExcellent extends AbstractGateway
      */
     public static function notify(array $items): array
     {
-        $order = $items['order'];
-        $post  = request()->post();
+        $order   = $items['order'];
+        $channel = $items['channel'];
+        $post    = request()->post();
 
         try {
-            $alipay = Factory::createFromArray(self::formatConfig($items['channel']));
-
-            // 通过ConfigManager获取SignatureManager实例
-            $signatureManager = $alipay->getConfigManager()->getSignatureManager();
-
-            // 验证回调参数签名
-            if (!$signatureManager->verifyParams($post)) {
-                return ['type' => 'html', 'data' => 'fail'];
-            }
-
-            if (in_array($post['trade_status'], ['TRADE_FINISHED', 'TRADE_SUCCESS'], true)) {
-                if ($post['out_trade_no'] == $order['trade_no'] && round($post['total_amount'], 2) === round((float)$order['buyer_pay_amount'], 2)) {
-                    // 买家支付宝信息
-                    $buyer = [
-                        'user_id'       => empty($post['buyer_id']) ? null : $post['buyer_id'],
-                        'buyer_open_id' => empty($post['buyer_open_id']) ? null : $post['buyer_open_id'],
-                    ];
-                    // 处理支付异步通知
-                    self::processNotify(trade_no: $order['trade_no'], api_trade_no: $post['trade_no'], payment_time: $post['gmt_payment'], buyer: $buyer);
-                }
-            }
-
             return ['type' => 'html', 'data' => 'success'];
         } catch (Throwable) {
             return ['type' => 'html', 'data' => 'fail'];
@@ -225,23 +204,21 @@ class BaiExcellent extends AbstractGateway
     {
         $order         = $items['order'];
         $refund_record = $items['refund_record'];
-
-        $alipay = Factory::createFromArray(self::formatConfig($items['channel']));
+        $channel       = $items['channel'];
 
         $params = [
-            'refund_amount'  => $refund_record['amount'],
-            'out_trade_no'   => $order['trade_no'],
-            'trade_no'       => $order['api_trade_no'],
-            'refund_reason'  => $refund_record['reason'],
-            'out_request_no' => $refund_record['id']
+            'externalId'      => $channel['external_id'],
+            'merchantTradeNo' => $order['trade_no'],
+            'refundAmount'    => $refund_record['amount'],
+            'refundReason'    => $refund_record['reason']
         ];
 
         try {
-            $result = $alipay->execute($params, 'alipay.trade.refund');
+            $result = self::apiExecute('apiv2/refund/tradeRefund', $params, $items['channel']);
         } catch (Throwable $e) {
             return ['state' => false, 'message' => $e->getMessage()];
         }
-        return ['state' => true, 'api_refund_no' => $result['trade_no'], 'refund_fee' => $result['refund_fee'], 'buyer' => (empty($result['buyer_user_id']) ? $result['buyer_open_id'] : $result['buyer_user_id'])];
+        return ['state' => true, 'api_refund_no' => $result['platformOutTradeNo'], 'refund_fee' => $result['refundAmount']];
     }
 
     protected static function validateConfig(array $config): bool
