@@ -302,7 +302,7 @@ class Alipay extends AbstractGateway
             }
 
             if (in_array($post['trade_status'], ['TRADE_FINISHED', 'TRADE_SUCCESS'], true)) {
-                if ($post['out_trade_no'] == $order['trade_no'] && round($post['total_amount'], 2) === round((float)$order['buyer_pay_amount'], 2)) {
+                if ($post['out_trade_no'] == $order['trade_no'] && bccomp($post['total_amount'], $order['buyer_pay_amount'], 2) === 0) {
                     // 买家支付宝信息
                     $buyer = [
                         'user_id'       => empty($post['buyer_id']) ? null : $post['buyer_id'],
@@ -319,6 +319,9 @@ class Alipay extends AbstractGateway
         }
     }
 
+    /*
+     * 订单退款
+     */
     public static function refund(array $items): array
     {
         $order         = $items['order'];
