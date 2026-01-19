@@ -11,7 +11,7 @@ global $argv;
 return [
     'webman'       => [
         'handler'     => Http::class,
-        'listen'      => 'http://0.0.0.0:6667',
+        'listen'      => 'http://0.0.0.0:6689',
         'count'       => cpu_count() * 4,
         'user'        => '',
         'group'       => '',

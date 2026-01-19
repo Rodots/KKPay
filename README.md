@@ -59,7 +59,7 @@ location @backend {
 
     # --- CORS 配置结束 ---
 
-    proxy_pass http://127.0.0.1:6667;
+    proxy_pass http://127.0.0.1:6689;
 }
 
 # 拒绝访问所有以 .php 结尾的文件
