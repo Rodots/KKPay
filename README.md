@@ -13,13 +13,13 @@
 ## 安装与配置
 
 1. 将程序源码压缩包解压至网站根目录
-2. 手动将`/scripts/sql/install.sql`文件导入到MySQL数据库中
-3. 手动修改`/config/database.php`文件中的数据库连接信息并保存
-4. 手动修改`/config/redis.php`文件中的Redis连接信息并保存（一般情况下此项无需改动）
-5. 打开终端，使用`cd`命令进入网站根目录
-6. 终端执行命令 `composer install --no-dev` 安装程序运行所必需的依赖项（需提前自行准备好Composer工具）
-7. 终端执行命令 `php ./scripts/initialization.php` 对系统进行初始化
-8. 终端执行命令 `php ./start.php start -d` 启动程序
+2. 手动修改`/config/database.php`文件中的数据库连接信息并保存
+3. 手动修改`/config/redis.php`文件中的Redis连接信息并保存（一般情况下此项无需改动）
+4. 打开终端，使用`cd`命令进入网站根目录
+5. 终端执行命令 `composer install --no-dev` 安装程序运行所必需的依赖项（需提前自行准备好Composer工具）
+6. 终端执行命令 `php ./scripts/initialization.php --reinstall` 对系统进行一键初始化（自动导入数据库、创建管理员）
+   > 可选参数 `--admin=your_name` 自定义管理员账号（不传默认为 admin）
+7. 终端执行命令 `php ./start.php start -d` 启动程序
 
 ### Nginx配置反向代理（含跨域解决方案）
 
