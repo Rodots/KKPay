@@ -9,6 +9,13 @@
 > 程序需搭配Nginx服务器以实现静态资源缓存以及HTTPS协议，越新越好，无最低要求，推荐使用`Nginx1.29.4`及以上版本。
 
 > 本程序需要`Curl`+`PDO_Mysql`+`Redis`+`MbString`+`BC Math`+`Event`+`Sodium`组件/拓展，请提前检查运行的PHP版本是否已安装并启用。
+>
+> 请提前确保PHP运行环境禁用函数`disable_functions`中不包含`putenv`,`pcntl_signal_dispatch`,`pcntl_signal`,`pcntl_alarm`,`pcntl_fork`,`pcntl_wait`,`proc_open`,`shell_exec`,`exec`。
+
+```ini
+// 【一键】找到php.ini文件，将disable_functions中的内容修改为以下内容
+disable_functions = passthru,system,chroot,chgrp,chown,popen,pcntl_exec,ini_alter,ini_restore,dl,openlog,syslog,readlink,symlink,popepassthru,pcntl_waitpid,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,imap_open,apache_setenv
+```
 
 ## 安装与配置
 
@@ -78,7 +85,6 @@ location ~ /\. {
 1. 本软件（包括但不限于源代码、可执行程序、文档及相关资源）仅供学习、研究或技术交流之用，不得用于任何商业目的或非法用途。
 2. 使用者在使用本软件前，应充分了解并遵守所在国家或地区的相关法律法规。**严禁将本软件用于任何违反法律法规、侵犯他人合法权益或危害网络安全的行为**。
 3. 本软件按“现状”和“可用”状态提供，作者**不提供任何形式的明示或暗示的担保**，包括但不限于对适销性、特定用途适用性、无病毒、无错误或不侵权的担保。
-4. 因使用本软件所引发的任何直接、间接、附带、特殊或后果性损害（包括但不限于数据丢失、业务中断、利润损失等），**作者概不负责**
-   ，一切风险由使用者自行承担。
+4. 因使用本软件所引发的任何直接、间接、附带、特殊或后果性损害（包括但不限于数据丢失、业务中断、利润损失等），**作者概不负责**，一切风险由**使用者自行承担**。
 5. 若您将本软件用于生产环境、商业项目或其他非学习用途，请务必自行评估其安全性、稳定性与合法性，并承担由此产生的全部法律责任。
 6. 本声明的解释权归软件作者所有。如您使用本软件，即视为您已阅读、理解并同意本免责声明的全部内容。
