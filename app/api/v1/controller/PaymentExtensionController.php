@@ -45,7 +45,10 @@ class PaymentExtensionController
         }
 
         if ($method === 'notify') {
-            Log::channel('pay_notify')->info('orderNo: ' . $orderNo, $request->all());
+            Log::channel('pay_notify')->info('orderNo: ' . $orderNo, [
+                'Header' => $request->header(),
+                'Body'   => $request->all()
+            ]);
         } elseif ($method === 'refund' || $method === 'close') {
             return $this->$echoMethod('参数错误');
         }
