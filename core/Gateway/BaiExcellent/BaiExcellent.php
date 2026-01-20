@@ -31,7 +31,7 @@ class BaiExcellent extends AbstractGateway
                 'field'       => 'gateway',
                 'type'        => 'input',
                 'label'       => '域名网关',
-                'placeholder' => '请输入对接的平台域名地址',
+                'placeholder' => '必须以http://或https://开头，以/结尾',
                 'required'    => true,
                 'span'        => 24
             ],
@@ -64,9 +64,15 @@ class BaiExcellent extends AbstractGateway
     ];
 
     /**
+     * 验证配置
+     */
+    protected static function validateConfig(array $config): bool
+    {
+        return !empty($config['gateway']) && !empty($config['external_id']) && !empty($config['md5_key']) && !empty($config['aes_key']);
+    }
+
+    /**
      * 统一收单交易支付
-     * @param array $items
-     * @return array
      */
     public static function unified(array $items): array
     {
@@ -75,8 +81,6 @@ class BaiExcellent extends AbstractGateway
 
     /**
      * 页面跳转支付
-     * @param array $items
-     * @return array
      */
     public static function page(array $items): array
     {
@@ -85,23 +89,32 @@ class BaiExcellent extends AbstractGateway
 
     /**
      * 扫码支付
-     * @param array $items
-     * @return array
      */
     public static function alipay(array $items): array
     {
-        if (!isMobile()) {
-            return ['type' => 'page', 'page' => 'alipay_qrcode', 'data' => ['url' => site_url('pay/alipay/' . $items['order']['trade_no'] . '.html')]];
+        $res = self::lockPaymentExt($items['order']['trade_no'], function () use ($items) {
+            return self::apiExecute('apiv2/payment/pay', self::buildPaymentParams($items), $items['channel']);
+        });
+
+        // 如果是手机端，则直接跳转
+        if (isMobile()) {
+            return $res['evoke_mode'] === 1 ? ['type' => 'redirect', 'url' => $res['pay_url']] : ['type' => 'page', 'page' => 'alipay_qrcode', 'data' => ['url' => $res['pay_url']]];
         }
 
-        $order   = $items['order'];
-        $channel = $items['channel'];
-        $buyer   = $items['buyer'];
+        return ['type' => 'page', 'page' => 'alipay_qrcode', 'data' => ['url' => $res['pay_url']]];
+    }
 
-        $params = [
+    /**
+     * 构建支付请求参数
+     */
+    private static function buildPaymentParams(array $items): array
+    {
+        ['order' => $order, 'buyer' => $buyer] = $items;
+
+        return [
             'payChannel'           => '1',
             'typeIndex'            => '1',
-            'externalId'           => $channel['external_id'],
+            'externalId'           => $items['channel']['external_id'],
             'merchantTradeNo'      => $order['trade_no'],
             'totalAmount'          => $order['buyer_pay_amount'],
             'merchantSubject'      => $items['subject'],
@@ -116,20 +129,70 @@ class BaiExcellent extends AbstractGateway
             'clientIp'             => $buyer['ip'],
             'riskControlNotifyUrl' => $items['notify_url'],
         ];
-
-        return self::lockPaymentExt($order['trade_no'], function () use ($params, $channel) {
-            $res = self::apiExecute('apiv2/payment/pay', $params, $channel);
-            if ($res['evoke_mode'] === 1) {
-                return ['type' => 'redirect', 'url' => $res['pay_url']];
-            }
-            return ['type' => 'page', 'page' => 'alipay_qrcode', 'data' => ['url' => $res['pay_url']]];
-        });
     }
 
-    /*
-     * 统一对接方法
-     */
     /**
+     * 异步通知处理
+     */
+    public static function notify(array $items): array
+    {
+        $order     = $items['order'];
+        $channel   = $items['channel'];
+        $request   = request();
+        $post      = $request->post();
+        $timeStamp = $request->header('timeStamp');
+        $visitAuth = $request->header('visitAuth');
+
+        if (empty($visitAuth)) {
+            return ['type' => 'html', 'data' => 'error auth'];
+        }
+
+        try {
+            $aes          = self::createAes($channel);
+            $expectedAuth = md5($channel['md5_key'] . ':' . $timeStamp);
+
+            if ($expectedAuth !== $aes->decrypt($visitAuth)) {
+                return ['type' => 'html', 'data' => 'fail'];
+            }
+
+            if (($post['tradeStatus'] ?? '') === 'TRADE_SUCCESS' && $post['merchantTradeNo'] === $order['trade_no'] && bccomp($post['totalAmount'], $order['buyer_pay_amount'], 2) === 0) {
+                self::processNotify(
+                    trade_no: $order['trade_no'],
+                    api_trade_no: $post['platformOutTradeNo'],
+                    bill_trade_no: $post['thirdOutTradeNo'],
+                    payment_time: $post['gmt_payment'],
+                    buyer: ['user_id' => $post['buyerUserId'] ?: null]
+                );
+            }
+
+            return ['type' => 'html', 'data' => 'success'];
+        } catch (Throwable) {
+            return ['type' => 'html', 'data' => 'fail'];
+        }
+    }
+
+    /**
+     * 订单退款
+     */
+    public static function refund(array $items): array
+    {
+        $params = [
+            'externalId'      => $items['channel']['external_id'],
+            'merchantTradeNo' => $items['order']['trade_no'],
+            'refundAmount'    => $items['refund_record']['amount'],
+            'refundReason'    => $items['refund_record']['reason']
+        ];
+
+        try {
+            $result = self::apiExecute('apiv2/refund/tradeRefund', $params, $items['channel']);
+            return ['state' => true, 'api_refund_no' => $result['platformOutTradeNo'], 'refund_fee' => $result['refundAmount']];
+        } catch (Throwable $e) {
+            return ['state' => false, 'message' => $e->getMessage()];
+        }
+    }
+
+    /**
+     * API 请求执行
      * @throws GuzzleException
      * @throws Exception
      */
@@ -142,121 +205,52 @@ class BaiExcellent extends AbstractGateway
         ]);
 
         $timestamps = time();
-        $visitAuth  = self::visitAuth($timestamps, $channel);
-        $response   = $httpClient->post($path, [
-            'headers'     => [
-                'timeStamp' => $timestamps,
-                'visitAuth' => $visitAuth
-            ],
-            'form_params' => array_merge($params, ['sign' => self::sign($params, $visitAuth, $channel['aes_key'])]),
+        $visitAuth  = self::generateVisitAuth($timestamps, $channel);
+
+        $response = $httpClient->post($path, [
+            'headers'     => ['timeStamp' => $timestamps, 'visitAuth' => $visitAuth],
+            'form_params' => array_merge($params, ['sign' => self::generateSign($params, $visitAuth, $channel['aes_key'])]),
         ]);
 
         $responseBody = $response->getBody()->getContents();
         if (!json_validate($responseBody)) {
             throw new Exception('返回数据格式错误');
         }
-        $result = json_decode($responseBody, true);
 
+        $result = json_decode($responseBody, true);
         if ($result['code'] !== 0) {
             throw new Exception($result['msg']);
         }
+
         return $result['data']['data'];
     }
 
-    private static function visitAuth(int|string $timestamps, array $channel): string
+    /**
+     * 生成访问认证
+     */
+    private static function generateVisitAuth(int $timestamps, array $channel): string
     {
         $plainText = md5($channel['md5_key'] . ':' . $timestamps);
-        $iv        = substr($channel['aes_key'], 0, 16);
-        $aes       = new Aes($channel['aes_key'], 'AES-192-CBC', $iv);
-
-        return $aes->encrypt($plainText);
-    }
-
-    private static function sign(array $params, string $visitAuth, string $aes_key): string
-    {
-        ksort($params);
-        $params   = array_filter(
-            $params,
-            fn($v, $k) => $k !== 'sign' && $v !== '' && $v !== null,
-            ARRAY_FILTER_USE_BOTH
-        );
-        $sign_str = '';
-        foreach ($params as $k => $v) {
-            $sign_str .= "$k=$v&";
-        }
-        return md5(rtrim($sign_str, '&') . $visitAuth . substr($aes_key, 0, 12));
+        return self::createAes($channel)->encrypt($plainText);
     }
 
     /**
-     * 异步通知处理
-     * @param array $items
-     * @return array
+     * 生成签名
      */
-    public static function notify(array $items): array
+    private static function generateSign(array $params, string $visitAuth, string $aesKey): string
     {
-        $order     = $items['order'];
-        $channel   = $items['channel'];
-        $post      = request()->post();
-        $timeStamp = request()->header('timeStamp');
-        $visitAuth = request()->header('visitAuth');
+        ksort($params);
+        $filtered = array_filter($params, fn($v, $k) => $k !== 'sign' && $v !== '' && $v !== null, ARRAY_FILTER_USE_BOTH);
 
-        if (empty($visitAuth)) {
-            return ['type' => 'html', 'data' => 'error auth'];
-        }
-
-        $plainText = md5($channel['md5_key'] . ':' . $timeStamp);
-        $iv        = substr($channel['aes_key'], 0, 16);
-
-        try {
-            $aes = new Aes($channel['aes_key'], 'AES-192-CBC', $iv);
-
-            if ($plainText !== $aes->decrypt($visitAuth)) {
-                return ['type' => 'html', 'data' => 'fail'];
-            }
-
-            if (isset($post['tradeStatus']) && $post['tradeStatus'] === 'TRADE_SUCCESS') {
-                if ($post['merchantTradeNo'] === $order['trade_no'] && bccomp($post['totalAmount'], $order['buyer_pay_amount'], 2) === 0) {
-                    // 买家支付宝信息
-                    $buyer = [
-                        'user_id' => $post['buyerUserId'] ?: null,
-                    ];
-                    // 处理支付异步通知
-                    self::processNotify(trade_no: $order['trade_no'], api_trade_no: $post['platformOutTradeNo'], bill_trade_no: $post['thirdOutTradeNo'], payment_time: $post['gmt_payment'], buyer: $buyer);
-                }
-            }
-
-            return ['type' => 'html', 'data' => 'success'];
-        } catch (Throwable) {
-            return ['type' => 'html', 'data' => 'fail'];
-        }
+        $signStr = implode('&', array_map(fn($k, $v) => "$k=$v", array_keys($filtered), $filtered));
+        return md5($signStr . $visitAuth . substr($aesKey, 0, 12));
     }
 
-    /*
-     * 订单退款
+    /**
+     * 创建 AES 实例
      */
-    public static function refund(array $items): array
+    private static function createAes(array $channel): Aes
     {
-        $order         = $items['order'];
-        $refund_record = $items['refund_record'];
-        $channel       = $items['channel'];
-
-        $params = [
-            'externalId'      => $channel['external_id'],
-            'merchantTradeNo' => $order['trade_no'],
-            'refundAmount'    => $refund_record['amount'],
-            'refundReason'    => $refund_record['reason']
-        ];
-
-        try {
-            $result = self::apiExecute('apiv2/refund/tradeRefund', $params, $items['channel']);
-        } catch (Throwable $e) {
-            return ['state' => false, 'message' => $e->getMessage()];
-        }
-        return ['state' => true, 'api_refund_no' => $result['platformOutTradeNo'], 'refund_fee' => $result['refundAmount']];
-    }
-
-    protected static function validateConfig(array $config): bool
-    {
-        return !empty($config['gateway']) && !empty($config['external_id']) && !empty($config['md5_key']) && !empty($config['aes_key']);
+        return new Aes($channel['aes_key'], substr($channel['aes_key'], 0, 16));
     }
 }

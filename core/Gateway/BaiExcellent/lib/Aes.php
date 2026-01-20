@@ -4,137 +4,82 @@ namespace Core\Gateway\BaiExcellent\lib;
 
 use RuntimeException;
 
+/**
+ * AES-192-CBC 加密类
+ */
 class Aes
 {
-    /**
-     * @var string 秘钥
-     * AES-128-CBC key 长度 16 位,IV 16位
-     * AES-192-CBC key 长度 24 位,IV 16位
-     * AES-256-CBC key 长度 32 位,IV 16位
-     */
-    protected string $securityKey;
+    private const METHOD = 'AES-192-CBC';
+    private const BLOCK_SIZE = 16;
+
+    private string $key;
+    private string $iv;
 
     /**
-     * @var string 加密方式 https://www.php.net/manual/zh/function.openssl-get-cipher-methods.php
+     * @param string $key 密钥 (24位)
+     * @param string $iv 偏移量 (16位)
      */
-    protected string $method;
-
-    /**
-     * @var string 偏移量
-     */
-    protected string $iv;
-
-    /**
-     * Aes constructor.
-     * @param string $securityKey
-     * @param string $method
-     * @param string $iv
-     */
-    public function __construct(string $securityKey, string $method = 'AES-128-CBC', string $iv = '')
+    public function __construct(string $key, string $iv = '')
     {
-        if (empty($securityKey)) {
-            throw new RuntimeException('秘钥不能为空');
+        if (empty($key)) {
+            throw new RuntimeException('密钥不能为空');
         }
-        $this->securityKey = $securityKey;
-        if (false === $this->isSupportCipherMethod($method)) {
-            throw new RuntimeException('暂不支持该加密方式');
-        }
-        $this->method = $method;
-
-        $this->iv = $this->initializationVector($method, $iv);
+        $this->key = $key;
+        $this->iv = $this->normalizeIv($iv);
     }
 
     /**
      * 加密
-     * @param string $plainText 明文
-     * @return bool|string
      */
-    public function encrypt(string $plainText): bool|string
+    public function encrypt(string $plainText): string|false
     {
-        $originData = (openssl_encrypt($this->addPkcs7Padding($plainText), $this->method, $this->securityKey, OPENSSL_NO_PADDING, $this->iv));
-        return $originData === false ? false : base64_encode($originData);
+        $padded = $this->addPkcs7Padding($plainText);
+        $encrypted = openssl_encrypt($padded, self::METHOD, $this->key, OPENSSL_NO_PADDING, $this->iv);
+        return $encrypted === false ? false : base64_encode($encrypted);
     }
 
     /**
      * 解密
-     * @param string $cipherText 密文
-     * @return bool|string
      */
-    public function decrypt(string $cipherText): bool|string
+    public function decrypt(string $cipherText): string|false
     {
-        $str  = base64_decode($cipherText);
-        $data = openssl_decrypt($str, $this->method, $this->securityKey, OPENSSL_NO_PADDING, $this->iv);
-        return $data === false ? false : $this->stripPKSC7Padding($data);
+        $decoded = base64_decode($cipherText);
+        $decrypted = openssl_decrypt($decoded, self::METHOD, $this->key, OPENSSL_NO_PADDING, $this->iv);
+        return $decrypted === false ? false : $this->stripPkcs7Padding($decrypted);
     }
 
     /**
-     * 初始化向量
-     * @param string $method
-     * @param string $iv
-     * @return false|string
+     * 标准化 IV 长度
      */
-    private function initializationVector(string $method, string $iv = ''): false|string
+    private function normalizeIv(string $iv): string
     {
-        $originIvLen = openssl_cipher_iv_length($method);
-        if (false === $originIvLen) {
-            return '';
+        $requiredLen = openssl_cipher_iv_length(self::METHOD);
+        $currentLen = strlen($iv);
+
+        if ($currentLen === $requiredLen) {
+            return $iv;
         }
-        $currentIvLen = strlen($iv);
-        if ($originIvLen === $currentIvLen) {
-            $outIv = $iv;
-        } elseif ($currentIvLen < $originIvLen) {
-            $outIv = $iv . str_repeat("\0", $originIvLen - $currentIvLen);
-        } elseif ($currentIvLen > $originIvLen) {
-            $outIv = substr($iv, 0, $originIvLen);
-        } else {
-            $outIv = str_repeat("\0", $originIvLen);
+        if ($currentLen < $requiredLen) {
+            return $iv . str_repeat("\0", $requiredLen - $currentLen);
         }
-        return $outIv;
+        return substr($iv, 0, $requiredLen);
     }
 
     /**
-     * 填充算法
-     * @param string $source
-     * @return string
+     * PKCS7 填充
      */
-    private function addPKCS7Padding(string $source): string
+    private function addPkcs7Padding(string $data): string
     {
-        $source = trim($source);
-        $block  = 16;
-
-        $pad = $block - (strlen($source) % $block);
-
-        if ($pad <= $block) {
-            $char   = chr($pad);
-            $source .= str_repeat($char, $pad);
-        }
-        return $source;
+        $pad = self::BLOCK_SIZE - (strlen(trim($data)) % self::BLOCK_SIZE);
+        return trim($data) . str_repeat(chr($pad), $pad);
     }
 
     /**
-     * 是否支持该加密方式
-     * @param string $method
-     * @return bool
+     * 移除 PKCS7 填充
      */
-    private function isSupportCipherMethod(string $method): bool
+    private function stripPkcs7Padding(string $data): string
     {
-        $method = strtolower($method);
-        if (in_array($method, openssl_get_cipher_methods(), true)) {
-            return true;
-        }
-        return false;
-    }
-
-    /**
-     * 移去填充算法
-     * @param string $source
-     * @return string
-     */
-    private function stripPKSC7Padding(string $source): string
-    {
-        $char = substr($source, -1);
-        $num  = ord($char);
-        if ($num === 62) return $source;
-        return substr($source, 0, -$num);
+        $pad = ord(substr($data, -1));
+        return ($pad === 62) ? $data : substr($data, 0, -$pad);
     }
 }
