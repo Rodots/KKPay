@@ -96,12 +96,14 @@ class BaiExcellent extends AbstractGateway
             return self::apiExecute('apiv2/payment/pay', self::buildPaymentParams($items), $items['channel']);
         });
 
+        $payUrl = ltrim('https://www.renrenfu.com/redirectpay?redirecturl=', $res['pay_url']);
+
         // 如果是手机端，则直接跳转
         if (isMobile()) {
-            return $res['evoke_mode'] === 1 ? ['type' => 'redirect', 'url' => $res['pay_url']] : ['type' => 'page', 'page' => 'alipay_qrcode', 'data' => ['url' => $res['pay_url']]];
+            return $res['evoke_mode'] === 1 ? ['type' => 'redirect', 'url' => $payUrl] : ['type' => 'page', 'page' => 'alipay_qrcode', 'data' => ['url' => $payUrl]];
         }
 
-        return ['type' => 'page', 'page' => 'alipay_qrcode', 'data' => ['url' => $res['pay_url']]];
+        return ['type' => 'page', 'page' => 'alipay_qrcode', 'data' => ['url' => $payUrl]];
     }
 
     /**
@@ -124,8 +126,10 @@ class BaiExcellent extends AbstractGateway
             'buyerId'              => $buyer['user_id'] ?: $buyer['buyer_open_id'],
             'buyerMinAge'          => $buyer['min_age'],
             'merchantPayNotifyUrl' => $items['notify_url'],
+            'qrPayMode'            => '4',
             'accountName'          => $buyer['real_name'],
             'accountPhone'         => $buyer['mobile'],
+            // 'clientIp'             => '8.8.8.8',
             'clientIp'             => $buyer['ip'],
             'riskControlNotifyUrl' => $items['notify_url'],
         ];
@@ -139,7 +143,7 @@ class BaiExcellent extends AbstractGateway
         $order     = $items['order'];
         $channel   = $items['channel'];
         $request   = request();
-        $post      = $request->post();
+        $params    = $request->post();
         $timeStamp = $request->header('timeStamp');
         $visitAuth = $request->header('visitAuth');
 
@@ -151,17 +155,16 @@ class BaiExcellent extends AbstractGateway
             $aes          = self::createAes($channel);
             $expectedAuth = md5($channel['md5_key'] . ':' . $timeStamp);
 
-            if ($expectedAuth !== $aes->decrypt($visitAuth)) {
+            if ($expectedAuth !== $aes->decrypt($visitAuth) && ($params['pltNotifySign'] ?? '') !== self::generateSign($params, $visitAuth, $channel['aes_key'])) {
                 return ['type' => 'html', 'data' => 'fail'];
             }
 
-            if (($post['tradeStatus'] ?? '') === 'TRADE_SUCCESS' && $post['merchantTradeNo'] === $order['trade_no'] && bccomp($post['totalAmount'], $order['buyer_pay_amount'], 2) === 0) {
+            if (($params['tradeStatus'] ?? '') === 'TRADE_SUCCESS' && $params['merchantTradeNo'] === $order['trade_no'] && bccomp($params['totalAmount'], $order['buyer_pay_amount'], 2) === 0) {
                 self::processNotify(
                     trade_no: $order['trade_no'],
-                    api_trade_no: $post['platformOutTradeNo'],
-                    bill_trade_no: $post['thirdOutTradeNo'],
-                    payment_time: $post['gmt_payment'],
-                    buyer: ['user_id' => $post['buyerUserId'] ?: null]
+                    api_trade_no: $params['platformOutTradeNo'],
+                    bill_trade_no: $params['thirdOutTradeNo'],
+                    buyer: ['user_id' => $params['buyerUserId'] ?: null]
                 );
             }
 
