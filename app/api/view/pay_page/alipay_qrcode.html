@@ -1,5 +1,6 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
@@ -7,76 +8,90 @@
     <link rel="shortcut icon" href="https://img.alicdn.com/tfs/TB1qEwuzrj1gK0jSZFOXXc7GpXa-32-32.ico">
     <link rel="stylesheet" href="/assets/pay_page/alipay_qrcode/css/style.css">
 </head>
+
 <body>
-<main class="container">
-    <article class="payment-card">
-        <header class="header">
-            <h1 class="payment-title">扫码支付</h1>
-            <p class="payment-subtitle">请使用支付宝扫码完成支付</p>
-        </header>
-        <section class="order-section">
-            <button class="order-toggle" onclick="toggleOrderInfo()">
-                <span class="order-toggle-text">
-                    <svg class="toggle-icon" viewBox="0 0 20 20">
-                        <path fill-rule="evenodd"
-                              d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
-                              clip-rule="evenodd"/>
-                    </svg>
-                    订单详情
-                </span>
-                <span style="color: var(--text-secondary); font-size: 0.875rem;"></span>
-            </button>
-            <div class="order-info" id="orderInfo">
-                <div class="info-content">
-                    <div class="info-item">
-                        <span class="info-label">商品名称</span>
-                        <span class="info-value"><?php echo $order['subject']; ?></span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">订单编号</span>
-                        <span class="info-value"><?php echo $order['out_trade_no']; ?></span>
-                    </div>
-                    <div class="info-item">
-                        <span class="info-label">创建时间</span>
-                        <span class="info-value"><?php echo $order['create_time']; ?></span>
+    <main class="container">
+        <article class="payment-card">
+            <header class="header">
+                <h1 class="payment-title">扫码支付</h1>
+                <p class="payment-subtitle">请使用支付宝扫码完成支付</p>
+            </header>
+            <section class="order-section">
+                <button class="order-toggle" onclick="toggleOrderInfo()">
+                    <span class="order-toggle-text">
+                        <svg class="toggle-icon" viewBox="0 0 20 20">
+                            <path fill-rule="evenodd"
+                                d="M5.293 7.293a1 1 0 011.414 0L10 10.586l3.293-3.293a1 1 0 111.414 1.414l-4 4a1 1 0 01-1.414 0l-4-4a1 1 0 010-1.414z"
+                                clip-rule="evenodd" />
+                        </svg>
+                        订单详情
+                    </span>
+                    <span style="color: var(--text-secondary); font-size: 0.875rem;"></span>
+                </button>
+                <div class="order-info" id="orderInfo">
+                    <div class="info-content">
+                        <div class="info-item">
+                            <span class="info-label">商品名称</span>
+                            <span class="info-value">
+                                <?php echo $order['subject']; ?>
+                            </span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">订单编号</span>
+                            <span class="info-value">
+                                <?php echo $order['out_trade_no']; ?>
+                            </span>
+                        </div>
+                        <div class="info-item">
+                            <span class="info-label">创建时间</span>
+                            <span class="info-value">
+                                <?php echo $order['create_time']; ?>
+                            </span>
+                        </div>
                     </div>
                 </div>
-            </div>
-        </section>
-        <section class="amount-display">
-            <div class="amount-value">
-                <span class="amount-currency">¥</span><?php echo $order['buyer_pay_amount']; ?>
-            </div>
-        </section>
-        <section class="qr-section">
-            <div class="payment-loading" id="paymentLoading">
-                <div class="payment-loading-spinner"></div>
-            </div>
-            <div class="qr-container">
-                <div id="qrcode" title="<?php echo htmlspecialchars($url); ?>"></div>
-            </div>
-            <div class="button-container">
-                <button class="payment-button alipay-button" id="alipayButton" onclick="handleAlipayRedirect()"
+            </section>
+            <section class="amount-display">
+                <div class="amount-value">
+                    <span class="amount-currency">¥</span>
+                    <?php echo $order['buyer_pay_amount']; ?>
+                </div>
+            </section>
+            <section class="qr-section">
+                <div class="payment-loading" id="paymentLoading">
+                    <div class="payment-loading-spinner"></div>
+                </div>
+                <div class="qr-container">
+                    <div id="qrcode" title='<?php echo htmlspecialchars($url); ?>'></div>
+                </div>
+                <div class="button-container">
+                    <button class="payment-button alipay-button" id="alipayButton" onclick="handleAlipayRedirect()"
                         style="display: none;">
-                    <span class="button-text">打开支付宝(Alipay App)</span>
-                </button>
-            </div>
-        </section>
-        <footer class="footer-tips">
-            <p class="tips-text">
-                请<span class="tips-highlight">不要关闭此页面</span>，系统将自动检测支付状态
-            </p>
-        </footer>
-    </article>
-</main>
+                        <span class="button-text">打开支付宝(Alipay App)</span>
+                    </button>
+                    <button class="payment-button manual-query-button" id="manualQueryButton"
+                        onclick="handleManualQuery()" style="display: none;">
+                        <span class="button-text">手动查询支付结果</span>
+                    </button>
+                </div>
+            </section>
+            <footer class="footer-tips">
+                <p class="tips-text">
+                    请<span class="tips-highlight">不要关闭此页面</span>，系统将自动检测支付状态
+                </p>
+            </footer>
+        </article>
+    </main>
 
-<div class="toast-container" id="toastContainer"></div>
+    <div class="toast-container" id="toastContainer"></div>
 
-<script>
-    const paymentUrl = '<?php echo htmlspecialchars($url); ?>';
-    const tradeNo = '<?php echo $order["trade_no"]; ?>';
-</script>
-<script src="/assets/pay_page/common/js/qrcode.js"></script>
-<script src="/assets/pay_page/alipay_qrcode/js/main.js"></script>
+    <script>
+        const paymentUrlBase64 = '<?php echo base64_encode($url); ?>'
+        const paymentUrl = atob(paymentUrlBase64);
+        const tradeNo = '<?php echo $order["trade_no"]; ?>';
+    </script>
+    <script src="/assets/pay_page/common/js/qrcode.js"></script>
+    <script src="/assets/pay_page/alipay_qrcode/js/main.js"></script>
 </body>
+
 </html>
