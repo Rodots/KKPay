@@ -96,7 +96,11 @@ class BaiExcellent extends AbstractGateway
             return self::apiExecute('apiv2/payment/pay', self::buildPaymentParams($items), $items['channel']);
         });
 
-        $payUrl = ltrim('https://www.renrenfu.com/redirectpay?redirecturl=', $res['pay_url']);
+        $payUrl = $res['pay_url'];
+        $prefix = 'https://www.renrenfu.com/redirectpay?redirecturl=';
+        if (str_starts_with($payUrl, $prefix)) {
+            $payUrl = substr($payUrl, strlen($prefix));
+        }
 
         // 如果是手机端，则直接跳转
         if (isMobile()) {
