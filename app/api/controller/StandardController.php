@@ -25,7 +25,7 @@ class StandardController
      * @param Request $request 请求对象
      * @return Response JSON响应
      */
-    #[RateLimiter(limit: 1, ttl: 3, key: RateLimiter::SID, message: '状态查询频率过快，别急')]
+    #[RateLimiter(limit: 2, ttl: 5, key: RateLimiter::SID, message: '状态查询频率过快，别急')]
     public function queryQRStatus(Request $request): Response
     {
         $trade_no = $request->get('trade_no');
