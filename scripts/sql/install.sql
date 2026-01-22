@@ -36,7 +36,7 @@ CREATE TABLE `kkpay_admin_log`  (
   `created_at` timestamp NULL DEFAULT NULL COMMENT '操作时间',
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `idx_created`(`created_at` ASC) USING BTREE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '管理员操作日志表' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '管理员操作日志表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for kkpay_blacklist
@@ -66,9 +66,14 @@ DROP TABLE IF EXISTS `kkpay_config`;
 CREATE TABLE `kkpay_config`  (
   `g` varchar(32) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '组别',
   `k` varchar(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '标识',
-  `v` text CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '内容',
+  `v` VARCHAR(15000) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '内容',
   PRIMARY KEY (`g`, `k`) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '站点配置表' ROW_FORMAT = DYNAMIC;
+
+-- ----------------------------
+-- Records of kkpay_config
+-- ----------------------------
+INSERT INTO `kkpay_config` VALUES ('common', 'version', '0');
 
 -- ----------------------------
 -- Table structure for kkpay_merchant
@@ -96,7 +101,7 @@ CREATE TABLE `kkpay_merchant`  (
   UNIQUE INDEX `email_uindex`(`email` ASC) USING BTREE COMMENT '邮箱是唯一的',
   UNIQUE INDEX `phone_uindex`(`mobile` ASC) USING BTREE COMMENT '手机号码是唯一的',
   INDEX `idx_softdelete`(`deleted_at` ASC) USING BTREE COMMENT '软删除'
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '商户表' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '商户表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for kkpay_merchant_email_log
@@ -119,7 +124,7 @@ CREATE TABLE `kkpay_merchant_email_log`  (
   INDEX `idx_receiver_email`(`receiver_email` ASC) USING BTREE,
   INDEX `idx_merchant_id`(`merchant_id` ASC) USING BTREE,
   INDEX `idx_status_sendtime`(`status` ASC, `send_time` ASC) USING BTREE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '商户邮件发送日志表' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '商户邮件发送日志表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for kkpay_merchant_encryption
@@ -132,7 +137,7 @@ CREATE TABLE `kkpay_merchant_encryption`  (
   `hash_key` char(32) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '对接密钥(摘要算法)',
   `rsa2_key` varchar(512) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '对接公钥(RSA-2048)',
   PRIMARY KEY (`merchant_id`) USING BTREE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '商户密钥表' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '商户密钥表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for kkpay_merchant_log
@@ -147,7 +152,7 @@ CREATE TABLE `kkpay_merchant_log`  (
   `created_at` timestamp NULL DEFAULT NULL COMMENT '操作时间',
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `idx_created`(`created_at` ASC) USING BTREE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '商户操作日志表' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '商户操作日志表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for kkpay_merchant_payee
@@ -162,7 +167,7 @@ CREATE TABLE `kkpay_merchant_payee`  (
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `idx_merchant_id`(`merchant_id` ASC) USING BTREE,
   INDEX `idx_is_default` (`is_default` ASC) USING BTREE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '商户结算收款信息表' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '商户结算收款信息表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for kkpay_merchant_security
@@ -181,7 +186,7 @@ CREATE TABLE `kkpay_merchant_security`  (
   `created_at` timestamp NULL DEFAULT NULL COMMENT '创建时间',
   `updated_at` timestamp NULL DEFAULT NULL COMMENT '更新时间',
   PRIMARY KEY (`merchant_id`) USING BTREE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '商户安全表' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '商户安全表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for kkpay_merchant_wallet
@@ -197,7 +202,7 @@ CREATE TABLE `kkpay_merchant_wallet`  (
   `updated_at` timestamp NULL DEFAULT NULL COMMENT '更新时间',
   PRIMARY KEY (`merchant_id`) USING BTREE,
   UNIQUE INDEX `merchant_currency_uindex`(`merchant_id` ASC) USING BTREE COMMENT '商户和货币唯一'
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '商户钱包表' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '商户钱包表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for kkpay_merchant_wallet_prepaid_record
@@ -237,7 +242,7 @@ CREATE TABLE `kkpay_merchant_wallet_record`  (
   INDEX `idx_merchant_wallet_id`(`merchant_id` ASC) USING BTREE,
   INDEX `idx_trade_no`(`trade_no` ASC) USING BTREE,
   INDEX `idx_type_created`(`type` ASC, `created_at` ASC) USING BTREE
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '商户钱包余额变动记录表' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '商户钱包余额变动记录表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for kkpay_merchant_withdrawal_record
@@ -401,7 +406,7 @@ CREATE TABLE `kkpay_payment_channel`  (
   INDEX `idx_code`(`code` ASC) USING BTREE,
   INDEX `idx_payment_type`(`payment_type` ASC) USING BTREE,
   INDEX `idx_softdelete`(`deleted_at` ASC) USING BTREE COMMENT '软删除'
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '支付通道表' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '支付通道表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for kkpay_payment_channel_account
@@ -430,7 +435,7 @@ CREATE TABLE `kkpay_payment_channel_account`  (
   PRIMARY KEY (`id`) USING BTREE,
   INDEX `payment_channel_id`(`payment_channel_id` ASC) USING BTREE,
   INDEX `idx_softdelete`(`deleted_at` ASC) USING BTREE COMMENT '软删除'
-) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '支付通道子账户表' ROW_FORMAT = DYNAMIC;
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '支付通道子账户表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
 -- Table structure for kkpay_risk_log

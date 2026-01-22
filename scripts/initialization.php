@@ -9,7 +9,7 @@ use support\Db;
 
 // 检查是否在CLI模式下运行
 if (PHP_SAPI !== 'cli') {
-    exit('Run in CLI mode only.');
+    return 'Run in CLI mode only.';
 }
 
 // 解析命令行参数
