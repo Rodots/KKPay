@@ -119,8 +119,9 @@ class Order extends Model
     const string TRADE_STATE_WAIT_PAY = 'WAIT_PAY'; // 交易创建，等待买家付款。
     const string TRADE_STATE_CLOSED   = 'TRADE_CLOSED'; // 未付款交易超时关闭。
     const string TRADE_STATE_SUCCESS  = 'TRADE_SUCCESS'; // 交易支付成功。
-    const string TRADE_STATE_FINISHED = 'TRADE_FINISHED'; // 交易结束，不可退款。(商户签约的产品不支持退款功能的前提下，买家付款成功后交易状态直接变更为TRADE_FINISHED；或者，商户签约的产品支持退款功能的前提下，交易已经成功并且已经超过可退款期限或支付完成后全额退款。)
-    const string TRADE_STATE_FROZEN   = 'TRADE_FROZEN'; // 交易冻结，暂停结算、退款等操作。
+    const string TRADE_STATE_REFUND   = 'TRADE_REFUND'; // 交易部分退款（仍可继续退款）。
+    const string TRADE_STATE_FINISHED = 'TRADE_FINISHED'; // 全额退款（不支持退款、已超过可退款期限，已全额退款）。
+    const string TRADE_STATE_FROZEN   = 'TRADE_FROZEN'; // 交易冻结（暂停结算、退款等操作）。
 
     // 结算状态枚举
     const string SETTLE_STATE_PENDING    = 'PENDING';
@@ -238,7 +239,8 @@ class Order extends Model
                     self::TRADE_STATE_WAIT_PAY => '等待付款',
                     self::TRADE_STATE_CLOSED   => '交易关闭',
                     self::TRADE_STATE_SUCCESS  => '交易成功',
-                    self::TRADE_STATE_FINISHED => '交易完结',
+                    self::TRADE_STATE_REFUND   => '部分退款',
+                    self::TRADE_STATE_FINISHED => '全额退款',
                     self::TRADE_STATE_FROZEN   => '交易冻结',
                 ];
                 return $enum[$this->getOriginal('trade_state')] ?? '未知';

@@ -40,8 +40,8 @@ class RefundService
                 throw new Exception('订单不存在');
             }
 
-            // 检查订单状态
-            if ($order->trade_state !== Order::TRADE_STATE_SUCCESS) {
+            // 检查订单状态（支持交易成功和部分退款状态的订单进行退款）
+            if (!in_array($order->trade_state, [Order::TRADE_STATE_SUCCESS, Order::TRADE_STATE_REFUND], true)) {
                 throw new Exception("订单当前状态为[$order->trade_state_text]，无法进行退款");
             }
 
@@ -90,13 +90,16 @@ class RefundService
             $orderRefund->reason            = $reason;
             $orderRefund->save();
 
-            // 判断订单是否全额退款完成（依据实付金额平账）
+            // 判断退款后订单状态并更新（依据实付金额平账）
             $new_refunded_amount = bcadd($refunded_amount, $amount, 2);
             if (bccomp($new_refunded_amount, $buyer_pay_amount, 2) >= 0) {
-                // 更新订单状态为交易结束
+                // 全额退款完成，更新订单状态为全额退款
                 $order->trade_state = Order::TRADE_STATE_FINISHED;
-                $order->save();
+            } else {
+                // 部分退款，更新订单状态为部分退款
+                $order->trade_state = Order::TRADE_STATE_REFUND;
             }
+            $order->save();
 
             // 如果退款类型为API自动退款，则尝试调用支付网关所对应的退款接口
             if ($refund_type) {

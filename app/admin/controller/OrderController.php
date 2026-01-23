@@ -239,8 +239,8 @@ class OrderController extends AdminBase
         if (!$order = Order::find($trade_no)) {
             return $this->fail('该订单不存在');
         }
-        if (!in_array($order->trade_state, [Order::TRADE_STATE_SUCCESS, Order::TRADE_STATE_FINISHED], true)) {
-            return $this->fail('该订单非交易成功或交易完结状态，无法重新通知');
+        if (!in_array($order->trade_state, [Order::TRADE_STATE_SUCCESS, Order::TRADE_STATE_REFUND, Order::TRADE_STATE_FINISHED], true)) {
+            return $this->fail('该订单当前交易状态不允许重新通知');
         }
 
         try {
@@ -509,8 +509,8 @@ class OrderController extends AdminBase
                     $failed[$trade_no] = '订单不存在';
                     continue;
                 }
-                if (!in_array($order->trade_state, [Order::TRADE_STATE_SUCCESS, Order::TRADE_STATE_FINISHED], true)) {
-                    $failed[$trade_no] = '订单非交易成功或交易完结状态';
+                if (!in_array($order->trade_state, [Order::TRADE_STATE_SUCCESS, Order::TRADE_STATE_REFUND, Order::TRADE_STATE_FINISHED], true)) {
+                    $failed[$trade_no] = '订单非交易成功、部分退款或全额退款状态';
                     continue;
                 }
 

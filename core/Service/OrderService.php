@@ -49,8 +49,12 @@ class OrderService
                 Order::TRADE_STATE_CLOSED
             ],
             Order::TRADE_STATE_SUCCESS  => [
+                Order::TRADE_STATE_REFUND,
                 Order::TRADE_STATE_FINISHED,
                 Order::TRADE_STATE_FROZEN
+            ],
+            Order::TRADE_STATE_REFUND   => [
+                Order::TRADE_STATE_FINISHED
             ],
             Order::TRADE_STATE_FROZEN   => [
                 Order::TRADE_STATE_SUCCESS
@@ -393,7 +397,7 @@ class OrderService
         })
             ->select(['trade_no', 'merchant_id', 'receipt_amount', 'settle_state', 'settle_cycle', 'payment_time'])
             ->where('settle_state', '=', Order::SETTLE_STATE_FAILED)
-            ->whereIn('trade_state', [Order::TRADE_STATE_SUCCESS, Order::TRADE_STATE_FINISHED]);
+            ->whereIn('trade_state', [Order::TRADE_STATE_SUCCESS, Order::TRADE_STATE_REFUND, Order::TRADE_STATE_FINISHED]);
 
         if ($subDays > 0) {
             $query->where('create_time', '>=', $now->copy()->subDays($subDays));
