@@ -38,14 +38,14 @@ return [
                 base_path() . '/support',
             ], glob(base_path() . '/plugin/*/app'), glob(base_path() . '/plugin/*/config'), glob(base_path() . '/plugin/*/api')),
             // Files with these suffixes will be monitored
-            'monitorExtensions' => ['php', 'html', 'htm', 'env'],
+            'monitorExtensions' => ['php', 'html', 'env'],
             'options'           => [
                 'enable_file_monitor'   => config('app.debug', true) && !in_array('-d', $argv) && DIRECTORY_SEPARATOR === '/',
                 'enable_memory_monitor' => DIRECTORY_SEPARATOR === '/',
             ]
         ]
     ],
-    'task'         => [
+    'OrderSettle'  => [
         'handler' => app\process\OrderSettle::class
     ],
     'autoWithdraw' => [
