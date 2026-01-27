@@ -142,9 +142,7 @@ readonly class ConfigManager
             throw new Exception('支付宝RSA公钥错误。请检查公钥文件格式是否正确');
         }
 
-        $contentToVerify = $headerValues['alipay-timestamp'] . "\n" .
-            $headerValues['alipay-nonce'] . "\n" .
-            $responseBody . "\n";
+        $contentToVerify = $headerValues['alipay-timestamp'] . "\n" . $headerValues['alipay-nonce'] . "\n" . $responseBody . "\n";
 
         if (!$this->signatureManager->verify($contentToVerify, $signature, $publicKey)) {
             throw new Exception("签名验证失败: [sign=$signature, content=$responseBody]");

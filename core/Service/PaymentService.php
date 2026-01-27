@@ -113,6 +113,7 @@ class PaymentService
         }
         switch ($type) {
             case 'redirect': //跳转
+            case 'location':
                 $json['pay_type'] = 'redirect';
                 $json['pay_info'] = $result['url'];
                 break;
@@ -161,9 +162,11 @@ class PaymentService
         }
         switch ($type) {
             case 'redirect': //跳转
-                $url       = htmlspecialchars($result['url'] ?? '', ENT_QUOTES, 'UTF-8');
+                $url       = htmlspecialchars($result['url'] ?? 'https://www.baidu.com', ENT_QUOTES, 'UTF-8');
                 $html_text = '<script>window.location.replace(\'' . $url . '\');</script>';
                 return self::redirectTemplate($html_text);
+            case 'location': //重定向
+                return redirect($result['url'] ?? 'https://www.baidu.com');
             case 'html': //显示HTML
                 $html_text = $result['data'] ?? '';
                 if (isset($result['template']) && $result['template'] && str_starts_with($html_text, '<form ')) {

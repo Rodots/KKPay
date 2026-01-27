@@ -8,7 +8,6 @@ use Exception;
 use Core\Gateway\Alipay\Lib\Util\ConfigManager;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
-use JsonException;
 use Psr\Http\Message\ResponseInterface;
 
 /**
@@ -84,7 +83,6 @@ readonly class AlipayClient
      * @param string $methodName 支付宝接口方法名，例如 'alipay.trade.pay'
      * @return array 解析后的响应数据（已解密并验证签名）
      * @throws Exception 当内部处理中发生异常时抛出
-     * @throws JsonException 当 JSON 编码/解码失败时抛出
      * @throws GuzzleException 当 HTTP 请求失败时抛出
      */
     public function execute(array $params, string $methodName): array
@@ -117,6 +115,7 @@ readonly class AlipayClient
      * @param string $returnUrl  支付完成后同步跳转回商户页面的 URL
      * @param string $notifyUrl  支付结果异步通知地址（服务器回调）
      * @return string 包含自动提交表单的 HTML 字符串
+     * @throws Exception
      */
     public function pageExecute(array $params, string $methodName, string $returnUrl, string $notifyUrl): string
     {
@@ -186,11 +185,11 @@ readonly class AlipayClient
      *
      * @param array $params 业务参数数组
      * @return string JSON 编码后的请求体（可能已加密）
-     * @throws JsonException 当 JSON 编码失败时抛出
+     * @throws Exception
      */
     private function prepareRequestBody(array $params): string
     {
-        $requestBody = json_encode($params, JSON_UNESCAPED_UNICODE | JSON_THROW_ON_ERROR);
+        $requestBody = json_encode($params, JSON_UNESCAPED_UNICODE);
 
         if ($this->config->isEncryptEnabled()) {
             return $this->configManager->encryptRequest($requestBody);
@@ -214,11 +213,11 @@ readonly class AlipayClient
     {
         $headers = [
             'alipay-request-id' => date('YmdHis') . uniqid(),
-            'Content-Type'      => 'application/json',
+            'Content-Type'      => 'application/json; charset=utf-8',
         ];
 
         if ($this->config->isEncryptEnabled()) {
-            $headers['Content-Type']        = 'text/plain;charset=utf-8';
+            $headers['Content-Type']        = 'text/plain; charset=utf-8';
             $headers['alipay-encrypt-type'] = 'AES';
         }
 
@@ -236,27 +235,31 @@ readonly class AlipayClient
      * @param ResponseInterface $response Guzzle 响应对象
      * @return array 解析后的响应数据
      * @throws Exception 当校验响应内容非正确时抛出
-     * @throws JsonException 当响应体不是合法 JSON 时抛出
      */
     private function processResponse(ResponseInterface $response): array
     {
-        $responseBody    = $response->getBody()->getContents();
-        $responseHeaders = $response->getHeaders();
         $statusCode      = $response->getStatusCode();
+        $responseHeaders = $response->getHeaders();
+        $rawResponseBody = $response->getBody()->getContents();
+        $responseBody    = $rawResponseBody;
 
-        // 处理加密响应
+        // 处理加密响应（解密后用于数据解析，原始内容用于签名验证）
         if ($this->config->isEncryptEnabled() && $statusCode >= 200 && $statusCode < 300) {
-            $encryptType = $this->configManager->getHeaderValue($responseHeaders, 'alipay-encrypt-type');
-            if (!empty($encryptType)) {
-                $responseBody = $this->configManager->decryptResponse($responseBody);
-            }
+            // 因为支付宝官方BUG响应头没有正确返回，暂时跳过校验
+            // if ($response->hasHeader('alipay-encrypt-type')) {
+            $responseBody = $this->configManager->decryptResponse($rawResponseBody);
+            // }
         }
 
         // 解析 JSON 并验证响应
-        $data = json_decode($responseBody, true, 512, JSON_THROW_ON_ERROR);
+        if (!json_validate($responseBody)) {
+            throw new Exception('支付宝返回内容非JSON格式');
+        }
+        $data = json_decode($responseBody, true);
 
         if ($statusCode >= 200 && $statusCode < 300) {
-            $this->configManager->verifyResponseV3($responseBody, $responseHeaders);
+            // 签名验证使用原始响应体（解密前的内容）
+            $this->configManager->verifyResponseV3($rawResponseBody, $responseHeaders);
             return $data;
         }
 

@@ -4,8 +4,11 @@ declare(strict_types=1);
 
 namespace Core\Gateway\Alipay;
 
+use app\model\OrderBuyer;
+use app\model\PaymentChannelAccount;
 use Core\Gateway\AbstractGateway;
 use Core\Gateway\Alipay\Lib\Factory;
+use Core\Service\RiskService;
 use Throwable;
 
 /**
@@ -88,6 +91,14 @@ class Alipay extends AbstractGateway
     ];
 
     /**
+     * 验证配置
+     */
+    protected static function validateConfig(array $config): bool
+    {
+        return !empty($config['app_id']) && !empty($config['app_private_key']) && !empty($config['alipay_public_key']);
+    }
+
+    /**
      * 统一收单交易支付
      * @param array $items
      * @return array
@@ -156,7 +167,16 @@ class Alipay extends AbstractGateway
      */
     public static function wap(array $items): array
     {
-        $order = $items['order'];
+        $order   = $items['order'];
+        $channel = $items['channel'];
+
+        // 处理支付宝用户授权及风控检查（仅当配置开启且无用户标识时）
+        if (sys_config('payment', 'alipay_get_user_info_wap', 'off') === 'on') {
+            $oauthResult = self::handleAlipayOauthAndRisk($channel, $order);
+            if ($oauthResult !== null) {
+                return $oauthResult;
+            }
+        }
 
         $alipay = Factory::createFromArray(self::formatConfig($items['channel']));
 
@@ -169,7 +189,7 @@ class Alipay extends AbstractGateway
 
         return self::lockPaymentExt($order['trade_no'], function () use ($alipay, $params, $items) {
             $html = $alipay->pageExecute($params, 'alipay.trade.wap.pay', $items['return_url'], $items['notify_url']);
-            return ['type' => 'html', 'data' => $html];
+            return ['type' => 'html', 'template' => $html];
         });
     }
 
@@ -193,7 +213,7 @@ class Alipay extends AbstractGateway
 
         return self::lockPaymentExt($order['trade_no'], function () use ($alipay, $params, $items) {
             $html = $alipay->pageExecute($params, 'alipay.trade.page.pay', $items['return_url'], $items['notify_url']);
-            return ['type' => 'html', 'data' => $html];
+            return ['type' => 'html', 'template' => $html];
         });
     }
 
@@ -204,11 +224,19 @@ class Alipay extends AbstractGateway
      */
     public static function qrcode(array $items): array
     {
-        $order         = $items['order'];
-        $payment_types = $items['channel']['payment_types'];
+        $order   = $items['order'];
+        $channel = $items['channel'];
+        $buyer   = $items['buyer'];
 
-        $alipay = Factory::createFromArray(self::formatConfig($items['channel']));
+        // 处理支付宝用户授权及风控检查（仅当配置开启且无用户标识时）
+        if (sys_config('payment', 'alipay_get_user_info_qrcode', 'off') === 'on') {
+            $oauthResult = self::handleAlipayOauthAndRisk($channel, $order);
+            if ($oauthResult !== null) {
+                return $oauthResult;
+            }
+        }
 
+        $alipay = Factory::createFromArray(self::formatConfig($channel));
         $params = [
             'out_trade_no'      => $order['trade_no'],
             'total_amount'      => $order['buyer_pay_amount'],
@@ -216,14 +244,14 @@ class Alipay extends AbstractGateway
             'merchant_order_no' => $order['out_trade_no']
         ];
 
-        if (in_array('ddm', $payment_types)) {
+        if (in_array('ddm', $channel['payment_types'])) {
             $params['product_code']    = 'QR_CODE_OFFLINE';
-            $params['business_params'] = ['mc_create_trade_ip' => $items['buyer']['ip']];
+            $params['business_params'] = ['mc_create_trade_ip' => $buyer['ip']];
         }
 
         return self::lockPaymentExt($order['trade_no'], function () use ($alipay, $params, $items) {
             $res = $alipay->v1Execute($params, 'alipay.trade.precreate', $items['return_url'], $items['notify_url']);
-            return ['type' => 'page', 'page' => 'alipay_qrcode', 'data' => ['url' => $res['qr_code']]];
+            return isAlipay() ? ['type' => 'location', 'url' => $res['qr_code']] : ['type' => 'page', 'page' => 'alipay_qrcode', 'data' => ['url' => $res['qr_code']]];
         });
     }
 
@@ -363,8 +391,123 @@ class Alipay extends AbstractGateway
         ];
     }
 
-    protected static function validateConfig(array $config): bool
+    /**
+     * 处理支付宝用户授权及风控检查
+     *
+     * 执行用户授权流程，获取用户信息后更新订单买家数据并进行风控黑名单检查
+     * 可在多个支付方式中复用（如 qrcode、jsapi 等）
+     *
+     * @param array $channel 支付渠道配置
+     * @param array $order   订单信息
+     * @return array|null 需要返回给调用方的结果（重定向/错误），null 表示继续执行后续逻辑
+     */
+    private static function handleAlipayOauthAndRisk(array $channel, array $order): ?array
     {
-        return !empty($config['app_id']) && !empty($config['app_private_key']) && !empty($config['alipay_public_key']);
+        $oauth = self::alipayOauth($channel);
+        if (!$oauth) {
+            return null;
+        }
+
+        // 需要重定向到授权页面
+        if ($oauth['mode'] === 'return') {
+            return $oauth['data'];
+        }
+
+        // 授权成功，更新买家信息（仅更新非 null 字段）
+        $alipayInfo = $oauth['data'];
+        $updateData = array_filter([
+            'user_id'       => $alipayInfo['user_id'],
+            'buyer_open_id' => $alipayInfo['buyer_open_id'],
+            'mobile'        => $alipayInfo['mobile']
+        ], fn($value) => $value !== null);
+
+        if (!empty($updateData)) {
+            OrderBuyer::where('trade_no', $order['trade_no'])->update($updateData);
+        }
+
+        // 用户ID黑名单检查
+        if (RiskService::checkUserIdBlacklist($order['merchant_id'], $alipayInfo['user_id'], $alipayInfo['buyer_open_id'], $order['trade_no'])) {
+            return ['type' => 'error', 'message' => '系统异常，无法完成付款'];
+        }
+
+        // 手机号黑名单检查
+        if (!empty($alipayInfo['mobile']) && RiskService::checkMobileBlacklist($alipayInfo['mobile'], $order['merchant_id'], $order['trade_no'])) {
+            return ['type' => 'error', 'message' => '系统异常，无法完成付款'];
+        }
+
+        return null;
+    }
+
+    /**
+     * 支付宝用户授权认证
+     *
+     * 用于获取支付宝用户的 user_id/open_id 及手机号等信息
+     * 支持两种模式：current（使用当前渠道配置）、common（使用公共授权账户）
+     *
+     * @param array $channel 支付渠道配置
+     * @return array|false 授权结果或失败
+     */
+    protected static function alipayOauth(array $channel = []): array|false
+    {
+        try {
+            $paymentConfig = sys_config('payment');
+            $oauthMode     = $paymentConfig['alipay_get_user_info_mode'] ?? 'current';
+            $scope         = $paymentConfig['alipay_get_user_info_scope'] ?? 'auth_base';
+
+            // 确定授权使用的渠道配置
+            if ($oauthMode === 'common') {
+                $accountId = $paymentConfig['alipay_get_user_info_common_account'] ?? 0;
+                $row       = PaymentChannelAccount::find($accountId, ['config']);
+                if (!$row) {
+                    return false;
+                }
+                $channel = $row->config;
+            } elseif (empty($channel)) {
+                return false;
+            }
+
+            $appId = $channel['app_id'] ?? '';
+            if (empty($appId)) {
+                return false;
+            }
+
+            $request  = request();
+            $authCode = $request->get('auth_code');
+            $secret   = $channel['app_private_key'] . $appId;
+
+            if (empty($authCode)) {
+                $ts          = time();
+                $state       = $ts . '.' . substr(hash('xxh128', $secret . $ts), 12, 8);
+                $redirectUri = urlencode((is_https() ? 'https:' : 'http:') . $request->fullUrl());
+                $authUrl     = "https://openauth.alipay.com/oauth2/publicAppAuthorize.htm?app_id=$appId&scope=$scope&state=$state&redirect_uri=$redirectUri";
+                return ['mode' => 'return', 'data' => isAlipay() ? ['type' => 'location', 'url' => $authUrl] : ['type' => 'page', 'page' => 'alipay_qrcode', 'data' => ['url' => $authUrl]]];
+            }
+
+            // 校验 state（格式：timestamp.hash）
+            [$ts, $sign] = explode('.', $request->get('state', '0.'), 2);
+            if ($sign !== substr(hash('xxh128', $secret . $ts), 12, 8) || time() - (int)$ts > 600) {
+                return ['mode' => 'return', 'data' => ['type' => 'error', 'message' => '授权请求已过期或无效，请重新发起支付']];
+            }
+
+            // 有授权码时，换取用户信息
+            $alipay   = Factory::createFromArray(self::formatConfig($channel));
+            $tokenRes = $alipay->execute(['grant_type' => 'authorization_code', 'code' => $authCode], 'alipay.system.oauth.token');
+
+            $userInfo = [
+                'user_id'       => $tokenRes['user_id'] ?? null,
+                'buyer_open_id' => $tokenRes['open_id'] ?? null,
+                'mobile'        => null
+            ];
+
+            // 如需获取用户详细信息（含手机号）
+            if ($scope === 'auth_user' && !empty($tokenRes['access_token'])) {
+                $userRes            = $alipay->execute(['auth_token' => $tokenRes['access_token']], 'alipay.user.info.share');
+                $userInfo['mobile'] = $userRes['mobile'] ?? null;
+            }
+
+            return ['mode' => 'success', 'data' => $userInfo];
+        } catch (Throwable $e) {
+            return ['mode' => 'return', 'data' => ['type' => 'error', 'message' => $e->getMessage()]];
+        }
     }
 }
