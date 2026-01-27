@@ -222,16 +222,17 @@ function isMobile(): bool
 }
 
 /**
- * 检测是否为微信浏览器
+ * 检测是否为微信浏览器（排除 Windows 微信）
  * @return bool
  */
 function isWechat(): bool
 {
     $userAgent = request()->header('user-agent', '');
-    if (str_contains($userAgent, 'MicroMessenger/') && !str_contains($userAgent, 'WindowsWechat'))
+    if (str_contains($userAgent, 'MicroMessenger/') && !str_contains($userAgent, 'WindowsWechat')) {
         return true;
-    else
+    } else {
         return false;
+    }
 }
 
 /**
@@ -240,10 +241,12 @@ function isWechat(): bool
  */
 function isAlipay(): bool
 {
-    if (str_contains(request()->header('user-agent', ''), 'AlipayClient/'))
+    $userAgent = request()->header('user-agent', '');
+    if (str_contains($userAgent, 'AlipayClient/')) {
         return true;
-    else
+    } else {
         return false;
+    }
 }
 
 /**
@@ -252,10 +255,12 @@ function isAlipay(): bool
  */
 function isQQ(): bool
 {
-    if (str_contains(request()->header('user-agent', ''), 'QQ/'))
+    $userAgent = request()->header('user-agent', '');
+    if (str_contains($userAgent, 'QQ/')) {
         return true;
-    else
+    } else {
         return false;
+    }
 }
 
 /**
@@ -264,8 +269,24 @@ function isQQ(): bool
  */
 function isUnionPay(): bool
 {
-    if (str_contains(request()->header('user-agent', ''), 'UnionPay/'))
+    $userAgent = request()->header('user-agent', '');
+    if (str_contains($userAgent, 'UnionPay/')) {
         return true;
-    else
+    } else {
         return false;
+    }
+}
+
+/**
+ * 检测是否为移动支付/社交应用（微信、支付宝、QQ、云闪付）
+ * @return bool
+ */
+function detectMobileApp(): bool
+{
+    $userAgent = request()->header('user-agent', '');
+    // 排除 Windows 微信桌面版
+    if (str_contains($userAgent, 'WindowsWechat')) {
+        return false;
+    }
+    return (bool)preg_match('/MicroMessenger\/|AlipayClient\/|QQ\/|UnionPay\//', $userAgent);
 }

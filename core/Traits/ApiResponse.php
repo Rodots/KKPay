@@ -92,8 +92,10 @@ trait ApiResponse
      * @param string $message
      * @return Response
      */
-    public function pageMsg(string $message = '错错错，是我的错，请你再试一遍吧~'): Response
+    public function pageMsg(string $message = '错错错，是我的错，请你再试一遍吧~',): Response
     {
+        $backButtonHtml = !detectMobileApp() ? '<a href="javascript:history.back()" class="back-button">返回上一页</a>' : '';
+
         $html = <<<HTML
 <!DOCTYPE html>
 <html lang="zh-CN">
@@ -151,8 +153,8 @@ trait ApiResponse
 <body>
     <div class="container">
         <h1 class="title">页面提示</h1>
-        <p class="message">{$message}</p>
-        <a href="javascript:history.back()" class="back-button">返回上一页</a>
+        <p class="message">$message</p>
+        {$backButtonHtml}
     </div>
 </body>
 </html>
