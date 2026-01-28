@@ -56,6 +56,22 @@ abstract class AbstractGateway
     abstract public static function notify(array $items): array;
 
     /**
+     * 【交易退款】核心方法 - 可选实现，必须遵循传参
+     */
+    public static function refund(array $order, array $channel, array $refund_record): array
+    {
+        return ['state' => false, 'message' => '当前支付网关暂不支持API自动退款'];
+    }
+
+    /**
+     * 【交易关闭】核心方法 - 可选实现，必须遵循传参
+     */
+    public static function close(array $order, array $channel): array
+    {
+        return ['state' => false, 'message' => '当前支付网关暂不支持手动关闭订单'];
+    }
+
+    /**
      * 加锁设置订单扩展数据
      *
      * @param string   $trade_no 订单号

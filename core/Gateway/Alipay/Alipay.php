@@ -25,7 +25,7 @@ class Alipay extends AbstractGateway
         'author'      => 'Rodots',
         'url'         => 'https://opendocs.alipay.com/open-v3/08c7f9f8_alipay.trade.pay',
         'description' => '蚂蚁集团旗下的支付宝，是以每个人为中心，以实名和信任为基础的生活平台。自2004年成立以来，支付宝已经与超过200家金融机构达成合作，为上千万小微商户提供支付服务。随着场景拓展和产品创新，拓展的服务场景不断增加，支付宝已发展成为融合了支付、生活服务、政务服务、理财、保险、公益等多个场景与行业的开放性平台。支付宝还推出了跨境支付、退税等多项服务，让中国用户在境外也能享受移动支付的便利。',
-        'version'     => '1.0.0',
+        'version'     => '1.0.1',
         'notes'       => '<p>选择可用的支付类型，注意只能选择已经签约的产品，否则会无法支付！</p><p>如果使用<span class="text-green-600">证书</span>模式对接，需将<span class="text-green-600">应用公钥证书</span>、<span class="text-green-600">支付宝公钥证书</span>、<span class="text-green-600">支付宝根证书</span>共<b>3</b>个<span class="text-destructive">.crt</span>文件放置于<span class="text-blue-600">/core/Gateway/Alipay/cert/<b>{支付宝AppID}</b>/</span>文件夹</p>',
         'config'      => [
             [
@@ -347,15 +347,16 @@ class Alipay extends AbstractGateway
         }
     }
 
-    /*
-     * 订单退款
+    /**
+     * 交易退款
+     * @param array $order
+     * @param array $channel
+     * @param array $refund_record
+     * @return array
      */
-    public static function refund(array $items): array
+    public static function refund(array $order, array $channel, array $refund_record): array
     {
-        $order         = $items['order'];
-        $refund_record = $items['refund_record'];
-
-        $alipay = Factory::createFromArray(self::formatConfig($items['channel']));
+        $alipay = Factory::createFromArray(self::formatConfig($channel));
 
         $params = [
             'refund_amount'  => $refund_record['amount'],
@@ -373,7 +374,7 @@ class Alipay extends AbstractGateway
         return ['state' => true, 'api_refund_no' => $result['trade_no'], 'refund_fee' => $result['refund_fee'], 'buyer' => (empty($result['buyer_user_id']) ? $result['buyer_open_id'] : $result['buyer_user_id'])];
     }
 
-    /*
+    /**
      * 格式化配置项
      */
     private static function formatConfig(array $channel): array
