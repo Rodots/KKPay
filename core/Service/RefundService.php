@@ -1,5 +1,7 @@
 <?php
 
+declare(strict_types=1);
+
 namespace Core\Service;
 
 use app\model\MerchantWalletRecord;
@@ -28,15 +30,12 @@ class RefundService
     {
         Db::beginTransaction();
         try {
-            // 参数校验
             if (bccomp($amount, '0', 2) <= 0) {
                 throw new Exception('退款金额必须大于0');
             }
 
-            // 查询订单并关联订单退款表
             $order = Order::withSum('refunds', 'amount')->where('trade_no', $trade_no)->lockForUpdate()->first();
-
-            if (!$order) {
+            if ($order === null) {
                 throw new Exception('订单不存在');
             }
 
@@ -45,35 +44,27 @@ class RefundService
                 throw new Exception("订单当前状态为[$order->trade_state_text]，无法进行退款");
             }
 
-            // 检查结算状态
             if ($order->settle_state === Order::SETTLE_STATE_PROCESSING) {
                 throw new Exception('订单未完成结算，无法进行退款');
             }
 
-            // 订单金额
-            $total_amount = $order->getOriginal('total_amount');
-            // 用户在交易中支付的金额（实付金额）
-            $buyer_pay_amount = $order->getOriginal('buyer_pay_amount');
-            // 平台服务费金额
-            $fee_amount = $order->getOriginal('fee_amount');
-
-            // 该订单已退款金额
-            $refunded_amount = $order->refunds_sum_amount ?? '0';
-            // 剩余可退款金额 = 实付金额 - 已退款金额
+            $total_amount     = (string)$order->getOriginal('total_amount');
+            $buyer_pay_amount = (string)$order->getOriginal('buyer_pay_amount');
+            $fee_amount       = (string)$order->getOriginal('fee_amount');
+            $refunded_amount  = $order->refunds_sum_amount ?? '0';
             $remaining_amount = bcsub($buyer_pay_amount, $refunded_amount, 2);
-            // 检查退款金额是否超过剩余可退款金额
+
             if (bccomp($amount, $remaining_amount, 2) > 0) {
                 throw new Exception("本次退款金额不能大于剩余可退款金额{$remaining_amount}元");
             }
 
-            // 执行商户钱包金额变更操作（扣除商户实收金额，传入负数金额表示扣款）
-            MerchantWalletRecord::changeAvailable($order->merchant_id, bcsub('0.00', $amount, 2), '订单退款', $order->trade_no, '退款扣除收益');
+            // 扣除商户实收金额
+            MerchantWalletRecord::changeAvailable($order->merchant_id, bcmul($amount, '-1', 2), '订单退款', $order->trade_no, '退款扣除收益');
 
-            // 计算应退还的平台服务费（如果平台承担服务费）
-            $refund_fee_amount = '0';
+            // 计算应退还的平台服务费
+            $refund_fee_amount = '0.00';
             if ($fee_bearer && bccomp($fee_amount, '0', 2) > 0) {
                 $refund_fee_amount = self::calculateRefundFee($total_amount, $fee_amount, $amount);
-                // 加款传入正数金额
                 MerchantWalletRecord::changeAvailable($order->merchant_id, $refund_fee_amount, '订单服务费退款', $order->trade_no, '退款退回平台扣除的订单服务费');
             }
 
@@ -90,59 +81,49 @@ class RefundService
             $orderRefund->reason            = $reason;
             $orderRefund->save();
 
-            // 判断退款后订单状态并更新（依据实付金额平账）
+            // 更新订单状态
             $new_refunded_amount = bcadd($refunded_amount, $amount, 2);
-            if (bccomp($new_refunded_amount, $buyer_pay_amount, 2) >= 0) {
-                // 全额退款完成，更新订单状态为全额退款
-                $order->trade_state = Order::TRADE_STATE_FINISHED;
-            } else {
-                // 部分退款，更新订单状态为部分退款
-                $order->trade_state = Order::TRADE_STATE_REFUND;
-            }
+            $order->trade_state  = bccomp($new_refunded_amount, $buyer_pay_amount, 2) >= 0 ? Order::TRADE_STATE_FINISHED : Order::TRADE_STATE_REFUND;
             $order->save();
 
-            // 如果退款类型为API自动退款，则尝试调用支付网关所对应的退款接口
+            // API自动退款：调用支付网关退款接口
+            $gatewayReturn = [];
             if ($refund_type) {
                 if (empty($order->api_trade_no)) {
                     throw new Exception('订单未获取到对应接口订单号，无法进行API自动退款');
                 }
+
                 $paymentChannelAccount = $order->paymentChannelAccount;
-                $gateway               = $paymentChannelAccount->paymentChannel->gateway;
+                $gateway               = $paymentChannelAccount?->paymentChannel?->gateway;
                 if (empty($gateway)) {
                     throw new Exception('支付网关获取异常，无法完成API自动退款');
                 }
 
-                $items = [
+                $gatewayReturn = PaymentGatewayUtil::loadGatewayWithSpread($gateway, 'refund', [
                     'order'         => $order->toArray(),
                     'channel'       => $paymentChannelAccount->config,
                     'refund_record' => $orderRefund->toArray(),
-                ];
+                ]);
 
-                $gatewayReturn = PaymentGatewayUtil::loadGateway($gateway, 'refund', $items);
-                if ($gatewayReturn['state'] && !empty($gatewayReturn['api_refund_no'])) {
-                    OrderRefund::where('id', $orderRefund->id)->update(['api_refund_no' => $gatewayReturn['api_refund_no']]);
-                } else {
-                    throw new Exception($gatewayReturn['message']);
+                if (!$gatewayReturn['state'] || empty($gatewayReturn['api_refund_no'])) {
+                    throw new Exception($gatewayReturn['message'] ?? '网关退款失败');
                 }
+                OrderRefund::where('id', $orderRefund->id)->update(['api_refund_no' => $gatewayReturn['api_refund_no']]);
             }
 
             Db::commit();
+            return ['state' => true, 'refund_record' => $orderRefund->toArray(), 'gateway_return' => $gatewayReturn];
         } catch (Throwable $e) {
             Db::rollBack();
             return ['state' => false, 'msg' => $e->getMessage()];
         }
-        return ['state' => true, 'refund_record' => $orderRefund->toArray(), 'gateway_return' => $gatewayReturn ?? []];
     }
 
     /**
-     * 商户API发起退款
-     *
-     * 幂等规则：
-     * - 若 out_biz_no 已存在，且 trade_no + amount 一致，则返回已有退款记录
-     * - 若 out_biz_no 已存在，但参数不一致，则返回错误
+     * 商户API发起退款（支持幂等）
      *
      * @param string      $tradeNo      平台订单号
-     * @param string      $refundAmount 退款金额（字符串格式，保留2位小数）
+     * @param string      $refundAmount 退款金额
      * @param string      $reason       退款原因
      * @param string|null $outBizNo     商户退款业务号（用于幂等）
      * @param int         $merchantId   商户ID
@@ -150,19 +131,15 @@ class RefundService
      */
     public static function apiRefund(string $tradeNo, string $refundAmount, string $reason = '商户发起退款', ?string $outBizNo = null, int $merchantId = 0): array
     {
-        // 格式化金额
-        $refundAmount = number_format((float)$refundAmount, 2, '.', '');
+        $refundAmount = bcadd($refundAmount, '0', 2);
 
-        // 幂等处理：检查业务号是否已存在
+        // 幂等处理
         if ($outBizNo !== null && $outBizNo !== '') {
             $existingRefund = OrderRefund::where('merchant_id', $merchantId)->where('out_biz_no', $outBizNo)->first(['id', 'trade_no', 'amount']);
             if ($existingRefund !== null) {
-                // 校验参数一致性：订单号和金额必须相同
                 if ($existingRefund->trade_no !== $tradeNo || bccomp((string)$existingRefund->amount, $refundAmount, 2) !== 0) {
                     return ['success' => false, 'message' => '商户退款业务号已存在，但订单号或金额不一致', 'refund_id' => null];
                 }
-                // 幂等返回已有记录
-
                 return ['success' => true, 'message' => '退款成功', 'refund_id' => $existingRefund->id];
             }
         }
@@ -173,11 +150,12 @@ class RefundService
             return ['success' => false, 'message' => '订单不存在或不属于当前商户', 'refund_id' => null];
         }
 
-        // 执行退款
         $fee_bearer = sys_config('payment', 'api_refund_fee_bearer', 'merchant') === 'platform';
         $result     = self::handle($tradeNo, $refundAmount, 'api', true, $fee_bearer, $outBizNo, $reason);
 
-        return $result['state'] ? ['success' => true, 'message' => '退款成功', 'refund_id' => $result['refund_record']['id']] : ['success' => false, 'message' => $result['msg'], 'refund_id' => null];
+        return $result['state']
+            ? ['success' => true, 'message' => '退款成功', 'refund_id' => $result['refund_record']['id']]
+            : ['success' => false, 'message' => $result['msg'], 'refund_id' => null];
     }
 
     /**
@@ -190,20 +168,13 @@ class RefundService
      */
     private static function calculateRefundFee(string $total_amount, string $fee_amount, string $refund_amount): string
     {
-        // 参数校验
         if (bccomp($total_amount, '0', 2) <= 0 || bccomp($fee_amount, '0', 2) <= 0) {
             return '0.00';
         }
 
-        // 计算退款比例 = 退款金额 / 订单金额
-        $refund_ratio = bcdiv($refund_amount, $total_amount, 8);
+        // 服务费 × (退款金额 / 订单金额)，使用8位精度计算，结果保留2位
+        $refund_fee = bcmul($fee_amount, bcdiv($refund_amount, $total_amount, 8), 2);
 
-        // 计算应退还的服务费 = 平台服务费 × 退款比例
-        $refund_fee = bcmul($fee_amount, $refund_ratio, 8);
-
-        // 保留两位小数并确保不超过原服务费
-        $refund_fee = number_format($refund_fee, 2, '.', '');
-
-        return bccomp($refund_fee, $fee_amount, 2) > 0 ? $fee_amount : $refund_fee;
+        return bccomp($refund_fee, $fee_amount, 2) > 0 ? bcadd($fee_amount, '0', 2) : $refund_fee;
     }
 }
