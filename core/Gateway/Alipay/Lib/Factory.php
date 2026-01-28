@@ -16,13 +16,24 @@ use GuzzleHttp\Client;
 readonly class Factory
 {
     /**
+     * 创建默认配置的 Guzzle HTTP 客户端
+     */
+    private static function createDefaultHttpClient(): Client
+    {
+        return new Client([
+            'base_uri'    => AlipayClient::GATEWAY_URL,
+            'timeout'     => AlipayClient::DEFAULT_TIMEOUT,
+            'http_errors' => false,
+        ]);
+    }
+
+    /**
      * 使用密钥模式创建客户端
      *
-     * 参数
-     * - appId: 应用 AppId
-     * - privateKey: RSA 私钥（PKCS#1，PEM）
-     * - alipayPublicKey: 支付宝公钥（可为空，若仅签名不验签）
-     * - encryptKey: 可选，Base64 编码的 16 字节 AES 密钥
+     * @param string      $appId           应用 AppId
+     * @param string      $privateKey      RSA 私钥（PKCS#1，PEM）
+     * @param string|null $alipayPublicKey 支付宝公钥（可为空，若仅签名不验签）
+     * @param string|null $encryptKey      可选，Base64 编码的 16 字节 AES 密钥
      */
     public static function createWithKeys(
         string  $appId,
@@ -31,27 +42,27 @@ readonly class Factory
         ?string $encryptKey = null
     ): AlipayClient
     {
-        $config = new AlipayConfig(
-            appId: $appId,
-            privateKey: $privateKey,
-            alipayPublicKey: $alipayPublicKey,
-            certMode: AlipayConfig::KEY_MODE,
-            encryptKey: $encryptKey
+        return new AlipayClient(
+            new AlipayConfig(
+                appId: $appId,
+                privateKey: $privateKey,
+                alipayPublicKey: $alipayPublicKey,
+                certMode: AlipayConfig::KEY_MODE,
+                encryptKey: $encryptKey
+            ),
+            self::createDefaultHttpClient()
         );
-
-        return AlipayClient::create($config);
     }
 
     /**
      * 使用证书模式创建客户端
      *
-     * 参数
-     * - appId: 应用 AppId
-     * - privateKeyPath: 应用私钥
-     * - appCertPath: 应用公钥证书路径（appCertPublicKey_*.crt）
-     * - alipayCertPath: 支付宝公钥证书路径（alipayCertPublicKey_RSA2.crt）
-     * - rootCertPath: 支付宝根证书路径（alipayRootCert.crt）
-     * - encryptKey: 可选，Base64 编码的 16 字节 AES 密钥
+     * @param string      $appId          应用 AppId
+     * @param string      $privateKey     应用私钥
+     * @param string      $appCertPath    应用公钥证书路径（appCertPublicKey_*.crt）
+     * @param string      $alipayCertPath 支付宝公钥证书路径（alipayCertPublicKey_RSA2.crt）
+     * @param string      $rootCertPath   支付宝根证书路径（alipayRootCert.crt）
+     * @param string|null $encryptKey     可选，Base64 编码的 16 字节 AES 密钥
      */
     public static function createWithCerts(
         string  $appId,
@@ -62,17 +73,18 @@ readonly class Factory
         ?string $encryptKey = null
     ): AlipayClient
     {
-        $config = new AlipayConfig(
-            appId: $appId,
-            privateKey: $privateKey,
-            alipayPublicKeyFilePath: $alipayCertPath,
-            rootCertPath: $rootCertPath,
-            appCertPath: $appCertPath,
-            certMode: AlipayConfig::CERT_MODE,
-            encryptKey: $encryptKey
+        return new AlipayClient(
+            new AlipayConfig(
+                appId: $appId,
+                privateKey: $privateKey,
+                alipayPublicKeyFilePath: $alipayCertPath,
+                rootCertPath: $rootCertPath,
+                appCertPath: $appCertPath,
+                certMode: AlipayConfig::CERT_MODE,
+                encryptKey: $encryptKey
+            ),
+            self::createDefaultHttpClient()
         );
-
-        return AlipayClient::create($config);
     }
 
     /**
@@ -80,16 +92,13 @@ readonly class Factory
      */
     public static function createFromArray(array $config): AlipayClient
     {
-        return AlipayClient::create(AlipayConfig::fromArray($config));
+        return new AlipayClient(AlipayConfig::fromArray($config), self::createDefaultHttpClient());
     }
 
     /**
      * 使用自定义 Guzzle 客户端创建支付宝客户端
      */
-    public static function createWithCustomClient(
-        AlipayConfig $config,
-        Client       $httpClient
-    ): AlipayClient
+    public static function createWithCustomClient(AlipayConfig $config, Client $httpClient): AlipayClient
     {
         return new AlipayClient($config, $httpClient);
     }

@@ -12,19 +12,20 @@ use Psr\Http\Message\ResponseInterface;
 
 /**
  * 支付宝开放平台 API 客户端，用于发起服务端 API 调用（如支付、查询等）以及生成前端跳转表单。
- *
- * 该客户端支持支付宝 API v3（基于 HTTP/2 + JSON + RSA2 签名）和传统表单跳转（v1.0）两种调用方式：
- * - execute()：用于服务端到服务端的 API 调用（POST JSON）
- * - pageExecute()：用于生成 HTML 表单，引导用户跳转至支付宝收银台页面（如电脑网站支付）
- *
- * 支持请求/响应内容加密（AES）与签名验证（RSA2），并自动注入 trace ID 用于链路追踪。
  */
 readonly class AlipayClient
 {
     /**
+     * 支付宝开放平台网关地址
+     * 正式环境: 'https://openapi.alipay.com'
+     * 沙盒环境: 'https://openapi-sandbox.dl.alipaydev.com'
+     */
+    public const string GATEWAY_URL = 'https://openapi.alipay.com';
+
+    /**
      * 默认 HTTP 请求超时时间（秒）
      */
-    private const int DEFAULT_TIMEOUT = 5;
+    public const int DEFAULT_TIMEOUT = 8;
 
     /**
      * 配置管理器实例，用于处理签名、加密、验签等操作
@@ -54,27 +55,6 @@ readonly class AlipayClient
     }
 
     /**
-     * 工厂方法：创建 AlipayClient 实例
-     *
-     * @param array|AlipayConfig $config     支付宝配置，可为数组或 AlipayConfig 对象
-     * @param Client|null        $httpClient 可选的 Guzzle 客户端，若未提供则自动创建
-     * @return self 返回 AlipayClient 实例
-     */
-    public static function create(array|AlipayConfig $config, ?Client $httpClient = null): self
-    {
-        $alipayConfig = $config instanceof AlipayConfig ? $config : AlipayConfig::fromArray($config);
-
-        $client = $httpClient ?? new Client([
-            // 'base_uri' => 'https://openapi-sandbox.dl.alipaydev.com',
-            'base_uri'    => 'https://openapi.alipay.com',
-            'timeout'     => self::DEFAULT_TIMEOUT,
-            'http_errors' => false
-        ]);
-
-        return new self($alipayConfig, $client);
-    }
-
-    /**
      * 执行支付宝服务端 API 调用（适用于 v3 接口）
      *
      * 该方法将参数以 JSON 格式发送至支付宝，自动处理签名、加密、验签等流程。
@@ -91,12 +71,10 @@ readonly class AlipayClient
         $requestPath = '/v3/' . str_replace('.', '/', $methodName);
         // 准备请求体，根据配置决定是否加密
         $requestBody = $this->prepareRequestBody($params);
-        // 构建请求头并附加签名
-        $headers = $this->buildRequestHeaders($requestPath, $requestBody);
 
         // 发送 POST 请求到支付宝 API
         $response = $this->httpClient->post($requestPath, [
-            'headers' => $headers,
+            'headers' => $this->buildRequestHeaders($requestPath, $requestBody),
             'body'    => $requestBody,
         ]);
 
@@ -119,17 +97,13 @@ readonly class AlipayClient
      */
     public function pageExecute(array $params, string $methodName, string $returnUrl, string $notifyUrl): string
     {
-        $commonParams = $this->configManager->buildRequestParams($params, $methodName, $returnUrl, $notifyUrl);
+        $inputs = implode('', array_map(
+            fn($k, $v) => sprintf('<input type="hidden" name="%s" value="%s"/>', $k, htmlentities($v, ENT_QUOTES | ENT_HTML5)),
+            array_keys($commonParams = $this->configManager->buildRequestParams($params, $methodName, $returnUrl, $notifyUrl)),
+            $commonParams
+        ));
 
-        $html = '<form id="alipaysubmit" name="alipaysubmit" action="https://openapi.alipay.com/gateway.do?charset=utf-8" method="POST">';
-        foreach ($commonParams as $key => $value) {
-            $value = htmlentities($value, ENT_QUOTES | ENT_HTML5);
-            $html  .= '<input type="hidden" name="' . $key . '" value="' . $value . '" />';
-        }
-        $html .= '<input type="submit" value="ok" style="display:none"></form>';
-        $html .= '<script>document.forms["alipaysubmit"].submit();</script>';
-
-        return $html;
+        return '<form id="alipaysubmit" action="' . self::GATEWAY_URL . '/gateway.do?charset=utf-8" method="POST">' . $inputs . '</form><script>document.forms.alipaysubmit.submit()</script>';
     }
 
     /**
@@ -147,35 +121,23 @@ readonly class AlipayClient
      */
     public function v1Execute(array $params, string $methodName, string $returnUrl, string $notifyUrl): array
     {
-        $commonParams = $this->configManager->buildRequestParams($params, $methodName, $returnUrl, $notifyUrl);
-
-        // 发送 POST 请求到支付宝 API
         $response = $this->httpClient->post('/gateway.do?charset=utf-8', [
-            'headers'     => [
-                'Content-Type' => 'application/x-www-form-urlencoded;charset=utf-8',
-                'Accept'       => 'application/json',
-            ],
-            'form_params' => $commonParams,
+            'headers'     => ['Content-Type' => 'application/x-www-form-urlencoded; charset=utf-8', 'Accept' => 'application/json'],
+            'form_params' => $this->configManager->buildRequestParams($params, $methodName, $returnUrl, $notifyUrl),
         ]);
 
-        $responseBody = $response->getBody()->getContents();
+        $result = $this->configManager->verifyResponseV1($response->getBody()->getContents(), $methodName);
 
-        $result = $this->configManager->verifyResponseV1($responseBody, $methodName);
-
-        if ($methodName == 'alipay.system.oauth.token' && isset($result['access_token'])) {
+        // 业务接口返回 code=10000 均视为成功
+        if (($result['code'] ?? '') === '10000') {
             return $result;
-        } elseif (isset($result['code']) && $result['code'] == '10000') {
-            return $result;
-        } else {
-            if (isset($result['sub_msg'])) {
-                $message = '[' . $result['sub_code'] . ']' . $result['sub_msg'];
-            } elseif (isset($result['msg'])) {
-                $message = '[' . $result['code'] . ']' . $result['msg'];
-            } else {
-                $message = '未知错误';
-            }
-            throw new Exception($message);
         }
+
+        throw new Exception(match (true) {
+            isset($result['sub_msg']) => "[{$result['sub_code']}] {$result['sub_msg']}",
+            isset($result['msg']) => "[{$result['code']}] {$result['msg']}",
+            default => '未知错误'
+        });
     }
 
     /**
@@ -189,13 +151,8 @@ readonly class AlipayClient
      */
     private function prepareRequestBody(array $params): string
     {
-        $requestBody = json_encode($params, JSON_UNESCAPED_UNICODE);
-
-        if ($this->config->isEncryptEnabled()) {
-            return $this->configManager->encryptRequest($requestBody);
-        }
-
-        return $requestBody;
+        $body = json_encode($params, JSON_UNESCAPED_UNICODE);
+        return $this->config->isEncryptEnabled() ? $this->configManager->encryptRequest($body) : $body;
     }
 
     /**
@@ -211,18 +168,14 @@ readonly class AlipayClient
      */
     private function buildRequestHeaders(string $requestPath, string $requestBody): array
     {
-        $headers = [
+        $isEncrypt = $this->config->isEncryptEnabled();
+        $headers   = [
             'alipay-request-id' => date('YmdHis') . uniqid(),
-            'Content-Type'      => 'application/json; charset=utf-8',
+            'Content-Type'      => $isEncrypt ? 'text/plain; charset=utf-8' : 'application/json; charset=utf-8',
+            ...($isEncrypt ? ['alipay-encrypt-type' => 'AES'] : []),
         ];
 
-        if ($this->config->isEncryptEnabled()) {
-            $headers['Content-Type']        = 'text/plain; charset=utf-8';
-            $headers['alipay-encrypt-type'] = 'AES';
-        }
-
         $this->configManager->signV3('POST', $requestPath, $requestBody, $headers);
-
         return $headers;
     }
 
@@ -238,28 +191,18 @@ readonly class AlipayClient
      */
     private function processResponse(ResponseInterface $response): array
     {
-        $statusCode      = $response->getStatusCode();
-        $responseHeaders = $response->getHeaders();
-        $rawResponseBody = $response->getBody()->getContents();
-        $responseBody    = $rawResponseBody;
+        [$statusCode, $headers, $rawBody] = [$response->getStatusCode(), $response->getHeaders(), $response->getBody()->getContents()];
+        $isSuccess = $statusCode >= 200 && $statusCode < 300;
 
         // 处理加密响应（解密后用于数据解析，原始内容用于签名验证）
-        if ($this->config->isEncryptEnabled() && $statusCode >= 200 && $statusCode < 300) {
-            // 因为支付宝官方BUG响应头没有正确返回，暂时跳过校验
-            // if ($response->hasHeader('alipay-encrypt-type')) {
-            $responseBody = $this->configManager->decryptResponse($rawResponseBody);
-            // }
-        }
+        $body = ($this->config->isEncryptEnabled() && $isSuccess) ? $this->configManager->decryptResponse($rawBody) : $rawBody;
 
         // 解析 JSON 并验证响应
-        if (!json_validate($responseBody)) {
-            throw new Exception('支付宝返回内容非JSON格式');
-        }
-        $data = json_decode($responseBody, true);
+        json_validate($body) || throw new Exception('支付宝返回内容非JSON格式');
+        $data = json_decode($body, true);
 
-        if ($statusCode >= 200 && $statusCode < 300) {
-            // 签名验证使用原始响应体（解密前的内容）
-            $this->configManager->verifyResponseV3($rawResponseBody, $responseHeaders);
+        if ($isSuccess) {
+            $this->configManager->verifyResponseV3($rawBody, $headers);
             return $data;
         }
 
