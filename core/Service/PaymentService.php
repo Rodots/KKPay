@@ -192,33 +192,25 @@ class PaymentService
     /**
      * 跳转页面模板
      *
-     * @param string $html_text
+     * @param string $html_text HTML内容
      *
      * @return Response
      */
     private static function redirectTemplate(string $html_text): Response
     {
-        $html = <<<HTML
+        $isInvoke    = detectMobileApp();
+        $title       = $isInvoke ? '请完成付款' : '页面跳转中，请勿关闭当前页面...';
+        $loadingText = $isInvoke ? '正在为您唤起支付' : '正在为您跳转到支付页面';
+        $html        = <<<HTML
 <!DOCTYPE html>
 <html lang="zh-CN">
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>正在为您跳转到支付页面，请稍候...</title>
+    <meta name="color-scheme" content="light dark">
+    <title>{$title}</title>
     <style>
-        .loader {
-          width: fit-content;
-          font-weight: bold;
-          font-family: sans-serif;
-          font-size: 30px;
-          padding: 0 5px 8px 0;
-          background: repeating-linear-gradient(90deg,currentColor 0 8%,#0000 0 10%) 200% 100%/200% 3px no-repeat;
-          animation: l3 1.5s steps(6) infinite;
-        }
-        .loader:before {
-          content:"正在为您跳转到支付页面，请稍候..."
-        }
-        @keyframes l3 {to{background-position: 80% 100%}}
+        :root{color-scheme:light dark;--bg:#fff;--text:#1a1a1a;--loader-bar:#1a1a1a}@media (prefers-color-scheme:dark){:root{--bg:#0a0a0a;--text:#e6e6e6;--loader-bar:#e6e6e6}}*{margin:0;padding:0;box-sizing:border-box}body{min-height:100dvh;display:flex;justify-content:center;align-items:center;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;padding:1rem}.loader{font-weight:700;font-size:clamp(1rem,4vw,1.75rem);padding-bottom:0.5rem;background:repeating-linear-gradient( 90deg,var(--loader-bar) 0 8%,transparent 8% 10% ) 200% 100% / 200% 3px no-repeat;animation:l 1.5s steps(6) infinite}.loader::before{content:"{$loadingText}，请稍候..."}@keyframes l{to{background-position:80% 100%}}@media (prefers-reduced-motion:reduce){.loader{animation:none;background:none}}
     </style>
 </head>
 <body>
