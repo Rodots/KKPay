@@ -189,7 +189,7 @@ class Alipay extends AbstractGateway
 
         return self::lockPaymentExt($order['trade_no'], function () use ($alipay, $params, $items) {
             $html = $alipay->pageExecute($params, 'alipay.trade.wap.pay', $items['return_url'], $items['notify_url']);
-            return ['type' => 'html', 'template' => $html];
+            return ['type' => 'html', 'data' => $html, 'template' => true];
         });
     }
 
@@ -213,7 +213,7 @@ class Alipay extends AbstractGateway
 
         return self::lockPaymentExt($order['trade_no'], function () use ($alipay, $params, $items) {
             $html = $alipay->pageExecute($params, 'alipay.trade.page.pay', $items['return_url'], $items['notify_url']);
-            return ['type' => 'html', 'template' => $html];
+            return ['type' => 'html', 'data' => $html, 'template' => true];
         });
     }
 

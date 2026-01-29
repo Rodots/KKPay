@@ -238,13 +238,7 @@ readonly class ConfigManager
      */
     private function getPublicKeyForVerification(?string $serialNumber): ?string
     {
-        // 尝试从公钥文件加载
-        if ($this->config->alipayPublicKeyFilePath) {
-            $key = file_get_contents($this->config->alipayPublicKeyFilePath) ?: null;
-        } else {
-            // 使用公钥字符串
-            $key = $this->config->alipayPublicKey;
-        }
+        $key = $this->config->getPublicKeyContent();
 
         // 证书模式下：如果提供了序列号则校验序列号是否正确
         if (!empty($this->config->appCertPath) && !empty($serialNumber)) {
