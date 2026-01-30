@@ -6,9 +6,9 @@ namespace app\api\v1\controller;
 
 use app\api\v1\middleware\ApiSignatureVerification;
 use app\model\Order;
-use Carbon\Carbon;
 use Core\baseController\ApiBase;
 use Core\Exception\PaymentException;
+use Core\Service\OrderService;
 use Core\Service\RefundService;
 use support\annotation\Middleware;
 use support\Log;
@@ -181,24 +181,22 @@ class TradeController extends ApiBase
                 'out_trade_no' => $this->getString($data, 'out_trade_no', true),
             ];
 
-            $order = $this->findOrder($request, $bizContent, ['trade_no', 'trade_state']);
+            $order = $this->findOrder($request, $bizContent, ['trade_no', 'trade_state', 'api_trade_no', 'payment_channel_account_id']);
             if ($order === null) {
                 return $this->fail('订单不存在');
             }
 
-            // 验证订单状态
-            if ($order->trade_state !== Order::TRADE_STATE_WAIT_PAY) {
-                return $this->fail('只有待支付状态的订单可以关闭');
+            // 调用 OrderService 关闭订单（支持调用支付网关）
+            $result = OrderService::handleOrderClose($order->trade_no, callGateway: true);
+
+            if (!$result['state']) {
+                return $this->fail($result['message']);
             }
 
-            // 关闭订单
-            $order->trade_state = Order::TRADE_STATE_CLOSED;
-            $order->close_time  = Carbon::now();
-            $order->save();
-
             return $this->success([
-                'trade_no'    => $order->trade_no,
-                'trade_state' => $order->trade_state,
+                'trade_no'       => $order->trade_no,
+                'trade_state'    => 'TRADE_CLOSED',
+                'gateway_return' => $result['gateway_return'],
             ], '订单关闭成功');
         } catch (Throwable $e) {
             Log::error('关闭订单异常:' . $e->getMessage());

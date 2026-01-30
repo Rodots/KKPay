@@ -375,6 +375,29 @@ class Alipay extends AbstractGateway
     }
 
     /**
+     * 交易关闭
+     * @param array $order
+     * @param array $channel
+     * @return array
+     */
+    public static function close(array $order, array $channel): array
+    {
+        $alipay = Factory::createFromArray(self::formatConfig($channel));
+
+        $params = [
+            'trade_no'     => $order['api_trade_no'],
+            'out_trade_no' => $order['trade_no']
+        ];
+
+        try {
+            $result = $alipay->execute($params, 'alipay.trade.close');
+        } catch (Throwable $e) {
+            return ['state' => false, 'message' => $e->getMessage()];
+        }
+        return ['state' => true, 'message' => '该订单已手动关闭，支付宝交易号：' . $result['trade_no']];
+    }
+
+    /**
      * 格式化配置项
      */
     private static function formatConfig(array $channel): array

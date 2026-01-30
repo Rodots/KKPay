@@ -9,7 +9,7 @@ use app\process\Http;
 global $argv;
 
 return [
-    'webman'       => [
+    'webman'         => [
         'handler'     => Http::class,
         'listen'      => 'http://0.0.0.0:6689',
         'count'       => cpu_count() * 4,
@@ -26,7 +26,7 @@ return [
         ]
     ],
     // File update detection and automatic reload
-    'monitor'      => [
+    'monitor'        => [
         'handler'     => app\process\Monitor::class,
         'reloadable'  => false,
         'constructor' => [
@@ -45,10 +45,13 @@ return [
             ]
         ]
     ],
-    'OrderSettle'  => [
+    'OrderSettle'    => [
         'handler' => app\process\OrderSettle::class
     ],
-    'autoWithdraw' => [
+    'autoWithdraw'   => [
         'handler' => app\process\MerchantAutoWithdraw::class
+    ],
+    'OrderAutoClose' => [
+        'handler' => app\process\OrderAutoClose::class
     ]
 ];

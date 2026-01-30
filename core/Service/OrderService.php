@@ -10,6 +10,7 @@ use app\model\MerchantWalletRecord;
 use app\model\Order;
 use app\model\OrderBuyer;
 use Carbon\Carbon;
+use Core\Utils\PaymentGatewayUtil;
 use Core\Utils\SignatureUtil;
 use Exception;
 use support\Log;
@@ -431,5 +432,65 @@ class OrderService
                 }
             }
         }, 'trade_no');
+    }
+
+    /**
+     * 处理订单关闭
+     *
+     * @param string $tradeNo     平台订单号
+     * @param bool   $callGateway 是否调用支付网关关闭（API自动关闭时传true）
+     * @param bool   $isAdmin     是否为管理员操作
+     * @return array ['state' => bool, 'message' => string, 'gateway_return' => array]
+     */
+    public static function handleOrderClose(string $tradeNo, bool $callGateway = false, bool $isAdmin = false): array
+    {
+        Db::beginTransaction();
+        try {
+            $order = Order::where('trade_no', $tradeNo)->lockForUpdate()->first();
+            if ($order === null) {
+                throw new Exception('订单不存在');
+            }
+
+            // 只有待支付状态的订单才能关闭
+            if ($order->trade_state !== Order::TRADE_STATE_WAIT_PAY) {
+                throw new Exception("订单当前状态为[{$order->trade_state_text}]，只有待支付状态的订单可以关闭");
+            }
+
+            // 验证订单状态转换是否有效
+            if (!self::isValidStatusTransition($order->trade_state, Order::TRADE_STATE_CLOSED, $isAdmin)) {
+                throw new Exception('订单状态转换无效');
+            }
+
+            // API自动关闭：调用支付网关关闭接口
+            $gatewayReturn = ['state' => false, 'message' => '该订单无上游订单号，无法调用支付网关关闭交易'];
+            if ($callGateway && !empty($order->api_trade_no)) {
+                $paymentChannelAccount = $order->paymentChannelAccount;
+                $gateway = $paymentChannelAccount?->paymentChannel?->gateway;
+
+                if (!empty($gateway)) {
+                    $gatewayReturn = PaymentGatewayUtil::loadGatewayWithSpread($gateway, 'close', [
+                        'order'   => $order->toArray(),
+                        'channel' => $paymentChannelAccount->config,
+                    ]);
+
+                    // 网关关闭失败不阻断本地关闭流程，仅记录日志
+                    if (!($gatewayReturn['state'] ?? false)) {
+                        Log::warning("订单网关关闭失败：{$tradeNo}", ['gateway_return' => $gatewayReturn]);
+                    }
+                }
+            }
+
+            // 更新订单状态
+            $order->trade_state = Order::TRADE_STATE_CLOSED;
+            $order->close_time = Carbon::now();
+            $order->save();
+
+            Db::commit();
+            return ['state' => true, 'message' => '订单关闭成功', 'gateway_return' => $gatewayReturn];
+        } catch (Throwable $e) {
+            Db::rollBack();
+            Log::error("订单关闭失败：" . $e->getMessage(), ['trade_no' => $tradeNo]);
+            return ['state' => false, 'message' => $e->getMessage(), 'gateway_return' => []];
+        }
     }
 }

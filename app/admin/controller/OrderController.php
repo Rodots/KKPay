@@ -433,6 +433,38 @@ class OrderController extends AdminBase
     }
 
     /**
+     * 关闭订单
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function close(Request $request): Response
+    {
+        $trade_no    = $request->input('trade_no');
+        $callGateway = (bool)$request->input('call_gateway', 0);
+
+        if (empty($trade_no)) {
+            return $this->fail('必要参数缺失');
+        }
+
+        $order = Order::with('merchant:id,merchant_number')->where('trade_no', $trade_no)->first(['trade_no', 'trade_state', 'merchant_id']);
+        if (!$order) {
+            return $this->fail('该订单不存在');
+        }
+
+        $result = OrderService::handleOrderClose($trade_no, $callGateway, isAdmin: true);
+
+        if (!$result['state']) {
+            return $this->fail($result['message']);
+        }
+
+        $merchant_number = $order->merchant->merchant_number ?? '未知';
+        $this->adminLog("关闭商户【{$merchant_number}】的订单【{$trade_no}】" . ($callGateway ? '（同步网关）' : ''));
+
+        return $this->success($result['message'], ['gateway_return' => $result['gateway_return']]);
+    }
+
+    /**
      * 批量补单
      *
      * @param Request $request
@@ -575,6 +607,57 @@ class OrderController extends AdminBase
         }
 
         return $this->success('批量删除完成', [
+            'success_count' => count($success),
+            'failed_count'  => count($failed),
+            'success'       => $success,
+            'failed'        => $failed,
+        ]);
+    }
+
+    /**
+     * 批量关闭订单
+     *
+     * @param Request $request
+     * @return Response
+     */
+    public function batchClose(Request $request): Response
+    {
+        $ids         = $request->post('ids');
+        $callGateway = (bool)$request->post('call_gateway', 0);
+
+        if (empty($ids) || !is_array($ids)) {
+            return $this->fail('必要参数缺失');
+        }
+
+        $success = [];
+        $failed  = [];
+
+        foreach ($ids as $trade_no) {
+            try {
+                $order = Order::with('merchant:id,merchant_number')->where('trade_no', $trade_no)->first(['trade_no', 'trade_state', 'merchant_id']);
+
+                if (!$order) {
+                    $failed[$trade_no] = '订单不存在';
+                    continue;
+                }
+
+                $result = OrderService::handleOrderClose($trade_no, $callGateway, isAdmin: true);
+
+                if (!$result['state']) {
+                    $failed[$trade_no] = $result['message'];
+                    continue;
+                }
+
+                $success[] = $trade_no;
+
+                $merchant_number = $order->merchant->merchant_number ?? '未知';
+                $this->adminLog("批量关闭：商户【{$merchant_number}】订单【{$trade_no}】");
+            } catch (Throwable $e) {
+                $failed[$trade_no] = $e->getMessage();
+            }
+        }
+
+        return $this->success('批量关闭完成', [
             'success_count' => count($success),
             'failed_count'  => count($failed),
             'success'       => $success,
