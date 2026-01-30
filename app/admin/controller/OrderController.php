@@ -643,6 +643,12 @@ class OrderController extends AdminBase
 
                 $result = OrderService::handleOrderClose($trade_no, $callGateway, isAdmin: true);
 
+                if ($callGateway) {
+                    if ($result['state'] && !$result['gateway_return']['state']) {
+                        $failed[$trade_no] = $result['gateway_return']['message'];
+                        continue;
+                    }
+                }
                 if (!$result['state']) {
                     $failed[$trade_no] = $result['message'];
                     continue;
