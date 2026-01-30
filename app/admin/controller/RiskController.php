@@ -21,7 +21,7 @@ class RiskController extends AdminBase
     public function blackList(Request $request): Response
     {
         $from   = $request->get('from', 0);
-        $limit  = $request->get('limit', 10);
+        $limit  = $request->get('limit', 20);
         $params = $request->only(['entity_type', 'entity_value', 'origin', 'expired_at']);
 
         try {
@@ -157,7 +157,7 @@ class RiskController extends AdminBase
     public function log(Request $request): Response
     {
         $from   = $request->get('from', 0);
-        $limit  = $request->get('limit', 10);
+        $limit  = $request->get('limit', 20);
         $params = $request->only(['merchant_number', 'type', 'content', 'created_at']);
 
         try {

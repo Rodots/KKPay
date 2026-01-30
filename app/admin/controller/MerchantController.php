@@ -30,7 +30,7 @@ class MerchantController extends AdminBase
     public function index(Request $request): Response
     {
         $from   = $request->get('from', 0);
-        $limit  = $request->get('limit', 10);
+        $limit  = $request->get('limit', 20);
         $params = $request->only(['merchant_number', 'email', 'mobile', 'remark', 'status', 'risk_status', 'created_at']);
 
         try {
@@ -441,7 +441,7 @@ class MerchantController extends AdminBase
     public function log(Request $request): Response
     {
         $from   = $request->get('from', 0);
-        $limit  = $request->get('limit', 10);
+        $limit  = $request->get('limit', 20);
         $sort   = $request->get('sort', 'id');
         $order  = $request->get('order', 'desc');
         $params = $request->only(['merchant_number', 'content', 'ip', 'created_at']);
@@ -512,7 +512,7 @@ class MerchantController extends AdminBase
     public function payeeList(Request $request): Response
     {
         $from   = $request->get('from', 0);
-        $limit  = $request->get('limit', 10);
+        $limit  = $request->get('limit', 20);
         $params = $request->only(['merchant_number', 'created_at']);
 
         try {

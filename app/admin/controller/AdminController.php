@@ -19,7 +19,7 @@ class AdminController extends AdminBase
     public function index(Request $request): Response
     {
         $from   = $request->get('from', 0);
-        $limit  = $request->get('limit', 10);
+        $limit  = $request->get('limit', 20);
         $sort   = $request->get('sort', 'id');
         $order  = $request->get('order', 'desc');
         $params = $request->only(['role', 'account', 'nickname', 'email', 'status', 'created_at']);
@@ -291,7 +291,7 @@ class AdminController extends AdminBase
     public function log(Request $request): Response
     {
         $from   = $request->get('from', 0);
-        $limit  = $request->get('limit', 10);
+        $limit  = $request->get('limit', 20);
         $sort   = $request->get('sort', 'id');
         $order  = $request->get('order', 'desc');
         $params = $request->only(['account', 'content', 'ip', 'created_at']);

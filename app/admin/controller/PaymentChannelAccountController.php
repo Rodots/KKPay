@@ -20,7 +20,7 @@ class PaymentChannelAccountController extends AdminBase
     public function index(Request $request): Response
     {
         $from       = $request->get('from', 0);
-        $limit      = $request->get('limit', 10);
+        $limit      = $request->get('limit', 20);
         $sort       = $request->get('sort', 'id');
         $order      = $request->get('order', 'desc');
         $params     = $request->only(['name', 'inherit_config', 'status', 'maintenance', 'remark']);

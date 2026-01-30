@@ -28,7 +28,7 @@ class OrderController extends AdminBase
     public function index(Request $request): Response
     {
         $from   = $request->get('from', 0);
-        $limit  = $request->get('limit', 10);
+        $limit  = $request->get('limit', 20);
         $params = $request->only(['fuzzy_trade_no', 'trade_no', 'out_trade_no', 'api_trade_no', 'bill_trade_no', 'mch_trade_no', 'merchant_number', 'payment_type', 'payment_channel_code', 'payment_channel_account_id', 'subject', 'total_amount', 'buyer_pay_amount', 'receipt_amount', 'create_time', 'payment_time', 'trade_state', 'settle_state', 'notify_state']);
 
         try {

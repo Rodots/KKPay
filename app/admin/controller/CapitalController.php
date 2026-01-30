@@ -27,7 +27,7 @@ class CapitalController extends AdminBase
     public function walletRecord(Request $request): Response
     {
         $from   = $request->get('from', 0);
-        $limit  = $request->get('limit', 10);
+        $limit  = $request->get('limit', 20);
         $sort   = $request->get('sort', 'id');
         $order  = $request->get('order', 'desc');
         $params = $request->only(['merchant_number', 'type', 'remark', 'trade_no', 'created_at']);
@@ -105,7 +105,7 @@ class CapitalController extends AdminBase
     public function walletPrepaidRecord(Request $request): Response
     {
         $from   = $request->get('from', 0);
-        $limit  = $request->get('limit', 10);
+        $limit  = $request->get('limit', 20);
         $sort   = $request->get('sort', 'id');
         $order  = $request->get('order', 'desc');
         $params = $request->only(['merchant_number', 'remark', 'created_at']);
@@ -241,7 +241,7 @@ class CapitalController extends AdminBase
     public function withdrawalList(Request $request): Response
     {
         $from   = $request->get('from', 0);
-        $limit  = $request->get('limit', 10);
+        $limit  = $request->get('limit', 20);
         $sort   = $request->get('sort', 'id');
         $order  = $request->get('order', 'desc');
         $params = $request->only(['merchant_number', 'status', 'created_at']);
