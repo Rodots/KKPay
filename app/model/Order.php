@@ -344,6 +344,155 @@ class Order extends Model
     }
 
     /**
+     * 访问器：是否为黑名单订单
+     *
+     * @return Attribute
+     */
+    protected function isBlacklist(): Attribute
+    {
+        return Attribute::make(
+            get: function () {
+                $buyer = $this->buyer ?? $this->getRelationValue('buyer');
+                if (!$buyer) {
+                    return false;
+                }
+                return $this->checkBuyerBlacklist($buyer->ip ?? null, $buyer->user_id ?? null, $buyer->buyer_open_id ?? null, $buyer->mobile ?? null);
+            }
+        );
+    }
+
+    /**
+     * 访问器：用户行为摘要
+     *
+     * @return Attribute
+     */
+    protected function userBehaviorSummary(): Attribute
+    {
+        return Attribute::make(
+            get: function () {
+                // 加载买家信息
+                $buyer = $this->buyer ?? $this->getRelationValue('buyer');
+
+                if (!$buyer) {
+                    return [
+                        'is_blacklist' => false,
+                        'total_orders' => 0,
+                        'paid_orders'  => 0,
+                        'success_rate' => '0.00%',
+                        'message'      => '无买家信息',
+                    ];
+                }
+
+                $ip          = $buyer->ip ?? null;
+                $userId      = $buyer->user_id ?? null;
+                $buyerOpenId = $buyer->buyer_open_id ?? null;
+                $mobile      = $buyer->mobile ?? null;
+
+                // 1. 检查黑名单
+                $isBlacklist = $this->checkBuyerBlacklist($ip, $userId, $buyerOpenId, $mobile);
+
+                // 2. 统计订单数
+                [$totalOrders, $paidOrders] = $this->countUserOrders($ip, $userId, $buyerOpenId, $mobile);
+
+                // 3. 计算成功率
+                $successRate = $totalOrders > 0 ? bcmul(bcdiv((string)$paidOrders, (string)$totalOrders, 4), '100', 2) . '%' : '0.00%';
+
+                // 4. 拼接统计文案
+                $message = ($isBlacklist ? '黑名单用户，' : '') . "累计下单 $totalOrders 笔，成功支付 $paidOrders 笔，成功率 $successRate";
+
+                return [
+                    'is_blacklist' => $isBlacklist,
+                    'total_orders' => $totalOrders,
+                    'paid_orders'  => $paidOrders,
+                    'success_rate' => $successRate,
+                    'message'      => $message,
+                ];
+            }
+        );
+    }
+
+    /**
+     * 检查买家是否命中黑名单（排除已过期）
+     */
+    private function checkBuyerBlacklist(?string $ip, ?string $userId, ?string $buyerOpenId, ?string $mobile): bool
+    {
+        $now = Carbon::now()->timezone(config('app.default_timezone'));
+
+        $checkBlacklist = function (string $entityType, ?string $entityValue) use ($now): bool {
+            if (empty($entityValue)) {
+                return false;
+            }
+            $entityHash = hash('sha3-224', $entityType . $entityValue);
+            return Blacklist::where('entity_hash', $entityHash)->where(fn($q) => $q->whereNull('expired_at')->orWhere('expired_at', '>', $now))->exists();
+        };
+
+        // 检查 IP 地址
+        if ($checkBlacklist(Blacklist::ENTITY_TYPE_IP_ADDRESS, $ip)) {
+            return true;
+        }
+        // 检查用户 ID
+        if ($checkBlacklist(Blacklist::ENTITY_TYPE_USER_ID, $userId)) {
+            return true;
+        }
+        // 检查买家 OpenID
+        if ($checkBlacklist(Blacklist::ENTITY_TYPE_USER_ID, $buyerOpenId)) {
+            return true;
+        }
+        // 检查手机号
+        if ($checkBlacklist(Blacklist::ENTITY_TYPE_MOBILE, $mobile)) {
+            return true;
+        }
+
+        return false;
+    }
+
+    /**
+     * 统计用户历史订单数
+     *
+     * @return array [总订单数, 成功付款订单数]
+     */
+    private function countUserOrders(?string $ip, ?string $userId, ?string $buyerOpenId, ?string $mobile): array
+    {
+        // 如果没有任何标识信息，返回当前订单的统计
+        if (empty($ip) && empty($userId) && empty($buyerOpenId) && empty($mobile)) {
+            $isPaid = in_array($this->trade_state, [self::TRADE_STATE_SUCCESS, self::TRADE_STATE_REFUND, self::TRADE_STATE_FINISHED, self::TRADE_STATE_FROZEN]);
+            return [1, $isPaid ? 1 : 0];
+        }
+
+        // 构建查询条件，匹配任意一个标识，使用 distinct 去重
+        $tradeNos = OrderBuyer::query()
+            ->where(function ($q) use ($ip, $userId, $buyerOpenId, $mobile) {
+                if (!empty($ip)) {
+                    $q->orWhere('ip', $ip);
+                }
+                if (!empty($userId)) {
+                    $q->orWhere('user_id', $userId);
+                }
+                if (!empty($buyerOpenId)) {
+                    $q->orWhere('buyer_open_id', $buyerOpenId);
+                }
+                if (!empty($mobile)) {
+                    $q->orWhere('mobile', $mobile);
+                }
+            })
+            ->distinct()
+            ->pluck('trade_no');
+
+        $totalOrders = $tradeNos->count();
+
+        if ($totalOrders === 0) {
+            return [0, 0];
+        }
+
+        // 统计成功付款的订单
+        $paidOrders = Order::whereIn('trade_no', $tradeNos)
+            ->whereIn('trade_state', [self::TRADE_STATE_SUCCESS, self::TRADE_STATE_REFUND, self::TRADE_STATE_FINISHED, self::TRADE_STATE_FROZEN])
+            ->count();
+
+        return [$totalOrders, $paidOrders];
+    }
+
+    /**
      * 该订单属于这个商户
      */
     public function merchant(): BelongsTo

@@ -80,7 +80,7 @@ class OrderController extends AdminBase
 
         // 构建查询
         $select_fields = ['trade_no', 'out_trade_no', 'merchant_id', 'payment_type', 'payment_channel_account_id', 'subject', 'total_amount', 'buyer_pay_amount', 'create_time', 'payment_time', 'trade_state', 'settle_state', 'notify_state'];
-        $query         = Order::with(['merchant:id,merchant_number', 'paymentChannelAccount:id,name,payment_channel_id', 'paymentChannelAccount.paymentChannel:id,code', 'buyer:trade_no,ip'])->when($params, function ($q) use ($params) {
+        $query         = Order::with(['merchant:id,merchant_number', 'paymentChannelAccount:id,name,payment_channel_id', 'paymentChannelAccount.paymentChannel:id,code', 'buyer:trade_no,ip,user_id,buyer_open_id,mobile'])->when($params, function ($q) use ($params) {
             foreach ($params as $key => $value) {
                 if ($value === '' || $value === null) {
                     continue;
@@ -153,7 +153,7 @@ class OrderController extends AdminBase
 
         // 获取总数和数据
         $total = $query->count();
-        $list  = $query->offset($from)->limit($limit)->orderBy('create_time', 'desc')->get($select_fields)->append(['payment_type_text', 'trade_state_text', 'settle_state_text', 'notify_state_text', 'payment_duration']);
+        $list  = $query->offset($from)->limit($limit)->orderBy('create_time', 'desc')->get($select_fields)->append(['payment_type_text', 'trade_state_text', 'settle_state_text', 'notify_state_text', 'payment_duration', 'is_blacklist']);
 
         return $this->success(data: [
             'list'  => $list,
@@ -173,7 +173,7 @@ class OrderController extends AdminBase
             $query->orderBy('id', 'desc');
         }, 'notifications'                                                                                                                                                          => function ($query) {
             $query->orderBy('id', 'desc')->limit(20);
-        }])->find($trade_no)->append(['payment_type_text', 'trade_state_text', 'settle_state_text', 'notify_state_text', 'payment_duration']);
+        }])->find($trade_no)->append(['payment_type_text', 'trade_state_text', 'settle_state_text', 'notify_state_text', 'payment_duration', 'user_behavior_summary']);
 
         if (empty($order)) {
             return $this->fail('该订单不存在');
@@ -236,7 +236,7 @@ class OrderController extends AdminBase
         if (empty($trade_no)) {
             return $this->fail('必要参数缺失');
         }
-        if (!$order = Order::find($trade_no)) {
+        if (!$order = Order::with('merchant:id,merchant_number')->where('trade_no', $trade_no)->first(['trade_no', 'out_trade_no', 'merchant_id', 'bill_trade_no', 'total_amount', 'buyer_pay_amount', 'receipt_amount', 'attach', 'trade_state', 'create_time', 'payment_time', 'sign_type', 'notify_url'])) {
             return $this->fail('该订单不存在');
         }
         if (!in_array($order->trade_state, [Order::TRADE_STATE_SUCCESS, Order::TRADE_STATE_REFUND, Order::TRADE_STATE_FINISHED], true)) {
@@ -379,7 +379,7 @@ class OrderController extends AdminBase
         if (empty($trade_no)) {
             return $this->fail('必要参数缺失');
         }
-        if (!$order = Order::with('merchant')->where('trade_no', $trade_no)->first(['trade_no', 'trade_state', 'payment_channel_account_id', 'merchant_id'])) {
+        if (!$order = Order::with('merchant:id,merchant_number')->where('trade_no', $trade_no)->first(['trade_no', 'trade_state', 'payment_channel_account_id', 'merchant_id'])) {
             return $this->fail('该订单不存在');
         }
         if ($order->payment_channel_account_id <= 0) {
@@ -416,7 +416,7 @@ class OrderController extends AdminBase
         if (!in_array($targetState, [Order::TRADE_STATE_FROZEN, Order::TRADE_STATE_SUCCESS], true)) {
             return $this->fail('参数异常');
         }
-        if (!$order = Order::with('merchant')->where('trade_no', $trade_no)->first(['trade_no', 'trade_state', 'merchant_id'])) {
+        if (!$order = Order::with('merchant:id,merchant_number')->where('trade_no', $trade_no)->first(['trade_no', 'trade_state', 'merchant_id'])) {
             return $this->fail('该订单不存在');
         }
 
@@ -535,7 +535,7 @@ class OrderController extends AdminBase
 
         foreach ($ids as $trade_no) {
             try {
-                $order = Order::with('merchant:id,merchant_number')->find($trade_no);
+                $order = Order::with('merchant:id,merchant_number')->where('trade_no', $trade_no)->first(['trade_no', 'merchant_id', 'trade_state']);
 
                 if (!$order) {
                     $failed[$trade_no] = '订单不存在';
