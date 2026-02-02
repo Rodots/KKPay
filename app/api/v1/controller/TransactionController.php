@@ -21,11 +21,11 @@ use support\Response;
 use Throwable;
 
 /**
- * 支付控制器
+ * 交易控制器
  * 处理商户支付请求
  */
 #[Middleware(ApiSignatureVerification::class)]
-class PayController extends ApiBase
+class TransactionController extends ApiBase
 {
     /**
      * 统一收单交易支付接口
@@ -34,7 +34,7 @@ class PayController extends ApiBase
      * @param Request $request 请求对象（包含中间件注入的 merchant 和 verifiedParams）
      * @return Response JSON格式响应
      */
-    public function index(Request $request): Response
+    public function unified(Request $request): Response
     {
         // 解析业务参数
         $bizContent = $this->parsePayBizContent($request);
@@ -65,7 +65,7 @@ class PayController extends ApiBase
             if ($method === 'redirect') {
                 return $this->success([
                     'pay_type' => 'redirect',
-                    'pay_info' => site_url("pay/page/{$order['trade_no']}.html"),
+                    'pay_info' => site_url(config('kkpay.payment_ext_path', 'cart') . "/page/{$order['trade_no']}.html"),
                 ]);
             }
 
