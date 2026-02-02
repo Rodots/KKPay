@@ -116,7 +116,7 @@ class PaymentChannelController extends AdminBase
 
         // 使用工具类获取网关配置项
         $getInfo = PaymentGatewayUtil::getInfo($gateway);
-        if ($getInfo['config'] === null) {
+        if (empty($getInfo['config'])) {
             return $this->fail('获取支付网关配置项失败，请检查该支付通道的网关代码是否正确');
         }
 
