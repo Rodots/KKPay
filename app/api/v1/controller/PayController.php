@@ -88,7 +88,7 @@ class PayController extends ApiBase
 
     /**
      * 页面跳转支付接口
-     * 支持GET/POST表单，用于生成用户支付跳转链接
+     * 仅接收POST表单请求，用于生成用户支付跳转链接
      */
     public function page(Request $request): Response
     {

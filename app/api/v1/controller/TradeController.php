@@ -70,21 +70,9 @@ class TradeController extends ApiBase
                 return $this->fail('订单不存在');
             }
 
-            // 加载付款人信息和退款记录（仅关键字段）
-            $order->load(['buyer', 'refunds' => function ($query) {
-                $query->select(['id', 'trade_no', 'amount', 'reason', 'created_at']);
-            }]);
+            $order->load('buyer');
 
             $result = $order->toArray();
-            // 格式化退款记录输出
-            $result['refunds'] = array_map(function ($refund) {
-                return [
-                    'refund_id'   => $refund['id'],
-                    'amount'      => $refund['amount'],
-                    'reason'      => $refund['reason'],
-                    'refund_time' => $refund['created_at'],
-                ];
-            }, $result['refunds'] ?? []);
 
             return $this->success($result, '查询成功');
         } catch (Throwable $e) {
@@ -144,7 +132,7 @@ class TradeController extends ApiBase
             }
 
             return $this->success([
-                'refund_id'     => $result['refund_id'],
+                'id'            => $result['id'],
                 'trade_no'      => $order->trade_no,
                 'refund_amount' => $bizContent['refund_amount'],
             ], '退款处理成功');
@@ -250,7 +238,7 @@ class TradeController extends ApiBase
             // 格式化退款记录
             $refundList = $refunds->map(function ($refund) {
                 return [
-                    'refund_id'         => $refund->id,
+                    'id'                => $refund->id,
                     'out_biz_no'        => $refund->out_biz_no,
                     'api_refund_no'     => $refund->api_refund_no,
                     'refund_amount'     => $refund->amount,
