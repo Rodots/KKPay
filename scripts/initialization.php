@@ -128,6 +128,7 @@ declare(strict_types=1);
 
 /***
  * 配置项介绍
+ * payment_ext_path: 支付扩展模块路由路径
  * jwt_expire_time: JWT过期时间（后台登录过期时间）[秒]
  * api_crypto_key: 后台敏感接口传输密钥（32位字符串）
  * totp_crypto_key: TOTP存储加密密钥（32位字符串）
@@ -136,6 +137,7 @@ declare(strict_types=1);
  */
 
 return [
+    'payment_ext_path'         => 'cart',
     'jwt_expire_time'          => 3600,
     'api_crypto_key'           => '$api_crypto_key',
     'totp_crypto_key'          => '$totp_crypto_key',

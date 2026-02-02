@@ -25,7 +25,7 @@ class Alipay extends AbstractGateway
         'author'      => 'Rodots',
         'url'         => 'https://opendocs.alipay.com/open-v3/08c7f9f8_alipay.trade.pay',
         'description' => '蚂蚁集团旗下的支付宝，是以每个人为中心，以实名和信任为基础的生活平台。自2004年成立以来，支付宝已经与超过200家金融机构达成合作，为上千万小微商户提供支付服务。随着场景拓展和产品创新，拓展的服务场景不断增加，支付宝已发展成为融合了支付、生活服务、政务服务、理财、保险、公益等多个场景与行业的开放性平台。支付宝还推出了跨境支付、退税等多项服务，让中国用户在境外也能享受移动支付的便利。',
-        'version'     => '1.0.1',
+        'version'     => '1.0.2',
         'notes'       => '<p>选择可用的支付类型，注意只能选择已经签约的产品，否则会无法支付！</p><p>如果使用<span class="text-green-600">证书</span>模式对接，需将<span class="text-green-600">应用公钥证书</span>、<span class="text-green-600">支付宝公钥证书</span>、<span class="text-green-600">支付宝根证书</span>共<b>3</b>个<span class="text-destructive">.crt</span>文件放置于<span class="text-blue-600">/core/Gateway/Alipay/cert/<b>{支付宝AppID}</b>/</span>文件夹</p>',
         'config'      => [
             [
@@ -114,7 +114,7 @@ class Alipay extends AbstractGateway
             $method === 'app' && in_array('app', $payment_types) => self::app($items),
             $method === 'scan' && in_array('scan', $payment_types) => self::scan($items),
             in_array('dmfscan', $payment_types) || in_array('ddm', $payment_types) => self::qrcode($items),
-            default => ['type' => 'redirect', 'url' => '/pay/web/' . $order['trade_no'] . '.html']
+            default => ['type' => 'redirect', 'extension' => 'web']
         };
     }
 
@@ -131,14 +131,14 @@ class Alipay extends AbstractGateway
 
         // JSAPI 支付需要特殊处理：在支付宝环境内直接调用，否则先跳转获取用户标识
         if (in_array('jsapi', $payment_types)) {
-            return isAlipay() ? self::jsapi($items) : ['type' => 'redirect', 'url' => '/pay/jsapi/' . $trade_no . '.html'];
+            return isAlipay() ? self::jsapi($items) : ['type' => 'redirect', 'extension' => 'jsapi'];
         }
 
         return match (true) {
-            in_array('app', $payment_types) => ['type' => 'redirect', 'url' => '/pay/app/' . $trade_no . '.html'],
-            isMobile() && in_array('wap', $payment_types) => ['type' => 'redirect', 'url' => '/pay/wap/' . $trade_no . '.html'],
-            in_array('pc', $payment_types) => ['type' => 'redirect', 'url' => '/pay/pc/' . $trade_no . '.html'],
-            in_array('dmfscan', $payment_types) || in_array('ddm', $payment_types) => ['type' => 'redirect', 'url' => '/pay/qrcode/' . $trade_no . '.html'],
+            in_array('app', $payment_types) => ['type' => 'redirect', 'extension' => 'app'],
+            isMobile() && in_array('wap', $payment_types) => ['type' => 'redirect', 'extension' => 'wap'],
+            in_array('pc', $payment_types) => ['type' => 'redirect', 'extension' => 'pc'],
+            in_array('dmfscan', $payment_types) || in_array('ddm', $payment_types) => ['type' => 'redirect', 'extension' => 'qrcode'],
             default => ['type' => 'error', 'message' => '暂未匹配到可用的支付产品，请选择其他支付方式或稍后重试！']
         };
     }

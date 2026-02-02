@@ -9,5 +9,5 @@ Route::any('/.well-known/appspecific/com.chrome.devtools.json', fn() => new \sup
 // 收银台页面
 Route::get('/checkout/{orderNo}.html', [\app\api\controller\CheckoutController::class, 'index']);
 
-// 网关扩展方法路由 - 支持 /pay/[方法名]/订单号/ 格式（无需签名验证）
-Route::any('/pay/{method}/{orderNo}.html', [\app\api\v1\controller\PaymentExtensionController::class, 'handle']);
+// 网关扩展方法路由
+Route::any('/' . config('kkpay.payment_ext_path', 'cart') . '/{method}/{orderNo}.html', [\app\api\v1\controller\PaymentExtensionController::class, 'handle']);

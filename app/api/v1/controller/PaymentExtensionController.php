@@ -17,9 +17,6 @@ use Throwable;
 
 /**
  * 支付网关扩展方法控制器
- *
- * 处理 /pay/{method}/{orderNo}.html 格式的请求
- * 无需签名验证，用于处理支付网关回调等场景
  */
 class PaymentExtensionController
 {
@@ -28,7 +25,7 @@ class PaymentExtensionController
     /**
      * 处理网关扩展方法调用
      *
-     * 路由格式: /pay/{method}/{orderNo}.html
+     * 路由格式: /{payment_ext_path}/{method}/{orderNo}.html
      *
      * @param Request $request 请求对象
      * @return Response 响应
@@ -90,7 +87,8 @@ class PaymentExtensionController
                 );
             }
 
-            $notify_url = sys_config('system', 'notify_url');
+            $notify_url       = sys_config('system', 'notify_url');
+            $payment_ext_path = config('kkpay.payment_ext_path', 'cart');
 
             $items = [
                 'isExtension' => true,
@@ -98,8 +96,8 @@ class PaymentExtensionController
                 'channel'     => $paymentChannelAccount->config,
                 'buyer'       => OrderBuyer::where('trade_no', $order->trade_no)->first(['ip', 'user_agent', 'user_id', 'buyer_open_id', 'real_name', 'cert_no', 'cert_type', 'min_age', 'mobile']),
                 'subject'     => $subject,
-                'return_url'  => site_url("pay/return/$order->trade_no.html"),
-                'notify_url'  => empty($notify_url) ? site_url("pay/notify/$order->trade_no.html") : $notify_url . "pay/notify/$order->trade_no.html",
+                'return_url'  => site_url($payment_ext_path . "/return/$order->trade_no.html"),
+                'notify_url'  => empty($notify_url) ? site_url($payment_ext_path . "/notify/$order->trade_no.html") : $notify_url . $payment_ext_path . "/notify/$order->trade_no.html",
             ];
             unset($order);
 

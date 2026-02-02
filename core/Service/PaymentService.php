@@ -4,7 +4,9 @@ declare(strict_types=1);
 
 namespace Core\Service;
 
+use app\model\Merchant;
 use app\model\OrderBuyer;
+use app\model\PaymentChannel;
 use app\model\PaymentChannelAccount;
 use Core\Exception\PaymentException;
 use Core\Utils\PaymentGatewayUtil;
@@ -69,7 +71,8 @@ class PaymentService
             $merchant = request()->merchant ?? null;
             $subject  = self::resolveOrderSubject($order['subject'], $order['trade_no'], $order['out_trade_no'], $paymentChannelAccount, $paymentChannel, $merchant);
 
-            $notify_url = sys_config('system', 'notify_url');
+            $notify_url       = sys_config('system', 'notify_url');
+            $payment_ext_path = config('kkpay.payment_ext_path', 'cart');
 
             $items = [
                 'isExtension' => false,
@@ -78,8 +81,8 @@ class PaymentService
                 'buyer'       => $orderBuyer->toArray(),
                 'subject'     => $subject,
                 'method'      => $method,
-                'return_url'  => site_url("pay/return/{$order['trade_no']}.html"),
-                'notify_url'  => empty($notify_url) ? site_url("pay/notify/{$order['trade_no']}.html") : $notify_url . "pay/notify/{$order['trade_no']}.html",
+                'return_url'  => site_url($payment_ext_path . "/return/{$order['trade_no']}.html"),
+                'notify_url'  => empty($notify_url) ? site_url($payment_ext_path . "/notify/{$order['trade_no']}.html") : $notify_url . $payment_ext_path . "/notify/{$order['trade_no']}.html",
             ];
 
             // 合并接口类型相关的额外参数
@@ -111,6 +114,9 @@ class PaymentService
         if (!$type) {
             throw new PaymentException('支付网关返回了未知的处理类型');
         }
+
+        $payment_ext_path = config('kkpay.payment_ext_path', 'cart');
+
         switch ($type) {
             case 'redirect': //跳转
             case 'location':
@@ -136,14 +142,14 @@ class PaymentService
                     $json['pay_info'] = $result['data']['url'];
                 } else {
                     $json['pay_type'] = 'redirect';
-                    $json['pay_info'] = site_url("pay/submit/{$order['trade_no']}.html");
+                    $json['pay_info'] = site_url($payment_ext_path . "/submit/{$order['trade_no']}.html");
                 }
                 break;
             case 'error': //错误提示
                 throw new PaymentException($result['message'] ?? '未知错误');
             default:
                 $json['pay_type'] = 'redirect';
-                $json['pay_info'] = site_url("pay/submit/{$order['trade_no']}.html");
+                $json['pay_info'] = site_url($payment_ext_path . "/submit/{$order['trade_no']}.html");
                 break;
         }
         return $json;
@@ -162,7 +168,11 @@ class PaymentService
         }
         switch ($type) {
             case 'redirect': //跳转
-                $url       = htmlspecialchars($result['url'] ?? 'https://www.baidu.com', ENT_QUOTES, 'UTF-8');
+                if (isset($result['extension'])) {
+                    $url = '/' . config('kkpay.payment_ext_path', 'cart') . '/' . ($result['extension'] ?: 'submit') . '/' . $order['trade_no'] . '.html';
+                } else {
+                    $url = htmlspecialchars($result['url'] ?? 'https://www.baidu.com', ENT_QUOTES, 'UTF-8');
+                }
                 $html_text = '<script>window.location.replace(\'' . $url . '\');</script>';
                 return self::redirectTemplate($html_text);
             case 'location': //重定向
@@ -208,7 +218,7 @@ class PaymentService
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
     <meta name="color-scheme" content="light dark">
-    <title>{$title}</title>
+    <title>$title</title>
     <style>
         :root{color-scheme:light dark;--bg:#fff;--text:#1a1a1a;--loader-bar:#1a1a1a}@media (prefers-color-scheme:dark){:root{--bg:#0a0a0a;--text:#e6e6e6;--loader-bar:#e6e6e6}}*{margin:0;padding:0;box-sizing:border-box}body{min-height:100dvh;display:flex;justify-content:center;align-items:center;background:var(--bg);color:var(--text);font-family:-apple-system,BlinkMacSystemFont,"Segoe UI",Roboto,"Helvetica Neue",Arial,"Noto Sans SC","PingFang SC","Microsoft YaHei",sans-serif;padding:1rem}.loader{font-weight:700;font-size:clamp(1rem,4vw,1.75rem);padding-bottom:0.5rem;background:repeating-linear-gradient( 90deg,var(--loader-bar) 0 8%,transparent 8% 10% ) 200% 100% / 200% 3px no-repeat;animation:l 1.5s steps(6) infinite}.loader::before{content:"{$loadingText}，请稍候..."}@keyframes l{to{background-position:80% 100%}}@media (prefers-reduced-motion:reduce){.loader{animation:none;background:none}}
     </style>
@@ -232,15 +242,15 @@ HTML;
      * 4. 全局系统配置自定义商品名
      * 5. 商户原始请求商品名（默认）
      *
-     * @param string                           $originalSubject       原始商品名
-     * @param string                           $tradeNo               平台订单号
-     * @param string                           $outTradeNo            商户订单号
-     * @param \app\model\PaymentChannelAccount $paymentChannelAccount 通道子账户
-     * @param \app\model\PaymentChannel        $paymentChannel        支付通道
-     * @param \app\model\Merchant|null         $merchant              商户
+     * @param string                $originalSubject       原始商品名
+     * @param string                $tradeNo               平台订单号
+     * @param string                $outTradeNo            商户订单号
+     * @param PaymentChannelAccount $paymentChannelAccount 通道子账户
+     * @param PaymentChannel        $paymentChannel        支付通道
+     * @param Merchant|null         $merchant              商户
      * @return string
      */
-    private static function resolveOrderSubject(string $originalSubject, string $tradeNo, string $outTradeNo, \app\model\PaymentChannelAccount $paymentChannelAccount, \app\model\PaymentChannel $paymentChannel, ?\app\model\Merchant $merchant): string
+    private static function resolveOrderSubject(string $originalSubject, string $tradeNo, string $outTradeNo, PaymentChannelAccount $paymentChannelAccount, PaymentChannel $paymentChannel, ?Merchant $merchant): string
     {
         // 获取各级配置的自定义商品名
         $accountSubject  = $paymentChannelAccount->diy_order_subject ?? null;

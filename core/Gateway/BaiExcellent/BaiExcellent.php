@@ -24,7 +24,7 @@ class BaiExcellent extends AbstractGateway
         'author'      => 'Rodots',
         'url'         => 'https://doc.renrenfu.com/',
         'description' => '百优支付',
-        'version'     => '1.0.0',
+        'version'     => '1.1.0',
         'notes'       => '',
         'config'      => [
             [
@@ -84,7 +84,7 @@ class BaiExcellent extends AbstractGateway
      */
     public static function page(array $items): array
     {
-        return ['type' => 'redirect', 'url' => '/pay/alipay/' . $items['order']['trade_no'] . '.html'];
+        return ['type' => 'redirect', 'extension' => 'alipay'];
     }
 
     /**
@@ -179,19 +179,23 @@ class BaiExcellent extends AbstractGateway
     }
 
     /**
-     * 订单退款
+     * 交易退款
+     * @param array $order
+     * @param array $channel
+     * @param array $refund_record
+     * @return array
      */
-    public static function refund(array $items): array
+    public static function refund(array $order, array $channel, array $refund_record): array
     {
         $params = [
-            'externalId'      => $items['channel']['external_id'],
-            'merchantTradeNo' => $items['order']['trade_no'],
-            'refundAmount'    => $items['refund_record']['amount'],
-            'refundReason'    => $items['refund_record']['reason']
+            'externalId'      => $channel['external_id'],
+            'merchantTradeNo' => $order['trade_no'],
+            'refundAmount'    => $refund_record['amount'],
+            'refundReason'    => $refund_record['reason']
         ];
 
         try {
-            $result = self::apiExecute('apiv2/refund/tradeRefund', $params, $items['channel']);
+            $result = self::apiExecute('apiv2/refund/tradeRefund', $params, $channel);
             return ['state' => true, 'api_refund_no' => $result['platformOutTradeNo'], 'refund_fee' => $result['refundAmount']];
         } catch (Throwable $e) {
             return ['state' => false, 'message' => $e->getMessage()];
