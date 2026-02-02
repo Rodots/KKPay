@@ -23,15 +23,13 @@ final class SignatureUtil
      */
     public static function buildSignString(array $params): string
     {
-        ksort($params);
-        return http_build_query(
-            data: array_filter(
-                $params,
-                fn($v, $k) => $k !== 'sign' && $v !== '' && $v !== null && !is_array($v),
-                ARRAY_FILTER_USE_BOTH
-            ),
-            encoding_type: PHP_QUERY_RFC3986,
-        );
+        unset($params['sign']);
+
+        $filtered = array_filter($params, fn($value) => !is_array($value) && $value !== null && (!is_string($value) || trim($value) !== ''));
+
+        ksort($filtered);
+
+        return implode('&', array_map(fn($key, $value) => $key . '=' . $value, array_keys($filtered), $filtered));
     }
 
     /**
