@@ -138,24 +138,22 @@ class RefundService
             $existingRefund = OrderRefund::where('merchant_id', $merchantId)->where('out_biz_no', $outBizNo)->first(['id', 'trade_no', 'amount']);
             if ($existingRefund !== null) {
                 if ($existingRefund->trade_no !== $tradeNo || bccomp((string)$existingRefund->amount, $refundAmount, 2) !== 0) {
-                    return ['success' => false, 'message' => '商户退款业务号已存在，但订单号或金额不一致', 'refund_id' => null];
+                    return ['success' => false, 'message' => '商户退款业务号已存在，但订单号或金额不一致'];
                 }
-                return ['success' => true, 'message' => '退款成功', 'refund_id' => $existingRefund->id];
+                return ['success' => true, 'message' => '退款成功', 'id' => $existingRefund->id];
             }
         }
 
         // 验证订单归属
         $order = Order::where('trade_no', $tradeNo)->first(['merchant_id']);
         if ($order === null || $order->merchant_id !== $merchantId) {
-            return ['success' => false, 'message' => '订单不存在或不属于当前商户', 'refund_id' => null];
+            return ['success' => false, 'message' => '订单不存在或不属于当前商户'];
         }
 
         $fee_bearer = sys_config('payment', 'api_refund_fee_bearer', 'merchant') === 'platform';
         $result     = self::handle($tradeNo, $refundAmount, 'api', true, $fee_bearer, $outBizNo, $reason);
 
-        return $result['state']
-            ? ['success' => true, 'message' => '退款成功', 'refund_id' => $result['refund_record']['id']]
-            : ['success' => false, 'message' => $result['msg'], 'refund_id' => null];
+        return $result['state'] ? ['success' => true, 'message' => '退款成功', 'id' => $result['refund_record']['id']] : ['success' => false, 'message' => $result['msg']];
     }
 
     /**
