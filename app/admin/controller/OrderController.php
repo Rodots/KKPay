@@ -236,7 +236,7 @@ class OrderController extends AdminBase
         if (empty($trade_no)) {
             return $this->fail('必要参数缺失');
         }
-        if (!$order = Order::with('merchant:id,merchant_number')->where('trade_no', $trade_no)->first(['trade_no', 'out_trade_no', 'merchant_id', 'bill_trade_no', 'total_amount', 'buyer_pay_amount', 'receipt_amount', 'attach', 'trade_state', 'create_time', 'payment_time', 'sign_type', 'notify_url'])) {
+        if (!$order = Order::with('merchant:id,merchant_number')->where('trade_no', $trade_no)->first(['trade_no', 'out_trade_no', 'merchant_id', 'bill_trade_no', 'total_amount', 'buyer_pay_amount', 'receipt_amount', 'attach', 'trade_state', 'create_time', 'payment_time', 'sign_type', 'notify_url', 'return_url'])) {
             return $this->fail('该订单不存在');
         }
         if (!in_array($order->trade_state, [Order::TRADE_STATE_SUCCESS, Order::TRADE_STATE_REFUND, Order::TRADE_STATE_FINISHED], true)) {
