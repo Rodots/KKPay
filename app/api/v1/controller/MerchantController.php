@@ -14,14 +14,15 @@ use support\Log;
 use support\Request;
 use support\Response;
 use Throwable;
+use Webman\RateLimiter\Annotation\RateLimiter;
 
 /**
- * 商户API控制器
+ * 商户控制器
  *
  * 提供商户信息查询、余额查询等API接口
  */
 #[Middleware(ApiSignatureVerification::class)]
-class MerchantApiController extends ApiBase
+class MerchantController extends ApiBase
 {
     /**
      * 商户信息查询接口
@@ -31,6 +32,7 @@ class MerchantApiController extends ApiBase
      * @param Request $request 请求对象
      * @return Response JSON响应
      */
+    #[RateLimiter(limit: 1, ttl: 30, message: '查询频率过快，别急')]
     public function info(Request $request): Response
     {
         try {
@@ -49,15 +51,14 @@ class MerchantApiController extends ApiBase
             $yesterdayStats = $this->getOrderStats($merchantId, $yesterdayStart, $yesterdayEnd);
 
             return $this->success([
-                'merchant_number' => $this->getMerchantNumber($request),
-                'wallet'          => [
+                'wallet'    => [
                     'available_balance'   => $wallet->available_balance ?? '0.00',
                     'unavailable_balance' => $wallet->unavailable_balance ?? '0.00',
                     'margin'              => $wallet->margin ?? '0.00',
                     'prepaid'             => $wallet->prepaid ?? '0.00',
                 ],
-                'today'           => $todayStats,
-                'yesterday'       => $yesterdayStats,
+                'today'     => $todayStats,
+                'yesterday' => $yesterdayStats,
             ], '查询成功');
         } catch (Throwable $e) {
             Log::error('商户信息查询异常:' . $e->getMessage());
@@ -71,6 +72,7 @@ class MerchantApiController extends ApiBase
      * @param Request $request 请求对象
      * @return Response JSON响应
      */
+    #[RateLimiter(limit: 1, ttl: 5, message: '查询频率过快，别急')]
     public function balance(Request $request): Response
     {
         try {
@@ -107,8 +109,8 @@ class MerchantApiController extends ApiBase
         $totalCount = (clone $query)->count();
 
         // 成功订单数和金额
-        $successQuery = (clone $query)->where('trade_state', Order::TRADE_STATE_SUCCESS);
-        $successCount = $successQuery->count();
+        $successQuery  = (clone $query)->where('trade_state', Order::TRADE_STATE_SUCCESS);
+        $successCount  = $successQuery->count();
         $successAmount = $successQuery->sum('total_amount') ?? 0;
 
         // 商户实收金额

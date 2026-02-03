@@ -125,7 +125,7 @@ class TradeController extends ApiBase
                 return $this->fail('订单不存在');
             }
 
-            $result = RefundService::apiRefund($order->trade_no, $bizContent['refund_amount'], $bizContent['refund_reason'] ?? '商户发起退款', $bizContent['out_biz_no'], $this->getMerchantId($request));
+            $result = RefundService::apiRefund($order->trade_no, $bizContent['refund_amount'], $bizContent['refund_reason'], $bizContent['out_biz_no'], $this->getMerchantId($request));
 
             if (!$result['success']) {
                 return $this->fail($result['message']);
@@ -141,53 +141,6 @@ class TradeController extends ApiBase
             return $this->fail($e->getMessage());
         } catch (Throwable $e) {
             Log::error('订单退款异常:' . $e->getMessage());
-            return $this->error('系统异常，请稍后重试');
-        }
-    }
-
-    /**
-     * 关闭订单接口
-     *
-     * biz_content 参数：
-     * - trade_no: 平台订单号（与 out_trade_no 二选一）
-     * - out_trade_no: 商户订单号（与 trade_no 二选一）
-     *
-     * @param Request $request 请求对象
-     * @return Response JSON响应
-     */
-    public function close(Request $request): Response
-    {
-        try {
-            $data = $this->parseBizContent($request);
-            if (is_string($data)) {
-                return $this->fail($data);
-            }
-
-            // 提取参数
-            $bizContent = [
-                'trade_no'     => $this->getString($data, 'trade_no', true),
-                'out_trade_no' => $this->getString($data, 'out_trade_no', true),
-            ];
-
-            $order = $this->findOrder($request, $bizContent, ['trade_no', 'trade_state', 'api_trade_no', 'payment_channel_account_id']);
-            if ($order === null) {
-                return $this->fail('订单不存在');
-            }
-
-            // 调用 OrderService 关闭订单（支持调用支付网关）
-            $result = OrderService::handleOrderClose($order->trade_no, callGateway: true);
-
-            if (!$result['state']) {
-                return $this->fail($result['message']);
-            }
-
-            return $this->success([
-                'trade_no'       => $order->trade_no,
-                'trade_state'    => 'TRADE_CLOSED',
-                'gateway_return' => $result['gateway_return'],
-            ], '订单关闭成功');
-        } catch (Throwable $e) {
-            Log::error('关闭订单异常:' . $e->getMessage());
             return $this->error('系统异常，请稍后重试');
         }
     }
@@ -249,15 +202,62 @@ class TradeController extends ApiBase
             })->toArray();
 
             return $this->success([
-                'trade_no'      => $order->trade_no,
-                'out_trade_no'  => $order->out_trade_no,
-                'total_amount'  => $order->total_amount,
-                'refund_count'  => count($refundList),
-                'refund_amount' => $refunds->sum('amount'),
-                'refunds'       => $refundList,
+                'trade_no'        => $order->trade_no,
+                'out_trade_no'    => $order->out_trade_no,
+                'total_amount'    => $order->total_amount,
+                'refund_count'    => count($refundList),
+                'refunded_amount' => number_format($refunds->sum('amount'), 2, '.', ''),
+                'refunds'         => $refundList,
             ], '查询成功');
         } catch (Throwable $e) {
             Log::error('退款查询异常:' . $e->getMessage());
+            return $this->error('系统异常，请稍后重试');
+        }
+    }
+
+    /**
+     * 关闭订单接口
+     *
+     * biz_content 参数：
+     * - trade_no: 平台订单号（与 out_trade_no 二选一）
+     * - out_trade_no: 商户订单号（与 trade_no 二选一）
+     *
+     * @param Request $request 请求对象
+     * @return Response JSON响应
+     */
+    public function close(Request $request): Response
+    {
+        try {
+            $data = $this->parseBizContent($request);
+            if (is_string($data)) {
+                return $this->fail($data);
+            }
+
+            // 提取参数
+            $bizContent = [
+                'trade_no'     => $this->getString($data, 'trade_no', true),
+                'out_trade_no' => $this->getString($data, 'out_trade_no', true),
+            ];
+
+            $order = $this->findOrder($request, $bizContent, ['trade_no', 'trade_state', 'api_trade_no', 'payment_channel_account_id']);
+            if ($order === null) {
+                return $this->fail('订单不存在');
+            }
+
+            // 调用 OrderService 关闭订单（支持调用支付网关）
+            $result = OrderService::handleOrderClose($order->trade_no, callGateway: true);
+
+            if (!$result['state']) {
+                return $this->fail($result['message']);
+            }
+
+            return $this->success([
+                'trade_no'       => $order->trade_no,
+                'out_trade_no'   => $order->out_trade_no,
+                'gateway_return' => $result['gateway_return'],
+            ], '订单关闭成功');
+        } catch (Throwable $e) {
+            Log::error('关闭订单异常:' . $e->getMessage());
             return $this->error('系统异常，请稍后重试');
         }
     }

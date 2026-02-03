@@ -22,6 +22,7 @@ use Throwable;
 
 /**
  * 交易控制器
+ *
  * 处理商户支付请求
  */
 #[Middleware(ApiSignatureVerification::class)]

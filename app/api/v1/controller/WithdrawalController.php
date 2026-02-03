@@ -172,7 +172,7 @@ class WithdrawalController extends ApiBase
 
             $query = MerchantWithdrawalRecord::where('merchant_id', $merchantId)->orderByDesc('id');
             $total = $query->count();
-            $list  = $query->offset(($page - 1) * $pageSize)->limit($pageSize)->get(['id', 'amount', 'prepaid_deducted', 'received_amount', 'fee', 'status', 'created_at', 'updated_at']);
+            $list  = $query->offset(($page - 1) * $pageSize)->limit($pageSize)->get(['id', 'amount', 'prepaid_deducted', 'received_amount', 'fee', 'status', 'reject_reason', 'created_at', 'updated_at']);
 
             return $this->success([
                 'total'     => $total,
