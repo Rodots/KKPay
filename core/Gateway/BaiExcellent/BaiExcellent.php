@@ -5,7 +5,7 @@ declare(strict_types=1);
 namespace Core\Gateway\BaiExcellent;
 
 use Core\Gateway\AbstractGateway;
-use Core\Gateway\BaiExcellent\lib\Aes;
+use Core\Gateway\BaiExcellent\Lib\Aes;
 use Exception;
 use GuzzleHttp\Exception\GuzzleException;
 use Throwable;

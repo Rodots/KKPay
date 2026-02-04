@@ -1,6 +1,6 @@
 <?php
 
-namespace Core\Gateway\BaiExcellent\lib;
+namespace Core\Gateway\BaiExcellent\Lib;
 
 use RuntimeException;
 
@@ -9,15 +9,15 @@ use RuntimeException;
  */
 class Aes
 {
-    private const METHOD = 'AES-192-CBC';
-    private const BLOCK_SIZE = 16;
+    private const string METHOD     = 'AES-192-CBC';
+    private const int    BLOCK_SIZE = 16;
 
     private string $key;
     private string $iv;
 
     /**
      * @param string $key 密钥 (24位)
-     * @param string $iv 偏移量 (16位)
+     * @param string $iv  偏移量 (16位)
      */
     public function __construct(string $key, string $iv = '')
     {
@@ -25,7 +25,7 @@ class Aes
             throw new RuntimeException('密钥不能为空');
         }
         $this->key = $key;
-        $this->iv = $this->normalizeIv($iv);
+        $this->iv  = $this->normalizeIv($iv);
     }
 
     /**
@@ -33,7 +33,7 @@ class Aes
      */
     public function encrypt(string $plainText): string|false
     {
-        $padded = $this->addPkcs7Padding($plainText);
+        $padded    = $this->addPkcs7Padding($plainText);
         $encrypted = openssl_encrypt($padded, self::METHOD, $this->key, OPENSSL_NO_PADDING, $this->iv);
         return $encrypted === false ? false : base64_encode($encrypted);
     }
@@ -43,7 +43,7 @@ class Aes
      */
     public function decrypt(string $cipherText): string|false
     {
-        $decoded = base64_decode($cipherText);
+        $decoded   = base64_decode($cipherText);
         $decrypted = openssl_decrypt($decoded, self::METHOD, $this->key, OPENSSL_NO_PADDING, $this->iv);
         return $decrypted === false ? false : $this->stripPkcs7Padding($decrypted);
     }
@@ -54,7 +54,7 @@ class Aes
     private function normalizeIv(string $iv): string
     {
         $requiredLen = openssl_cipher_iv_length(self::METHOD);
-        $currentLen = strlen($iv);
+        $currentLen  = strlen($iv);
 
         if ($currentLen === $requiredLen) {
             return $iv;
