@@ -136,4 +136,16 @@ abstract class AbstractGateway
     {
         OrderService::handlePaymentSuccess(false, $trade_no, $api_trade_no, $bill_trade_no, $mch_trade_no, $payment_time, $buyer);
     }
+
+    /**
+     * 跳转同步通知地址
+     *
+     * @param array $order 订单信息
+     * @return string
+     * @throws Throwable
+     */
+    protected static function returnRedirectUrl(array $order): string
+    {
+        return OrderService::buildSyncNotificationParams($order);
+    }
 }
