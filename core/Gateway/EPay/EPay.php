@@ -328,7 +328,7 @@ class EPay extends AbstractGateway
                         $buyer = [
                             'buyer_open_id' => empty($get['buyer']) ? null : $get['buyer'],
                         ];
-                        self::processNotify(trade_no: $order['trade_no'], api_trade_no: $get['trade_no'], payment_time: $get['endtime'], buyer: $buyer);
+                        self::processNotify(trade_no: $order['trade_no'], api_trade_no: $get['trade_no'], buyer: $buyer);
                     }
                 }
                 return ['type' => 'html', 'data' => 'success'];
