@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace Core\Gateway\BaiExcellent;
 
 use Core\Gateway\AbstractGateway;
+use Core\Gateway\Alipay\Lib\Trait\AlipayOauthTrait;
 use Core\Gateway\BaiExcellent\Lib\Aes;
 use Exception;
 use GuzzleHttp\Exception\GuzzleException;
@@ -16,6 +17,8 @@ use GuzzleHttp\Client;
  */
 class BaiExcellent extends AbstractGateway
 {
+    use AlipayOauthTrait;
+
     /**
      * 网关信息
      */
@@ -92,6 +95,18 @@ class BaiExcellent extends AbstractGateway
      */
     public static function alipay(array $items): array
     {
+        // 支付宝用户授权及风控校验（使用公共授权账户模式）
+        if (sys_config('payment', 'alipay_get_user_info_qrcode', 'off') === 'on') {
+            $oauthResult = self::handleAlipayOauthAndRisk([], $items['order']);
+            if ($oauthResult['mode'] === 'return') {
+                return $oauthResult['data'];
+            } else {
+                $items['buyer']['user_id']       = $oauthResult['data']['user_id'] ?: $items['buyer']['user_id'];
+                $items['buyer']['buyer_open_id'] = $oauthResult['data']['open_id'] ?: $items['buyer']['buyer_open_id'];
+                $items['buyer']['mobile']        = $oauthResult['data']['mobile'] ?: $items['buyer']['mobile'];
+            }
+        }
+
         $res = self::lockPaymentExt($items['order']['trade_no'], function () use ($items) {
             return self::apiExecute('apiv2/payment/pay', self::buildPaymentParams($items), $items['channel']);
         });
