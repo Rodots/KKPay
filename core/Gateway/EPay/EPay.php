@@ -62,11 +62,11 @@ class EPay extends AbstractGateway
             [
                 'field'        => 'is_mapi',
                 'type'         => 'radio',
-                'label'        => '是否使用mapi接口',
+                'label'        => 'mapi接口',
                 'required'     => true,
                 'options'      => [
-                    ['label' => '否', 'value' => 0],
-                    ['label' => '是', 'value' => 1]
+                    ['label' => '不使用', 'value' => 0],
+                    ['label' => '使用', 'value' => 1]
                 ],
                 'defaultValue' => 0
             ]
@@ -95,7 +95,7 @@ class EPay extends AbstractGateway
             try {
                 $type = self::getPayType($order['payment_type']);
             } catch (Exception $e) {
-                return ['type' => 'error', 'msg' => $e->getMessage()];
+                return ['type' => 'error', 'message' => $e->getMessage()];
             }
             return self::$type($items);
         }
@@ -134,7 +134,7 @@ class EPay extends AbstractGateway
                 return ['type' => 'html', 'template' => true, 'data' => $epay->pagePay($params)];
             }
         } catch (Throwable $e) {
-            return ['type' => 'error', 'msg' => $e->getMessage()];
+            return ['type' => 'error', 'message' => $e->getMessage()];
         }
     }
 
@@ -197,7 +197,7 @@ class EPay extends AbstractGateway
         try {
             [$method, $url] = self::api_unified('alipay', $items, $ext_params);
         } catch (Throwable $e) {
-            return ['type' => 'error', 'msg' => $e->getMessage()];
+            return ['type' => 'error', 'message' => $e->getMessage()];
         }
 
         if ($method === 'jump') {
@@ -218,7 +218,7 @@ class EPay extends AbstractGateway
         try {
             [$method, $url] = self::api_unified('wxpay', $items);
         } catch (Throwable $e) {
-            return ['type' => 'error', 'msg' => $e->getMessage()];
+            return ['type' => 'error', 'message' => $e->getMessage()];
         }
 
         if ($method === 'jump') {
@@ -227,7 +227,7 @@ class EPay extends AbstractGateway
             return ['type' => 'html', 'template' => true, 'data' => $url];
         } elseif ($method === 'urlscheme') {
             // return ['type' => 'scheme', 'page' => 'wxpay_mini', 'url' => $url];
-            return ['type' => 'error', 'msg' => '很抱歉，暂未适配urlscheme'];
+            return ['type' => 'error', 'message' => '很抱歉，暂未适配urlscheme'];
         }
 
         if (isWechat()) {
@@ -248,7 +248,7 @@ class EPay extends AbstractGateway
         try {
             [$method, $url] = self::api_unified('qqpay', $items);
         } catch (Throwable $e) {
-            return ['type' => 'error', 'msg' => $e->getMessage()];
+            return ['type' => 'error', 'message' => $e->getMessage()];
         }
 
         if ($method === 'jump') {
@@ -275,7 +275,7 @@ class EPay extends AbstractGateway
         try {
             [$method, $url] = self::api_unified('bank', $items);
         } catch (Throwable $e) {
-            return ['type' => 'error', 'msg' => $e->getMessage()];
+            return ['type' => 'error', 'message' => $e->getMessage()];
         }
 
         if ($method === 'jump') {
@@ -296,7 +296,7 @@ class EPay extends AbstractGateway
         try {
             [$method, $url] = self::api_unified('jdpay', $items);
         } catch (Throwable $e) {
-            return ['type' => 'error', 'msg' => $e->getMessage()];
+            return ['type' => 'error', 'message' => $e->getMessage()];
         }
 
         if ($method === 'jump') {
@@ -357,15 +357,15 @@ class EPay extends AbstractGateway
                     if ($get['out_trade_no'] === $order['trade_no'] && bccomp($get['total_amount'], $order['buyer_pay_amount'], 2) === 0) {
                         return ['type' => 'location', 'url' => self::returnRedirectUrl($order)];
                     } else {
-                        return ['type' => 'error', 'msg' => '订单信息校验失败'];
+                        return ['type' => 'error', 'message' => '订单信息校验失败'];
                     }
                 }
-                return ['type' => 'error', 'msg' => 'trade_status=' . $_GET['trade_status']];
+                return ['type' => 'error', 'message' => 'trade_status=' . $_GET['trade_status']];
             }
         } catch (Throwable $e) {
-            return ['type' => 'error', 'msg' => '验证失败: ' . $e->getMessage()];
+            return ['type' => 'error', 'message' => '验证失败: ' . $e->getMessage()];
         }
-        return ['type' => 'error', 'msg' => '验证失败！'];
+        return ['type' => 'error', 'message' => '验证失败！'];
     }
 
     /**
