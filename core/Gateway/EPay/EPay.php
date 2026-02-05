@@ -355,7 +355,7 @@ class EPay extends AbstractGateway
 
             if ($verify_result) {
                 if ($get['trade_status'] === 'TRADE_SUCCESS') {
-                    if ($get['out_trade_no'] === $order['trade_no'] && bccomp($get['total_amount'], $order['buyer_pay_amount'], 2) === 0) {
+                    if ($get['out_trade_no'] === $order['trade_no'] && bccomp($get['money'], $order['buyer_pay_amount'], 2) === 0) {
                         return ['type' => 'location', 'url' => self::returnRedirectUrl($order)];
                     } else {
                         return ['type' => 'error', 'message' => '订单信息校验失败'];
