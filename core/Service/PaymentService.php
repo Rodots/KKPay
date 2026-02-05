@@ -82,7 +82,7 @@ class PaymentService
                 'subject'     => $subject,
                 'method'      => $method,
                 'return_url'  => site_url($payment_ext_path . "/return/{$order['trade_no']}.html"),
-                'notify_url'  => empty($notify_url) ? site_url($payment_ext_path . "/notify/{$order['trade_no']}.html") : $notify_url . $payment_ext_path . "/notify/{$order['trade_no']}.html",
+                'notify_url'  => empty($notify_url) ? site_url($payment_ext_path . "/notify/{$order['trade_no']}.html") : rtrim($notify_url, '/') . '/' . $payment_ext_path . "/notify/{$order['trade_no']}.html",
             ];
 
             // 合并接口类型相关的额外参数
@@ -121,7 +121,11 @@ class PaymentService
             case 'redirect': //跳转
             case 'location':
                 $json['pay_type'] = 'redirect';
-                $json['pay_info'] = $result['url'];
+                if (isset($result['extension'])) {
+                    $json['pay_info'] = site_url($payment_ext_path . '/' . ($result['extension'] ?: 'submit') . '/' . $order['trade_no'] . '.html');
+                } else {
+                    $json['pay_info'] = $result['url'];
+                }
                 break;
             case 'html': //显示HTML
                 $json['pay_type'] = 'html';
