@@ -324,7 +324,7 @@ class EPay extends AbstractGateway
 
             if ($verify_result) {
                 if ($get['trade_status'] === 'TRADE_SUCCESS') {
-                    if ($get['out_trade_no'] === $order['trade_no'] && bccomp($get['total_amount'], $order['buyer_pay_amount'], 2) === 0) {
+                    if ($get['out_trade_no'] === $order['trade_no'] && bccomp($get['money'], $order['buyer_pay_amount'], 2) === 0) {
                         $buyer = [
                             'buyer_open_id' => empty($get['buyer']) ? null : $get['buyer'],
                         ];
