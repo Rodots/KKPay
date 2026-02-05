@@ -51,21 +51,20 @@ class EpayCore
      * 发起支付（页面跳转）
      * 生成自动提交的HTML表单，用于页面跳转支付
      *
-     * @param array  $biz_content 业务参数数组
-     * @param string $button      提交按钮显示文本
+     * @param array $biz_content 业务参数数组
      * @return string HTML表单代码
      * @throws Exception 当请求构建失败时抛出异常
      */
-    public function pagePay(array $biz_content, string $button = '正在跳转'): string
+    public function pagePay(array $biz_content): string
     {
         $requrl = $this->api_url . 'api/pay/submit';
         $param  = $this->buildRequestParam($biz_content);
 
-        $html = '<form id="pagePay" action="' . $requrl . '" method="post">';
+        $html = '<form id="pagePay" action="' . $requrl . '" method="POST">';
         foreach ($param as $k => $v) {
             $html .= '<input type="hidden" name="' . $k . '" value=\'' . $v . '\'/>';
         }
-        $html .= '<input type="submit" value="' . $button . '"></form><script>document.getElementById("pagePay").submit();</script>';
+        $html .= '</form><script>document.getElementById("pagePay").submit();</script>';
 
         return $html;
     }

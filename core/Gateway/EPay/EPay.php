@@ -119,17 +119,17 @@ class EPay extends AbstractGateway
                 return ['type' => 'redirect', 'extension' => $type];
             }
             $params = [
-                "type"         => $order['typename'],
+                "type"         => $type,
                 "notify_url"   => $items['notify_url'],
                 "return_url"   => $items['return_url'],
-                "out_trade_no" => $order['out_trade_no'],
-                "name"         => $order['name'],
-                "money"        => $order['realmoney']
+                "out_trade_no" => $order['trade_no'],
+                "name"         => $items['subject'],
+                "money"        => $order['buyer_pay_amount']
             ];
 
             $epay = new EpayCore($channel);
             if (is_https() && str_starts_with($channel['api_url'], 'http://')) {
-                return ['type' => 'redirect', 'url' => $epay->getPayLink($params)];
+                return ['type' => 'location', 'url' => $epay->getPayLink($params)];
             } else {
                 return ['type' => 'html', 'template' => true, 'data' => $epay->pagePay($params)];
             }
