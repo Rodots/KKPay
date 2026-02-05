@@ -181,7 +181,6 @@ class EPay extends AbstractGateway
             if ($oauthResult['mode'] === 'return') {
                 return $oauthResult['data'];
             }
-            // $oauthResult['data'] 包含 user_id, open_id, mobile 可供后续扩展使用
         }
 
         $buyer      = $items['buyer'];
@@ -233,7 +232,7 @@ class EPay extends AbstractGateway
         if (isWechat()) {
             return ['type' => 'redirect', 'url' => $url];
         } elseif (isMobile()) {
-            return ['type' => 'qrcode', 'page' => 'wxpay_wap', 'url' => $url];
+            return ['type' => 'qrcode', 'page' => 'wxpay_wap', 'data' => ['url' => $url]];
         }
         return ['type' => 'qrcode', 'page' => 'wxpay_qrcode', 'data' => ['url' => $url]];
     }
@@ -260,7 +259,7 @@ class EPay extends AbstractGateway
         if (isQQ()) {
             return ['type' => 'redirect', 'url' => $url];
         } elseif (isMobile()) {
-            return ['type' => 'qrcode', 'page' => 'qqpay_wap', 'url' => $url];
+            return ['type' => 'qrcode', 'page' => 'qqpay_wap', 'data' => ['url' => $url]];
         }
         return ['type' => 'qrcode', 'page' => 'qqpay_qrcode', 'data' => ['url' => $url]];
     }
