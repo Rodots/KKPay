@@ -99,7 +99,7 @@ class EPay extends AbstractGateway
             }
             return self::$type($items);
         }
-        return ['type' => 'redirect', 'extension' => 'web'];
+        return ['type' => 'redirect', 'extension' => 'page'];
     }
 
     /**
