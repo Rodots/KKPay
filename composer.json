@@ -10,7 +10,7 @@
     "webman/redis": "^2.1",
     "webman/redis-queue": "^2.1",
     "firebase/php-jwt": "^6.11",
-    "illuminate/events": "^12.46",
+    "illuminate/events": "^12.50",
     "topthink/think-validate": "^3.0",
     "monolog/monolog": "^3.10",
     "vectorface/googleauthenticator": "^3.4",
