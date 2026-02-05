@@ -37,11 +37,32 @@ location / {
 
 location @backend {
     proxy_set_header Host $http_host;
-    proxy_set_header X-Forwarded-For $remote_addr;
-    proxy_set_header X-Forwarded-Proto $scheme;
-    proxy_set_header X-Real-IP $remote_addr;
     proxy_http_version 1.1;
     proxy_set_header Connection "";
+
+    # 智能获取 X-Forwarded-For
+    # 优先使用 CDN 传递的完整 IP 链，否则使用直接连接的客户端 IP
+    set $forwarded_for $remote_addr;
+    if ($http_x_forwarded_for ~ ".+") {
+        set $forwarded_for $http_x_forwarded_for;
+    }
+    proxy_set_header X-Forwarded-For $forwarded_for;
+
+    # 智能获取 X-Real-IP
+    # 优先提取 CDN 传递的 X-Forwarded-For 中的第一个 IP（真实客户端），否则使用直接连接的客户端 IP
+    set $real_ip $remote_addr;
+    if ($http_x_forwarded_for ~ "^([^,]+)") {
+        set $real_ip $1;
+    }
+    proxy_set_header X-Real-IP $real_ip;
+    
+    # 智能获取 X-Forwarded-Proto
+    # 优先使用 CDN 传递的协议，否则使用直接连接的协议
+    set $forwarded_proto $scheme;
+    if ($http_x_forwarded_proto ~* "^(http|https|quic)$") {
+        set $forwarded_proto $http_x_forwarded_proto;
+    }
+    proxy_set_header X-Forwarded-Proto $forwarded_proto;
 
     # --- CORS 配置开始 ---
     
