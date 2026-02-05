@@ -182,13 +182,13 @@ class EpayCore
      */
     private function getSignContent(array $params): string
     {
-        ksort($params);
-        $signstr = '';
-        foreach ($params as $k => $v) {
-            if (is_array($v) || ($v === null || trim($v) === '') || $k === 'sign' || $k === 'sign_type') continue;
-            $signstr .= '&' . $k . '=' . $v;
-        }
-        return substr($signstr, 1);
+        unset($params['sign'], $params['sign_type']);
+
+        $filtered = array_filter($params, fn($value) => !is_array($value) && $value !== null && (!is_string($value) || trim($value) !== ''));
+
+        ksort($filtered);
+
+        return implode('&', array_map(fn($key, $value) => $key . '=' . $value, array_keys($filtered), $filtered));
     }
 
     /**
