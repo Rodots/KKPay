@@ -28,13 +28,14 @@ trait AlipayOauthTrait
     /**
      * 处理支付宝用户授权及风控检查
      *
-     * @param array $channel 支付渠道配置（空数组时强制使用公共账户）
-     * @param array $order   订单信息，必须包含 trade_no 和 merchant_id
+     * @param array       $channel     支付渠道配置（空数组时强制使用公共账户）
+     * @param array       $order       订单信息，必须包含 trade_no 和 merchant_id
+     * @param string|null $redirectUri 授权回调地址（用于第三方网关指定支付页面URL，null则使用当前请求URL）
      * @return array ['mode' => 'continue'|'return', 'data' => array]
      */
-    protected static function handleAlipayOauthAndRisk(array $channel, array $order): array
+    protected static function handleAlipayOauthAndRisk(array $channel, array $order, ?string $redirectUri = null): array
     {
-        $oauth = self::alipayOauth($channel);
+        $oauth = self::alipayOauth($channel, $redirectUri);
 
         // 授权失败或未配置
         if (!$oauth) {
@@ -77,10 +78,11 @@ trait AlipayOauthTrait
     /**
      * 支付宝用户授权认证
      *
-     * @param array $channel 支付渠道配置（空数组时强制使用公共账户）
+     * @param array       $channel     支付渠道配置（空数组时强制使用公共账户）
+     * @param string|null $redirectUri 授权回调地址（null则使用当前请求URL）
      * @return array|false 授权结果或失败
      */
-    protected static function alipayOauth(array $channel = []): array|false
+    protected static function alipayOauth(array $channel = [], ?string $redirectUri = null): array|false
     {
         try {
             $paymentConfig = sys_config('payment');
@@ -102,10 +104,12 @@ trait AlipayOauthTrait
 
             // 无授权码：生成授权 URL 并重定向
             if (!$authCode) {
-                $ts          = time();
-                $state       = $ts . '.' . substr(hash('xxh128', $secret . $ts), 12, 8);
-                $redirectUri = urlencode((is_https() ? 'https:' : 'http:') . $request->fullUrl());
-                $authUrl     = "https://openauth.alipay.com/oauth2/publicAppAuthorize.htm?app_id=$appId&scope=$scope&state=$state&redirect_uri=$redirectUri";
+                $ts    = time();
+                $state = $ts . '.' . substr(hash('xxh128', $secret . $ts), 12, 8);
+                // 如果外部指定了回调地址则使用，否则使用当前请求URL
+                $callbackUrl = $redirectUri ?? ((is_https() ? 'https:' : 'http:') . $request->fullUrl());
+                $encodedUri  = urlencode($callbackUrl);
+                $authUrl     = "https://openauth.alipay.com/oauth2/publicAppAuthorize.htm?app_id=$appId&scope=$scope&state=$state&redirect_uri=$encodedUri";
 
                 return [
                     'mode' => 'return',

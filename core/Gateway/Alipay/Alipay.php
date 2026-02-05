@@ -168,7 +168,8 @@ class Alipay extends AbstractGateway
 
         // 处理支付宝用户授权及风控检查（仅当配置开启且无用户标识时）
         if (sys_config('payment', 'alipay_get_user_info_wap', 'off') === 'on') {
-            $oauthResult = self::handleAlipayOauthAndRisk($channel, $order);
+            $redirectUri = site_url(config('kkpay.payment_ext_path', 'cart') . '/wap/' . $items['order']['trade_no'] . '.html');
+            $oauthResult = self::handleAlipayOauthAndRisk($channel, $order, $redirectUri);
             if ($oauthResult['mode'] === 'return') {
                 return $oauthResult['data'];
             }
@@ -228,7 +229,8 @@ class Alipay extends AbstractGateway
 
         // 处理支付宝用户授权及风控检查（仅当配置开启且无用户标识时）
         if (sys_config('payment', 'alipay_get_user_info_qrcode', 'off') === 'on') {
-            $oauthResult = self::handleAlipayOauthAndRisk($channel, $order);
+            $redirectUri = site_url(config('kkpay.payment_ext_path', 'cart') . '/qrcode/' . $items['order']['trade_no'] . '.html');
+            $oauthResult = self::handleAlipayOauthAndRisk($channel, $order, $redirectUri);
             if ($oauthResult['mode'] === 'return') {
                 return $oauthResult['data'];
             }

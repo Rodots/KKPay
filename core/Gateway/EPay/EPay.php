@@ -177,7 +177,9 @@ class EPay extends AbstractGateway
     {
         // 支付宝用户授权及风控校验（使用公共授权账户模式）
         if (sys_config('payment', 'alipay_get_user_info_qrcode', 'off') === 'on') {
-            $oauthResult = self::handleAlipayOauthAndRisk([], $items['order']);
+            // 构建授权回调地址：使用支付页面URL而不是当前API接口地址
+            $redirectUri = site_url(config('kkpay.payment_ext_path', 'cart') . '/alipay/' . $items['order']['trade_no'] . '.html');
+            $oauthResult = self::handleAlipayOauthAndRisk([], $items['order'], $redirectUri);
             if ($oauthResult['mode'] === 'return') {
                 return $oauthResult['data'];
             }
