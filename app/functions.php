@@ -5,6 +5,7 @@ declare(strict_types=1);
 use app\model\Config;
 use support\Cache;
 use support\Log;
+use support\Request;
 
 /**
  * 获取系统配置
@@ -143,14 +144,43 @@ function html_filter(?string $string = null): string
     return htmlspecialchars($string, ENT_QUOTES | ENT_SUBSTITUTE | ENT_HTML401);
 }
 
-function is_https(): bool
+/**
+ * 判断当前请求是否为HTTPS
+ *
+ * @return bool
+ */
+function is_https(?Request $request = null): bool
 {
-    return (isset($_SERVER['HTTPS']) && (strtolower($_SERVER['HTTPS']) === 'on' || $_SERVER['HTTPS'] === true)) || (isset($_SERVER['SERVER_PORT']) && $_SERVER['SERVER_PORT'] === 443) || (isset($_SERVER['HTTP_X_CLIENT_SCHEME']) && $_SERVER['HTTP_X_CLIENT_SCHEME'] === 'https') || (isset($_SERVER['HTTP_X_FORWARDED_PROTO']) && $_SERVER['HTTP_X_FORWARDED_PROTO'] === 'https') || (isset($_SERVER['REQUEST_SCHEME']) && $_SERVER['REQUEST_SCHEME'] === 'https') || (isset($_SERVER['HTTP_EWS_CUSTOME_SCHEME']) && $_SERVER['HTTP_EWS_CUSTOME_SCHEME'] === 'https');
+    // 如果没有传入Request对象，则使用request()助手函数获取当前请求
+    if ($request === null) {
+        $request = request();
+    }
+
+    // 优先检查 X-Forwarded-Proto 头（Nginx反向代理传递的协议）
+    $forwardedProto = $request->header('x-forwarded-proto');
+    if ($forwardedProto === 'https') {
+        return true;
+    }
+
+    // 检查 X-Forwarded-SSL 头
+    $forwardedSsl = $request->header('x-forwarded-ssl');
+    if ($forwardedSsl === 'on') {
+        return true;
+    }
+
+    return false;
 }
 
+/**
+ * 获取站点URL
+ *
+ * @param string|null $path 路径
+ * @return string
+ */
 function site_url(?string $path = null): string
 {
-    return (is_https() ? 'https://' : 'http://') . request()->host() . '/' . ($path ?? '');
+    $request = request();
+    return (is_https($request) ? 'https://' : 'http://') . $request->host() . '/' . ($path ?? '');
 }
 
 /**
@@ -160,11 +190,9 @@ function site_url(?string $path = null): string
  */
 function get_client_ip(): string
 {
-    // 如站点使用了Cloudflare CDN，将尝试从请求头中获取'cf-connecting-ip'字段值，如果不存在则使用request()->getRemoteIp()获取IP地址
-    // $ip = request()->header('cf-connecting-ip') ?: request()->getRemoteIp();
-
-    // 返回获取到的IP地址，如果未获取到则返回'0.0.0.0'
-    return request()->getRealIp();
+    $request = request();
+    // 如站点使用了CDN，将尝试从请求头中获取CDN传递的IP地址，如果都未获取到则返回'0.0.0.0'
+    return $request->header('cf-connecting-ip') ?? $request->header('eo-connecting-ip') ?? $request->header('ali-real-client-ip') ?? $request->getRealIp() ?: '0.0.0.0';
 }
 
 /**
