@@ -57,8 +57,6 @@ readonly class AlipayClient
     /**
      * 执行支付宝服务端 API 调用（适用于 v3 接口）
      *
-     * 该方法将参数以 JSON 格式发送至支付宝，自动处理签名、加密、验签等流程。
-     *
      * @param array  $params     业务参数（如订单信息），将作为 biz_content 的内容（若未加密）或整体请求体（若加密）
      * @param string $methodName 支付宝接口方法名，例如 'alipay.trade.pay'
      * @return array 解析后的响应数据（已解密并验证签名）
@@ -85,9 +83,6 @@ readonly class AlipayClient
     /**
      * 生成支付宝页面跳转表单（适用于传统网页支付等场景）
      *
-     * 该方法返回一段 HTML 表单代码，前端自动提交后跳转至支付宝收银台。
-     * 使用支付宝 v1.0 协议（表单提交 + RSA2 签名），不支持内容加密。
-     *
      * @param array  $params     业务参数，将被 JSON 编码为 biz_content
      * @param string $methodName 支付宝接口方法名，例如 'alipay.trade.page.pay'
      * @param string $returnUrl  支付完成后同步跳转回商户页面的 URL
@@ -107,9 +102,7 @@ readonly class AlipayClient
     }
 
     /**
-     * 执行支付宝服务端 API 调用（适用于 v1 接口）
-     *
-     * 使用支付宝 v1.0 协议（表单提交 + RSA2 签名），不支持内容加密。
+     * 执行支付宝服务端 API 调用（适用于 v2 接口）
      *
      * @param array  $params     业务参数，将被 JSON 编码为 biz_content
      * @param string $methodName 支付宝接口方法名，例如 'alipay.trade.page.pay'
@@ -119,7 +112,7 @@ readonly class AlipayClient
      * @throws Exception 当内部处理中发生异常时抛出
      * @throws GuzzleException 当 HTTP 请求失败时抛出
      */
-    public function v1Execute(array $params, string $methodName, string $returnUrl, string $notifyUrl): array
+    public function v2Execute(array $params, string $methodName, string $returnUrl, string $notifyUrl): array
     {
         $response = $this->httpClient->post('/gateway.do?charset=utf-8', [
             'headers'     => ['Content-Type' => 'application/x-www-form-urlencoded; charset=utf-8', 'Accept' => 'application/json'],
