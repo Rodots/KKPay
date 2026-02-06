@@ -24,6 +24,9 @@ class EpayCore
     /** @var string 商户私钥 */
     private string $private_key;
 
+    /** @var string 接口版本 */
+    private string $version;
+
     /**
      * 构造函数
      * 初始化支付网关配置参数
@@ -37,6 +40,7 @@ class EpayCore
         $this->merchant_id = (string)$channel['merchant_id'];
         $this->public_key  = (string)$channel['public_key'];
         $this->private_key = (string)$channel['private_key'];
+        $this->version     = (string)($channel['version'] ?? '2');
 
         if (empty($this->merchant_id)) {
             throw new Exception('请先设置商户ID');
@@ -133,13 +137,19 @@ class EpayCore
      */
     public function verify(array $arr): bool
     {
-        if (empty($arr) || empty($arr['sign'])) return false;
+        if (empty($arr) || empty($arr['sign']) || empty($arr['sign_type'])) return false;
 
         if (empty($arr['timestamp']) || abs(time() - $arr['timestamp']) > 300) return false;
 
         $sign = $arr['sign'];
-
-        return $this->rsaPublicVerify($this->getSignContent($arr), $sign);
+        $signType = strtoupper($arr['sign_type']);
+        
+        // 根据sign_type判断验签方式
+        return match ($signType) {
+            'MD5' => $this->md5Verify($this->getSignContent($arr), $sign),
+            'RSA' => $this->rsaPublicVerify($this->getSignContent($arr), $sign),
+            default => false
+        };
     }
 
     /**
@@ -154,23 +164,19 @@ class EpayCore
     {
         $params['pid']       = $this->merchant_id;
         $params['timestamp'] = (string)time();
-        $mysign              = $this->getSign($params);
-        $params['sign']      = $mysign;
-        $params['sign_type'] = 'RSA';
+        
+        // 根据version判断签名方式
+        if ($this->version === '1') {
+            $mysign = $this->md5Sign($this->getSignContent($params));
+            $params['sign'] = $mysign;
+            $params['sign_type'] = 'MD5';
+        } else {
+            $mysign = $this->rsaPrivateSign($this->getSignContent($params));
+            $params['sign'] = $mysign;
+            $params['sign_type'] = 'RSA';
+        }
+        
         return $params;
-    }
-
-    /**
-     * 生成签名
-     * 使用商户私钥对参数进行RSA签名
-     *
-     * @param array $params 待签名参数
-     * @return string 签名字符串
-     * @throws Exception 当签名生成失败时抛出异常
-     */
-    private function getSign(array $params): string
-    {
-        return $this->rsaPrivateSign($this->getSignContent($params));
     }
 
     /**
@@ -227,6 +233,32 @@ class EpayCore
             throw new Exception("验签失败，平台公钥错误");
         }
         return openssl_verify($data, base64_decode($sign), $publickey, OPENSSL_ALGO_SHA256) === 1;
+    }
+
+    /**
+     * MD5签名
+     * 使用MD5算法对数据进行签名
+     *
+     * @param string $data 待签名数据
+     * @return string MD5签名
+     */
+    private function md5Sign(string $data): string
+    {
+        return md5($data . $this->public_key);
+    }
+
+    /**
+     * MD5验签
+     * 使用MD5算法验证数据签名
+     *
+     * @param string $data 待验证数据
+     * @param string $sign 签名字符串
+     * @return bool 验证结果
+     */
+    private function md5Verify(string $data, string $sign): bool
+    {
+        $expectedSign = md5($data . $this->public_key);
+        return hash_equals($expectedSign, $sign);
     }
 
     /**

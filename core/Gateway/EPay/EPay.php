@@ -46,10 +46,10 @@ class EPay extends AbstractGateway
             [
                 'field'       => 'public_key',
                 'type'        => 'textarea',
-                'label'       => '平台公钥',
-                'placeholder' => '请输入平台公钥',
+                'label'       => '平台公钥/对接密钥',
+                'placeholder' => '请输入平台公钥（如接口版本为V1时填对接密钥）',
                 'required'    => true,
-                'maxlength'   => 2048
+                'maxlength'   => 4096
             ],
             [
                 'field'       => 'private_key',
@@ -57,7 +57,7 @@ class EPay extends AbstractGateway
                 'label'       => '商户私钥',
                 'placeholder' => '请输入商户私钥',
                 'required'    => true,
-                'maxlength'   => 2048
+                'maxlength'   => 4096
             ],
             [
                 'field'        => 'is_mapi',
@@ -69,6 +69,17 @@ class EPay extends AbstractGateway
                     ['label' => '使用', 'value' => 1]
                 ],
                 'defaultValue' => 0
+            ],
+            [
+                'field'        => 'version',
+                'type'         => 'radio',
+                'label'        => '接口版本',
+                'required'     => true,
+                'options'      => [
+                    ['label' => 'V1', 'value' => '1'],
+                    ['label' => 'V2', 'value' => '2']
+                ],
+                'defaultValue' => '2'
             ]
         ]
     ];
@@ -78,7 +89,30 @@ class EPay extends AbstractGateway
      */
     protected static function validateConfig(array $config): bool
     {
-        return !empty($config['api_url']) && !empty($config['merchant_id']) && !empty($config['public_key']) && !empty($config['private_key']) && !empty($config['is_mapi']);
+        // 基础字段验证
+        if (empty($config['api_url']) || empty($config['merchant_id']) || empty($config['is_mapi'])) {
+            return false;
+        }
+
+        // 检查版本是否存在且有效
+        if (!isset($config['version']) || !in_array($config['version'], ['1', '2'], true)) {
+            return false;
+        }
+
+        // 根据版本号进行不同的验证
+        if ($config['version'] === '1') {
+            // V1版本：验证public_key长度是否等于32位
+            if (empty($config['public_key']) || strlen($config['public_key']) !== 32) {
+                return false;
+            }
+        } else {
+            // V2版本：验证public_key和private_key是否填写正确
+            if (empty($config['public_key']) || empty($config['private_key'])) {
+                return false;
+            }
+        }
+
+        return true;
     }
 
     /**
@@ -185,14 +219,16 @@ class EPay extends AbstractGateway
             }
         }
 
-        $buyer      = $items['buyer'];
         $ext_params = [];
-        if ($buyer['cert_type'] === 'IDENTITY_CARD') {
-            $ext_params = [
-                'cert_no'   => $buyer['cert_no'],
-                'cert_name' => $buyer['real_name'],
-                'min_age'   => $buyer['min_age']
-            ];
+        if ($items['channel']['version'] === '2') {
+            $buyer = $items['buyer'];
+            if ($buyer['cert_type'] === 'IDENTITY_CARD') {
+                $ext_params = [
+                    'cert_no'   => $buyer['cert_no'],
+                    'cert_name' => $buyer['real_name'],
+                    'min_age'   => $buyer['min_age']
+                ];
+            }
         }
 
         try {
@@ -323,13 +359,11 @@ class EPay extends AbstractGateway
             $verify_result = $epayNotify->verify($get);
 
             if ($verify_result) {
-                if ($get['trade_status'] === 'TRADE_SUCCESS') {
-                    if ($get['out_trade_no'] === $order['trade_no'] && bccomp($get['money'], $order['buyer_pay_amount'], 2) === 0) {
-                        $buyer = [
-                            'buyer_open_id' => empty($get['buyer']) ? null : $get['buyer'],
-                        ];
-                        self::processNotify(trade_no: $order['trade_no'], api_trade_no: $get['trade_no'], buyer: $buyer);
-                    }
+                if ($get['trade_status'] === 'TRADE_SUCCESS' && $get['out_trade_no'] === $order['trade_no'] && bccomp($get['money'], $order['buyer_pay_amount'], 2) === 0) {
+                    $buyer = [
+                        'buyer_open_id' => empty($get['buyer']) ? null : $get['buyer'],
+                    ];
+                    self::processNotify(trade_no: $order['trade_no'], api_trade_no: $get['trade_no'], buyer: $buyer);
                 }
                 return ['type' => 'html', 'data' => 'success'];
             }
@@ -382,11 +416,15 @@ class EPay extends AbstractGateway
             $epay = new EpayCore($channel);
 
             $params = [
-                'trade_no'      => $order['api_trade_no'],
-                'out_trade_no'  => $order['trade_no'],
-                'money'         => $refund_record['amount'],
-                'out_refund_no' => $refund_record['id']
+                'trade_no'     => $order['api_trade_no'],
+                'out_trade_no' => $order['trade_no'],
+                'money'        => $refund_record['amount']
             ];
+
+            if ($channel['version'] === '2') {
+                $params['out_refund_no'] = $refund_record['id'];
+            }
+
             $result = $epay->execute('api/pay/refund', $params);
         } catch (Throwable $e) {
             return ['state' => false, 'message' => $e->getMessage()];
@@ -402,6 +440,10 @@ class EPay extends AbstractGateway
      */
     public static function close(array $order, array $channel): array
     {
+        if ($channel['version'] === '1') {
+            return ['state' => false, 'message' => '当前接口版本不支持手动关闭订单'];
+        }
+
         try {
             $epay = new EpayCore($channel);
 
