@@ -336,7 +336,7 @@ CREATE TABLE `kkpay_order_buyer`  (
   INDEX `idx_ip`(`ip` ASC) USING BTREE,
   INDEX `idx_user_id`(`user_id` ASC) USING BTREE,
   INDEX `idx_buyer_open_id`(`buyer_open_id` ASC) USING BTREE,
-  INDEX `idx_mobile`(`mobile` ASC) USING BTREE,
+  INDEX `idx_mobile`(`mobile` ASC) USING BTREE
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '订单买家表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
