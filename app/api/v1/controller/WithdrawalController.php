@@ -15,6 +15,7 @@ use support\Log;
 use support\Request;
 use support\Response;
 use Throwable;
+use Webman\RateLimiter\Annotation\RateLimiter;
 
 /**
  * 提款控制器
@@ -33,6 +34,7 @@ class WithdrawalController extends ApiBase
      * @param Request $request 请求对象
      * @return Response JSON响应
      */
+    #[RateLimiter(limit: 1, ttl: 60, message: '查询频率过快，别急')]
     public function apply(Request $request): Response
     {
         try {
@@ -136,6 +138,7 @@ class WithdrawalController extends ApiBase
      * @param Request $request 请求对象
      * @return Response JSON响应
      */
+    #[RateLimiter(limit: 1, ttl: 5, message: '查询频率过快，别急')]
     public function query(Request $request): Response
     {
         try {
@@ -192,6 +195,7 @@ class WithdrawalController extends ApiBase
      * @param Request $request 请求对象
      * @return Response JSON响应
      */
+    #[RateLimiter(limit: 1, ttl: 5, message: '查询频率过快，别急')]
     public function payeeList(Request $request): Response
     {
         try {
