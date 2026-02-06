@@ -63,7 +63,7 @@ class TradeController extends ApiBase
                 'trade_state',
                 'create_time',
                 'payment_time',
-                'close_time'
+                'expire_time'
             ]);
 
             if ($order === null) {

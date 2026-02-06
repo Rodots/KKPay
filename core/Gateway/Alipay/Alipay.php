@@ -182,7 +182,7 @@ class Alipay extends AbstractGateway
             'total_amount' => $order['buyer_pay_amount'],
             'subject'      => $items['subject'],
             'product_code' => 'QUICK_WAP_WAY',
-            'time_expire'  => $order['close_time']
+            'time_expire'  => $order['expire_time']
         ];
 
         return self::lockPaymentExt($order['trade_no'], function () use ($alipay, $params, $items) {
@@ -207,7 +207,7 @@ class Alipay extends AbstractGateway
             'total_amount' => $order['buyer_pay_amount'],
             'subject'      => $items['subject'],
             'product_code' => 'FAST_INSTANT_TRADE_PAY',
-            'time_expire'  => $order['close_time']
+            'time_expire'  => $order['expire_time']
         ];
 
         return self::lockPaymentExt($order['trade_no'], function () use ($alipay, $params, $items) {

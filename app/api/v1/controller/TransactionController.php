@@ -151,12 +151,12 @@ class TransactionController extends ApiBase
         // 提取 buyer 数组,防 null 访问
         $buyerData = isset($data['buyer']) && is_array($data['buyer']) ? $data['buyer'] : [];
 
-        // 处理订单关闭时间
-        $closeTime = $this->getString($data, 'close_time');
-        if (empty($closeTime)) {
+        // 处理订单过期时间
+        $expireTime = $this->getString($data, 'expire_time');
+        if (empty($expireTime)) {
             $sysExpireTime = sys_config('payment', 'order_expire_time');
             if (is_numeric($sysExpireTime)) {
-                $closeTime = time() + (int)$sysExpireTime;
+                $expireTime = time() + (int)$sysExpireTime;
             }
         }
 
@@ -171,7 +171,7 @@ class TransactionController extends ApiBase
             'payment_type'         => $this->getString($data, 'payment_type'),
             'payment_channel_code' => $this->getString($data, 'payment_channel_code'),
             'attach'               => $this->getString($data, 'attach'),
-            'close_time'           => $closeTime,
+            'expire_time'          => $expireTime,
             'method'               => $useDefaults ? 'web' : $this->getString($data, 'method'),
             // method相关的额外参数
             'sub_openid'           => $useDefaults ? null : $this->getString($data, 'sub_openid'),
@@ -331,35 +331,35 @@ class TransactionController extends ApiBase
             return $buyerValidation;
         }
 
-        // 校验订单关闭时间
-        if (!empty($bizContent['close_time'])) {
+        // 校验订单过期时间
+        if (!empty($bizContent['expire_time'])) {
             try {
                 $timezone = config('app.default_timezone');
                 $now      = Carbon::now()->timezone($timezone)->setMicrosecond(0);
 
-                // 解析关闭时间
-                $closeTimeInput = $bizContent['close_time'];
-                if (is_numeric($closeTimeInput)) {
-                    $closeTime = Carbon::createFromTimestamp((int)$closeTimeInput)->timezone($timezone);
+                // 解析过期时间
+                $expireTimeInput = $bizContent['expire_time'];
+                if (is_numeric($expireTimeInput)) {
+                    $expireTime = Carbon::createFromTimestamp((int)$expireTimeInput)->timezone($timezone);
                 } else {
-                    $closeTime = Carbon::parse($closeTimeInput)->timezone($timezone);
+                    $expireTime = Carbon::parse($expireTimeInput)->timezone($timezone);
                 }
 
                 // 定义有效时间窗口：[当前时间 + 1 分钟, 当前时间 + 24 小时]
-                $earliestCloseTime = $now->copy()->addMinute();
-                $latestCloseTime   = $now->copy()->addDay();
+                $earliestexpireTime = $now->copy()->addMinute();
+                $latestexpireTime   = $now->copy()->addDay();
 
                 // 校验：不能早于当前时间 + 1 分钟
-                if ($closeTime->lt($earliestCloseTime)) {
-                    return "订单关闭时间(close_time)过早，最早可设置为 {$earliestCloseTime->format('Y-m-d H:i:s')}（当前时间+1分钟）";
+                if ($expireTime->lt($earliestexpireTime)) {
+                    return "订单过期时间(expire_time)过早，最早可设置为 {$earliestexpireTime->format('Y-m-d H:i:s')}（当前时间+1分钟）";
                 }
 
                 // 校验：不能晚于当前时间 + 24 小时
-                if ($closeTime->gt($latestCloseTime)) {
-                    return "订单关闭时间(close_time)过晚，最晚可设置为 {$latestCloseTime->format('Y-m-d H:i:s')}（当前时间+24小时）";
+                if ($expireTime->gt($latestexpireTime)) {
+                    return "订单过期时间(expire_time)过晚，最晚可设置为 {$latestexpireTime->format('Y-m-d H:i:s')}（当前时间+24小时）";
                 }
             } catch (Throwable) {
-                return '订单关闭时间格式无效，请使用有效的时间戳或标准时间格式（如 "2026-01-01 01:01:01"）';
+                return '订单过期时间(expire_time)格式无效，请使用有效的时间戳或标准时间格式（如 "2026-01-01 01:01:01"）';
             }
         }
 

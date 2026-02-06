@@ -482,7 +482,7 @@ class OrderService
 
             // 更新订单状态
             $order->trade_state = Order::TRADE_STATE_CLOSED;
-            $order->close_time = Carbon::now();
+            $order->expire_time = Carbon::now();
             $order->save();
 
             Db::commit();

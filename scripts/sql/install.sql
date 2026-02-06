@@ -299,7 +299,7 @@ CREATE TABLE `kkpay_order`  (
   `notify_next_retry_time` int UNSIGNED NULL DEFAULT NULL COMMENT '通知下次重试时间',
   `create_time` timestamp NOT NULL COMMENT '交易创建时间',
   `payment_time` timestamp NULL DEFAULT NULL COMMENT '交易付款时间',
-  `close_time` timestamp NULL DEFAULT NULL COMMENT '交易结束/关闭时间',
+  `expire_time` timestamp NULL DEFAULT NULL COMMENT '交易结束/过期时间',
   `update_time` timestamp NULL DEFAULT NULL COMMENT '订单最后更新时间',
   PRIMARY KEY (`trade_no`) USING BTREE,
   INDEX `idx_out_trade_no`(`out_trade_no` ASC) USING BTREE,
@@ -333,7 +333,10 @@ CREATE TABLE `kkpay_order_buyer`  (
   `created_at` timestamp NULL DEFAULT NULL COMMENT '创建时间',
   `updated_at` timestamp NULL DEFAULT NULL COMMENT '更新时间',
   PRIMARY KEY (`trade_no`) USING BTREE,
-  INDEX `idx_ip`(`ip` ASC) USING BTREE
+  INDEX `idx_ip`(`ip` ASC) USING BTREE,
+  INDEX `idx_user_id`(`user_id` ASC) USING BTREE,
+  INDEX `idx_buyer_open_id`(`buyer_open_id` ASC) USING BTREE,
+  INDEX `idx_mobile`(`mobile` ASC) USING BTREE,
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '订单买家表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------

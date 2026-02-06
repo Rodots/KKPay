@@ -87,7 +87,7 @@ class Order extends Model
         'attach',
         'settle_cycle',
         'sign_type',
-        'close_time',
+        'expire_time',
     ];
 
     // 时间字段配置
@@ -198,9 +198,9 @@ class Order extends Model
     }
 
     /**
-     * 访问/修改器：交易结束/关闭时间
+     * 访问/修改器：交易结束/过期时间
      */
-    protected function closeTime(): Attribute
+    protected function expireTime(): Attribute
     {
         return Attribute::make(
             get: fn(?string $value) => $value ? Carbon::rawParse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,

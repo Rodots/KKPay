@@ -141,7 +141,7 @@ class BaiExcellent extends AbstractGateway
             'totalAmount'          => $order['buyer_pay_amount'],
             'merchantSubject'      => $items['subject'],
             'externalGoodsType'    => '9',
-            'timeExpire'           => $order['close_time'],
+            'timeExpire'           => $order['expire_time'],
             'quitUrl'              => 'https://www.alipay.com',
             'buyerId'              => $buyer['user_id'] ?: $buyer['buyer_open_id'],
             'buyerMinAge'          => $buyer['min_age'],

@@ -193,7 +193,7 @@ class OrderCreationService
             'attach'                     => $bizContent['attach'] ?: null,
             'settle_cycle'               => $paymentChannel->settle_cycle,
             'sign_type'                  => $bizContent['sign_type'],
-            'close_time'                 => $bizContent['close_time'] ?: null,
+            'expire_time'                 => $bizContent['expire_time'] ?: null,
         ];
 
         return Order::createOrderRecord($fillData);

@@ -14,7 +14,7 @@ use Workerman\Crontab\Crontab;
 /**
  * 订单自动关闭定时任务
  *
- * 每分钟检测已到关闭时间的待支付订单并自动关闭
+ * 每分钟检测已到过期时间的待支付订单并自动关闭
  */
 class OrderAutoClose
 {
@@ -40,8 +40,8 @@ class OrderAutoClose
     {
         $now = Carbon::now();
 
-        // 查询 close_time <= 当前时间 且 trade_state = WAIT_PAY 的订单
-        $query = Order::where('trade_state', Order::TRADE_STATE_WAIT_PAY)->whereNotNull('close_time')->where('close_time', '<=', $now)->select(['trade_no', 'api_trade_no', 'payment_channel_account_id']);
+        // 查询 expire_time <= 当前时间 且 trade_state = WAIT_PAY 的订单
+        $query = Order::where('trade_state', Order::TRADE_STATE_WAIT_PAY)->whereNotNull('expire_time')->where('expire_time', '<=', $now)->select(['trade_no', 'api_trade_no', 'payment_channel_account_id']);
 
         $closedCount = 0;
         $failedCount = 0;
