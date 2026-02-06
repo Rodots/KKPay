@@ -24,10 +24,10 @@ class BaiExcellent extends AbstractGateway
      */
     public static array $info = [
         'title'       => '百优支付',
-        'author'      => 'Rodots',
+        'author'      => 'KKPay',
         'url'         => 'https://doc.renrenfu.com/',
         'description' => '百优支付',
-        'version'     => '1.1.0',
+        'version'     => '1.1.1',
         'notes'       => '',
         'config'      => [
             [

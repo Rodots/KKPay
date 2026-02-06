@@ -22,7 +22,7 @@ class EPay extends AbstractGateway
      */
     public static array $info = [
         'title'       => '彩虹易支付V2',
-        'author'      => 'Rodots',
+        'author'      => 'KKPay',
         'url'         => 'https://pay.v8jisu.cn/doc/index.html',
         'description' => '彩虹易支付系统是一款专业的聚合支付系统，支持支付宝，微信，QQ钱包等多种支付方式，提供安全，高效，简单的支付服务。',
         'version'     => '1.0.0',
@@ -119,6 +119,7 @@ class EPay extends AbstractGateway
      * 统一收单交易支付
      * @param array $items
      * @return array
+     * @throws Exception
      */
     static public function unified(array $items): array
     {
@@ -126,11 +127,7 @@ class EPay extends AbstractGateway
         $channel = $items['channel'];
 
         if (isset($channel['is_mapi']) && $channel['is_mapi'] === 1) {
-            try {
-                $type = self::getPayType($order['payment_type']);
-            } catch (Exception $e) {
-                return ['type' => 'error', 'message' => $e->getMessage()];
-            }
+            $type = self::getPayType($order['payment_type']);
             return self::$type($items);
         }
         return ['type' => 'redirect', 'extension' => 'page'];
@@ -206,6 +203,7 @@ class EPay extends AbstractGateway
      * 支付宝
      * @param array $items
      * @return array
+     * @throws Exception
      */
     static public function alipay(array $items): array
     {
@@ -231,11 +229,7 @@ class EPay extends AbstractGateway
             }
         }
 
-        try {
-            [$method, $url] = self::api_unified('alipay', $items, $ext_params);
-        } catch (Throwable $e) {
-            return ['type' => 'error', 'message' => $e->getMessage()];
-        }
+        [$method, $url] = self::api_unified('alipay', $items, $ext_params);
 
         if ($method === 'jump') {
             return ['type' => 'redirect', 'url' => $url];
@@ -249,14 +243,11 @@ class EPay extends AbstractGateway
      * 微信支付
      * @param array $items
      * @return array
+     * @throws Exception
      */
     static public function wxpay(array $items): array
     {
-        try {
-            [$method, $url] = self::api_unified('wxpay', $items);
-        } catch (Throwable $e) {
-            return ['type' => 'error', 'message' => $e->getMessage()];
-        }
+        [$method, $url] = self::api_unified('wxpay', $items);
 
         if ($method === 'jump') {
             return ['type' => 'redirect', 'url' => $url];
@@ -279,14 +270,11 @@ class EPay extends AbstractGateway
      * QQ钱包
      * @param array $items
      * @return array
+     * @throws Exception
      */
     static public function qqpay(array $items): array
     {
-        try {
-            [$method, $url] = self::api_unified('qqpay', $items);
-        } catch (Throwable $e) {
-            return ['type' => 'error', 'message' => $e->getMessage()];
-        }
+        [$method, $url] = self::api_unified('qqpay', $items);
 
         if ($method === 'jump') {
             return ['type' => 'redirect', 'url' => $url];
@@ -306,14 +294,11 @@ class EPay extends AbstractGateway
      * 云闪付/银联
      * @param array $items
      * @return array
+     * @throws Exception
      */
     static public function bank(array $items): array
     {
-        try {
-            [$method, $url] = self::api_unified('bank', $items);
-        } catch (Throwable $e) {
-            return ['type' => 'error', 'message' => $e->getMessage()];
-        }
+        [$method, $url] = self::api_unified('bank', $items);
 
         if ($method === 'jump') {
             return ['type' => 'redirect', 'url' => $url];
@@ -327,14 +312,11 @@ class EPay extends AbstractGateway
      * 京东支付
      * @param array $items
      * @return array
+     * @throws Exception
      */
     static public function jdpay(array $items): array
     {
-        try {
-            [$method, $url] = self::api_unified('jdpay', $items);
-        } catch (Throwable $e) {
-            return ['type' => 'error', 'message' => $e->getMessage()];
-        }
+        [$method, $url] = self::api_unified('jdpay', $items);
 
         if ($method === 'jump') {
             return ['type' => 'redirect', 'url' => $url];

@@ -7,6 +7,8 @@ namespace Core\Gateway\Alipay;
 use Core\Gateway\AbstractGateway;
 use Core\Gateway\Alipay\Lib\Factory;
 use Core\Gateway\Alipay\Lib\Trait\AlipayOauthTrait;
+use Exception;
+use GuzzleHttp\Exception\GuzzleException;
 use Throwable;
 
 /**
@@ -21,7 +23,7 @@ class Alipay extends AbstractGateway
      */
     public static array $info = [
         'title'       => '支付宝支付',
-        'author'      => 'Rodots',
+        'author'      => 'KKPay',
         'url'         => 'https://opendocs.alipay.com/open-v3/08c7f9f8_alipay.trade.pay',
         'description' => '蚂蚁集团旗下的支付宝，是以每个人为中心，以实名和信任为基础的生活平台。自2004年成立以来，支付宝已经与超过200家金融机构达成合作，为上千万小微商户提供支付服务。随着场景拓展和产品创新，拓展的服务场景不断增加，支付宝已发展成为融合了支付、生活服务、政务服务、理财、保险、公益等多个场景与行业的开放性平台。支付宝还推出了跨境支付、退税等多项服务，让中国用户在境外也能享受移动支付的便利。',
         'version'     => '1.0.2',
@@ -344,6 +346,20 @@ class Alipay extends AbstractGateway
             return ['type' => 'html', 'data' => 'success'];
         } catch (Throwable) {
             return ['type' => 'html', 'data' => 'fail'];
+        }
+    }
+
+    /**
+     * 同步通知处理
+     * @param array $items
+     * @return array
+     */
+    static public function return(array $items): array
+    {
+        try {
+            return ['type' => 'location', 'url' => self::returnRedirectUrl($items['order'])];
+        } catch (Exception) {
+            return ['type' => 'location', 'url' => 'https://www.alipay.com'];
         }
     }
 

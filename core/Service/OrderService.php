@@ -73,7 +73,6 @@ class OrderService
      *
      * 当订单支付成功时调用此方法，更新订单状态及相关信息
      *
-     * @param bool            $isAsync       是否为异步通知
      * @param string          $trade_no      系统交易号
      * @param string|int|null $api_trade_no  API交易号
      * @param string|int|null $bill_trade_no 账单交易号
@@ -81,11 +80,10 @@ class OrderService
      * @param string|int|null $payment_time  支付时间
      * @param array           $buyer         买家信息
      * @param bool            $isAdmin       是否为管理员操作，默认为false
-     *
      * @return void
-     * @throws Throwable
+     * @throws Exception
      */
-    public static function handlePaymentSuccess(bool $isAsync, string $trade_no, string|int|null $api_trade_no = null, string|int|null $bill_trade_no = null, string|int|null $mch_trade_no = null, string|int|null $payment_time = null, array $buyer = [], bool $isAdmin = false): void
+    public static function handlePaymentSuccess(string $trade_no, string|int|null $api_trade_no = null, string|int|null $bill_trade_no = null, string|int|null $mch_trade_no = null, string|int|null $payment_time = null, array $buyer = [], bool $isAdmin = false): void
     {
         Db::beginTransaction();
         try {
@@ -165,31 +163,29 @@ class OrderService
             }
             $order->save();
 
-            // 如果是异步通知则同步通知下游
-            if ($isAsync) {
-                $shouldNotify = true;
+            // 同步通知下游
+            $shouldNotify = true;
 
-                // 当 ip、user_id、buyer_open_id 任一项存在时，检查是否需要进行黑名单校验
-                if (!empty($buyer['ip']) || !empty($buyer['user_id']) || !empty($buyer['buyer_open_id'])) {
-                    // 判断系统配置是否启用黑名单风控
-                    if (sys_config('payment', 'blacklist_order_action') === '1') {
-                        // 检查买家是否命中黑名单
-                        if (RiskService::PaymentedCheck($order->merchant_id, $trade_no, $buyer['ip'], $buyer['user_id'], $buyer['buyer_open_id'])) {
-                            $shouldNotify = false;
-                        }
+            // 当 ip、user_id、buyer_open_id 任一项存在时，检查是否需要进行黑名单校验
+            if (!empty($buyer['ip']) || !empty($buyer['user_id']) || !empty($buyer['buyer_open_id'])) {
+                // 判断系统配置是否启用黑名单风控
+                if (sys_config('payment', 'blacklist_order_action') === '1') {
+                    // 检查买家是否命中黑名单
+                    if (RiskService::PaymentedCheck($order->merchant_id, $trade_no, $buyer['ip'], $buyer['user_id'], $buyer['buyer_open_id'])) {
+                        $shouldNotify = false;
                     }
                 }
+            }
 
-                if ($shouldNotify) {
-                    self::sendAsyncNotification($trade_no, $order);
-                }
+            if ($shouldNotify) {
+                self::sendAsyncNotification($trade_no, $order);
             }
 
             Db::commit();
         } catch (Throwable $e) {
             Db::rollBack();
             Log::error("订单处理交易成功时出现异常：" . $e->getMessage(), ['trade_no' => $trade_no]);
-            throw $e;
+            throw new Exception($e->getMessage());
         }
     }
 
@@ -465,7 +461,7 @@ class OrderService
             $gatewayReturn = ['state' => false, 'message' => '该订单无上游订单号，无法调用支付网关关闭交易'];
             if ($callGateway && !empty($order->api_trade_no)) {
                 $paymentChannelAccount = $order->paymentChannelAccount;
-                $gateway = $paymentChannelAccount?->paymentChannel?->gateway;
+                $gateway               = $paymentChannelAccount?->paymentChannel?->gateway;
 
                 if (!empty($gateway)) {
                     $gatewayReturn = PaymentGatewayUtil::loadGatewayWithSpread($gateway, 'close', [
