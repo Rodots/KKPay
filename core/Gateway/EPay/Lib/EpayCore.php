@@ -42,25 +42,23 @@ class EpayCore
         $this->api_url     = rtrim((string)$channel['api_url'], '/') . '/';
         $this->merchant_id = (string)$channel['merchant_id'];
         $this->version     = (string)($channel['version'] ?? '2');
-        
-        // 根据版本设置对应的密钥
-        if ($this->version === '1') {
-            $this->md5_key = (string)$channel['md5_key'];
-            if (empty($this->md5_key)) {
-                throw new Exception('请先设置对接密钥');
-            }
-            // V1版本将对接密钥同时赋值给public_key，用于MD5签名
-            $this->public_key = $this->md5_key;
-        } else {
-            $this->public_key  = (string)$channel['public_key'];
-            $this->private_key = (string)$channel['private_key'];
-            if (empty($this->private_key) || empty($this->public_key)) {
-                throw new Exception('请先设置 平台公钥 和 商户私钥');
-            }
-        }
+        $this->md5_key     = (string)$channel['md5_key'];
+        $this->public_key  = (string)$channel['public_key'];
+        $this->private_key = (string)$channel['private_key'];
 
         if (empty($this->merchant_id)) {
             throw new Exception('请先设置商户ID');
+        }
+
+        // 根据版本设置对应的密钥
+        if ($this->version === '1') {
+            if (empty($this->md5_key)) {
+                throw new Exception('请先设置对接密钥');
+            }
+        } else {
+            if (empty($this->private_key) || empty($this->public_key)) {
+                throw new Exception('请先设置 平台公钥 和 商户私钥');
+            }
         }
     }
 
@@ -151,9 +149,9 @@ class EpayCore
 
         if (empty($arr['timestamp']) || abs(time() - $arr['timestamp']) > 300) return false;
 
-        $sign = $arr['sign'];
+        $sign     = $arr['sign'];
         $signType = strtoupper($arr['sign_type']);
-        
+
         // 根据sign_type判断验签方式
         return match ($signType) {
             'MD5' => $this->md5Verify($this->getSignContent($arr), $sign),
@@ -174,18 +172,18 @@ class EpayCore
     {
         $params['pid']       = $this->merchant_id;
         $params['timestamp'] = (string)time();
-        
+
         // 根据version判断签名方式
         if ($this->version === '1') {
-            $mysign = $this->md5Sign($this->getSignContent($params));
-            $params['sign'] = $mysign;
+            $mysign              = $this->md5Sign($this->getSignContent($params));
+            $params['sign']      = $mysign;
             $params['sign_type'] = 'MD5';
         } else {
-            $mysign = $this->rsaPrivateSign($this->getSignContent($params));
-            $params['sign'] = $mysign;
+            $mysign              = $this->rsaPrivateSign($this->getSignContent($params));
+            $params['sign']      = $mysign;
             $params['sign_type'] = 'RSA';
         }
-        
+
         return $params;
     }
 
@@ -254,7 +252,7 @@ class EpayCore
      */
     private function md5Sign(string $data): string
     {
-        return md5($data . $this->public_key);
+        return md5($data . $this->md5_key);
     }
 
     /**
@@ -267,7 +265,7 @@ class EpayCore
      */
     private function md5Verify(string $data, string $sign): bool
     {
-        $expectedSign = md5($data . $this->public_key);
+        $expectedSign = md5($data . $this->md5_key);
         return hash_equals($expectedSign, $sign);
     }
 
