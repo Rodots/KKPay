@@ -131,9 +131,6 @@ class EpayCore
         $response = $this->getHttpResponse($requrl, http_build_query($param));
         $arr      = json_decode($response, true);
         if ($arr && $arr['code'] === 0) {
-            if (!$this->verify($arr)) {
-                throw new Exception('返回数据验签失败');
-            }
             return $arr;
         } else {
             throw new Exception($arr ? $arr['msg'] : '请求失败');
