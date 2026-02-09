@@ -1,6 +1,6 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 return [
     'default'    => [
@@ -28,7 +28,7 @@ return [
         'handlers' => [
             [
                 'class'       => Monolog\Handler\RotatingFileHandler::class,
-                'constructor' => [runtime_path() . '/logs/notify_logs/notify.log', 30, 200, true, null, false, 'Y-m-d', '{date}'],
+                'constructor' => [runtime_path() . '/logs/notify_logs/notify.log', 7, 200, true, null, false, 'Y-m-d', '{date}'],
                 'formatter'   => [
                     'class'       => Monolog\Formatter\LineFormatter::class,
                     'constructor' => ["[%datetime%] %message% %context%\n", 'H:i:s', true, true],
@@ -36,7 +36,7 @@ return [
             ]
         ]
     ],
-    'process' => [
+    'process'    => [
         'handlers' => [
             [
                 'class'       => Monolog\Handler\RotatingFileHandler::class,

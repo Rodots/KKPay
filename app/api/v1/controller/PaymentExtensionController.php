@@ -43,6 +43,7 @@ class PaymentExtensionController
 
         if ($method === 'notify') {
             Log::channel('pay_notify')->info('orderNo: ' . $orderNo, [
+                'Method' => $request->method(),
                 'Header' => $request->header(),
                 'Body'   => $request->all()
             ]);
