@@ -390,7 +390,7 @@ class OrderController extends AdminBase
         }
 
         try {
-            OrderService::handlePaymentSuccess(true, $order->trade_no, isAdmin: true);
+            OrderService::handlePaymentSuccess($order->trade_no, isAdmin: true);
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
         }
@@ -498,7 +498,7 @@ class OrderController extends AdminBase
                     continue;
                 }
 
-                OrderService::handlePaymentSuccess(true, $order->trade_no, isAdmin: true);
+                OrderService::handlePaymentSuccess($order->trade_no, isAdmin: true);
                 $success[] = $trade_no;
 
                 $merchant_number = $order->merchant->merchant_number ?? '未知';
