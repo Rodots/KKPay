@@ -24,6 +24,9 @@ class EpayCore
     /** @var string 商户私钥 */
     private string $private_key;
 
+    /** @var string V1版本对接密钥 */
+    private string $md5_key;
+
     /** @var string 接口版本 */
     private string $version;
 
@@ -38,16 +41,26 @@ class EpayCore
     {
         $this->api_url     = rtrim((string)$channel['api_url'], '/') . '/';
         $this->merchant_id = (string)$channel['merchant_id'];
-        $this->public_key  = (string)$channel['public_key'];
-        $this->private_key = (string)$channel['private_key'];
         $this->version     = (string)($channel['version'] ?? '2');
+        
+        // 根据版本设置对应的密钥
+        if ($this->version === '1') {
+            $this->md5_key = (string)$channel['md5_key'];
+            if (empty($this->md5_key)) {
+                throw new Exception('请先设置对接密钥');
+            }
+            // V1版本将对接密钥同时赋值给public_key，用于MD5签名
+            $this->public_key = $this->md5_key;
+        } else {
+            $this->public_key  = (string)$channel['public_key'];
+            $this->private_key = (string)$channel['private_key'];
+            if (empty($this->private_key) || empty($this->public_key)) {
+                throw new Exception('请先设置 平台公钥 和 商户私钥');
+            }
+        }
 
         if (empty($this->merchant_id)) {
             throw new Exception('请先设置商户ID');
-        }
-
-        if (empty($this->private_key) || empty($this->public_key)) {
-            throw new Exception('请先设置 平台公钥 和 商户私钥');
         }
     }
 

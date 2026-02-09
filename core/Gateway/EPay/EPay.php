@@ -11,7 +11,7 @@ use Exception;
 use Throwable;
 
 /**
- * 彩虹易支付V2支付网关
+ * 彩虹易支付支付网关
  */
 class EPay extends AbstractGateway
 {
@@ -21,7 +21,7 @@ class EPay extends AbstractGateway
      * 网关信息
      */
     public static array $info = [
-        'title'       => '彩虹易支付V2',
+        'title'       => '彩虹易支付',
         'author'      => 'KKPay',
         'url'         => 'https://pay.v8jisu.cn/doc/index.html',
         'description' => '彩虹易支付系统是一款专业的聚合支付系统，支持支付宝，微信，QQ钱包等多种支付方式，提供安全，高效，简单的支付服务。',
@@ -34,7 +34,7 @@ class EPay extends AbstractGateway
                 'label'       => '接口地址',
                 'placeholder' => '必须以http://或https://开头，以/结尾',
                 'required'    => true,
-                'maxlength'   => 32
+                'maxlength'   => 255
             ],
             [
                 'field'       => 'merchant_id',
@@ -42,33 +42,6 @@ class EPay extends AbstractGateway
                 'label'       => '商户ID',
                 'placeholder' => '请输入商户ID',
                 'required'    => true
-            ],
-            [
-                'field'       => 'public_key',
-                'type'        => 'textarea',
-                'label'       => '平台公钥/对接密钥',
-                'placeholder' => '请输入平台公钥（如接口版本为V1时填对接密钥）',
-                'required'    => true,
-                'maxlength'   => 4096
-            ],
-            [
-                'field'       => 'private_key',
-                'type'        => 'textarea',
-                'label'       => '商户私钥',
-                'placeholder' => '请输入商户私钥',
-                'required'    => true,
-                'maxlength'   => 4096
-            ],
-            [
-                'field'        => 'is_mapi',
-                'type'         => 'radio',
-                'label'        => 'mapi接口',
-                'required'     => true,
-                'options'      => [
-                    ['label' => '不使用', 'value' => 0],
-                    ['label' => '使用', 'value' => 1]
-                ],
-                'defaultValue' => 0
             ],
             [
                 'field'        => 'version',
@@ -80,6 +53,47 @@ class EPay extends AbstractGateway
                     ['label' => 'V2', 'value' => '2']
                 ],
                 'defaultValue' => '2'
+            ],
+            [
+                'field'       => 'md5_key',
+                'type'        => 'input',
+                'label'       => '对接密钥',
+                'placeholder' => '请输入32位对接密钥',
+                'required'    => true,
+                'maxlength'   => 32,
+                'tooltip'     => 'V1版本专用，32位字符的对接密钥',
+                'showWhen'    => ['field' => 'version', 'value' => '1']
+            ],
+            [
+                'field'       => 'public_key',
+                'type'        => 'textarea',
+                'label'       => '平台公钥',
+                'placeholder' => '请输入平台公钥',
+                'required'    => true,
+                'maxlength'   => 4096,
+                'tooltip'     => 'V2版本专用，用于验证回调签名的平台公钥',
+                'showWhen'    => ['field' => 'version', 'value' => '2']
+            ],
+            [
+                'field'       => 'private_key',
+                'type'        => 'textarea',
+                'label'       => '商户私钥',
+                'placeholder' => '请输入商户私钥',
+                'required'    => true,
+                'maxlength'   => 4096,
+                'tooltip'     => 'V2版本专用，用于签名请求的商户私钥',
+                'showWhen'    => ['field' => 'version', 'value' => '2']
+            ],
+            [
+                'field'        => 'is_mapi',
+                'type'         => 'radio',
+                'label'        => 'mapi接口',
+                'required'     => true,
+                'options'      => [
+                    ['label' => '不使用', 'value' => 0],
+                    ['label' => '使用', 'value' => 1]
+                ],
+                'defaultValue' => 0
             ]
         ]
     ];
@@ -101,8 +115,8 @@ class EPay extends AbstractGateway
 
         // 根据版本号进行不同的验证
         if ($config['version'] === '1') {
-            // V1版本：验证public_key长度是否等于32位
-            if (empty($config['public_key']) || strlen($config['public_key']) !== 32) {
+            // V1版本：验证md5_key长度是否等于32位
+            if (empty($config['md5_key']) || strlen($config['md5_key']) !== 32) {
                 return false;
             }
         } else {
