@@ -196,7 +196,7 @@ class WithdrawalController extends ApiBase
      * @return Response JSON响应
      */
     #[RateLimiter(limit: 1, ttl: 5, message: '查询频率过快，别急')]
-    public function payeeList(Request $request): Response
+    public function payee(Request $request): Response
     {
         try {
             $list = MerchantPayee::where('merchant_id', $this->getMerchantId($request))->get(['id', 'payee_info', 'is_default', 'created_at']);

@@ -17,12 +17,12 @@ use support\Response;
 use Throwable;
 
 /**
- * 订单交易控制器
+ * 订单控制器
  *
  * 提供订单查询、退款、关闭等API接口
  */
 #[Middleware(ApiSignatureVerification::class)]
-class TradeController extends ApiBase
+class OrderController extends ApiBase
 {
     /**
      * 订单查询接口
