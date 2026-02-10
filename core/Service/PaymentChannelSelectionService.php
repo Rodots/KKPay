@@ -501,4 +501,28 @@ class PaymentChannelSelectionService
         Redis::incrbyfloat($accountKey, (float)$amount);  // 增加账户使用金额
         Redis::expire($accountKey, 86400);   // 设置过期时间
     }
+
+    /**
+     * 检查商户是否有任意可用的支付通道
+     *
+     * 用于页面跳转支付回退判断：当指定通道不可用时，检查是否有其他通道可供收银台选择
+     *
+     * @param Merchant $merchant 商户对象
+     * @return bool 是否有可用通道
+     */
+    public static function hasAvailableChannels(Merchant $merchant): bool
+    {
+        $whitelistEnabled = sys_config('payment', 'enable_merchant_channel_whitelist', 'on') === 'on';
+
+        $query = PaymentChannel::where('status', true);
+
+        if ($whitelistEnabled) {
+            if (!$merchant->hasChannelWhitelist()) {
+                return false;
+            }
+            $query->whereIn('id', $merchant->getAvailableChannelIds());
+        }
+
+        return $query->exists();
+    }
 }

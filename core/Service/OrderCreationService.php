@@ -23,12 +23,13 @@ class OrderCreationService
     /**
      * 创建订单的完整流程
      *
-     * @param array    $bizContent 业务参数
-     * @param Merchant $merchant   商户对象
+     * @param array    $bizContent    业务参数
+     * @param Merchant $merchant      商户对象
+     * @param bool     $allowFallback 是否允许回退（页面跳转支付时为true，找不到通道可回退到收银台）
      * @return array [Order, ?PaymentChannelAccount, ?OrderBuyer]
      * @throws PaymentException 创建失败时抛出异常
      */
-    public static function createOrder(array $bizContent, Merchant $merchant): array
+    public static function createOrder(array $bizContent, Merchant $merchant, bool $allowFallback = false): array
     {
         // 开启事务
         Db::beginTransaction();
@@ -47,7 +48,16 @@ class OrderCreationService
             }
 
             // 选择支付通道收款账户
-            $paymentChannelAccount = self::selectPaymentChannel($bizContent, $merchant);
+            try {
+                $paymentChannelAccount = self::selectPaymentChannel($bizContent, $merchant);
+            } catch (PaymentException $e) {
+                // 允许回退模式：通道选择失败时，若商户有其他可用通道则回退到收银台
+                if ($allowFallback && PaymentChannelSelectionService::hasAvailableChannels($merchant)) {
+                    $paymentChannelAccount = null;
+                } else {
+                    throw $e;
+                }
+            }
 
             // 创建订单记录
             $order = self::createOrderRecord($bizContent, $merchant, $paymentChannelAccount);
@@ -145,17 +155,18 @@ class OrderCreationService
      * @param array    $bizContent 业务参数
      * @param Merchant $merchant   商户对象
      * @return PaymentChannelAccount 支付通道账户
-     * @throws PaymentException
+     * @throws PaymentException 当通道不可用或无可用子账户时抛出异常
      */
     private static function selectPaymentChannel(array $bizContent, Merchant $merchant): PaymentChannelAccount
     {
         if (!empty($bizContent['payment_channel_code'])) {
             return PaymentChannelSelectionService::selectByCode($bizContent['payment_channel_code'], $bizContent['payment_type'], $bizContent['total_amount'], $merchant);
-        } elseif (!empty($bizContent['payment_type'])) {
+        }
+
+        if (!empty($bizContent['payment_type'])) {
             return PaymentChannelSelectionService::selectByType($bizContent['payment_type'], $bizContent['total_amount'], $merchant);
         }
 
-        // 商户必须指定支付方式
         throw new PaymentException('请指定支付方式');
     }
 
@@ -167,34 +178,50 @@ class OrderCreationService
      * @param PaymentChannelAccount $paymentChannelAccount 支付通道账户
      * @return Order
      */
-    private static function createOrderRecord(array $bizContent, Merchant $merchant, PaymentChannelAccount $paymentChannelAccount): Order
+    private static function createOrderRecord(array $bizContent, Merchant $merchant, ?PaymentChannelAccount $paymentChannelAccount): Order
     {
-        $paymentChannel = $paymentChannelAccount->paymentChannel;
-
-        // 计算费率和金额
-        [$receiptAmount, $feeAmount, $profitAmount] = self::calculateOrderFees($bizContent['total_amount'], $paymentChannelAccount, $merchant);
-
-        // 根据商户设定判断是否由买家承担服务费
-        $buyerPayAmount = $merchant->buyer_pay_fee && bccomp($feeAmount, '0', 2) > 0 ? bcadd($bizContent['total_amount'], $feeAmount, 2) : $bizContent['total_amount'];
-
         $fillData = [
-            'out_trade_no'               => $bizContent['out_trade_no'],
-            'merchant_id'                => $merchant->id,
-            'payment_type'               => $paymentChannel->payment_type,
-            'payment_channel_account_id' => $paymentChannelAccount->id,
-            'subject'                    => $bizContent['subject'],
-            'total_amount'               => $bizContent['total_amount'],
-            'buyer_pay_amount'           => $buyerPayAmount,
-            'receipt_amount'             => $receiptAmount,
-            'fee_amount'                 => $feeAmount,
-            'profit_amount'              => $profitAmount,
-            'notify_url'                 => $bizContent['notify_url'],
-            'return_url'                 => $bizContent['return_url'],
-            'attach'                     => $bizContent['attach'] ?: null,
-            'settle_cycle'               => $paymentChannel->settle_cycle,
-            'sign_type'                  => $bizContent['sign_type'],
-            'expire_time'                 => $bizContent['expire_time'] ?: null,
+            'out_trade_no' => $bizContent['out_trade_no'],
+            'merchant_id'  => $merchant->id,
+            'subject'      => $bizContent['subject'],
+            'total_amount' => $bizContent['total_amount'],
+            'notify_url'   => $bizContent['notify_url'],
+            'return_url'   => $bizContent['return_url'],
+            'attach'       => $bizContent['attach'] ?: null,
+            'sign_type'    => $bizContent['sign_type'],
+            'expire_time'  => $bizContent['expire_time'] ?: null,
         ];
+
+        if ($paymentChannelAccount !== null) {
+            $paymentChannel = $paymentChannelAccount->paymentChannel;
+
+            // 计算费率和金额
+            [$receiptAmount, $feeAmount, $profitAmount] = self::calculateOrderFees($bizContent['total_amount'], $paymentChannelAccount, $merchant);
+
+            // 根据商户设定判断是否由买家承担服务费
+            $buyerPayAmount = $merchant->buyer_pay_fee && bccomp($feeAmount, '0', 2) > 0 ? bcadd($bizContent['total_amount'], $feeAmount, 2) : $bizContent['total_amount'];
+
+            $fillData += [
+                'payment_type'               => $paymentChannel->payment_type,
+                'payment_channel_account_id' => $paymentChannelAccount->id,
+                'buyer_pay_amount'           => $buyerPayAmount,
+                'receipt_amount'             => $receiptAmount,
+                'fee_amount'                 => $feeAmount,
+                'profit_amount'              => $profitAmount,
+                'settle_cycle'               => $paymentChannel->settle_cycle,
+            ];
+        } else {
+            // 未找到可用通道时，使用默认值建单（后续在收银台选择通道后更新）
+            $fillData += [
+                'payment_type'               => $bizContent['payment_type'],
+                'payment_channel_account_id' => 0,
+                'buyer_pay_amount'           => $bizContent['total_amount'],
+                'receipt_amount'             => $bizContent['total_amount'],
+                'fee_amount'                 => '0',
+                'profit_amount'              => '0',
+                'settle_cycle'               => 0,
+            ];
+        }
 
         return Order::createOrderRecord($fillData);
     }
@@ -250,5 +277,37 @@ class OrderCreationService
         $profitAmount = bcsub($feeAmount, $costAmount, 4);
 
         return [$receiptAmount, $feeAmount, $profitAmount];
+    }
+
+    /**
+     * 更新订单的支付通道信息
+     *
+     * 用于收银台场景：用户选择支付方式后，更新订单的通道、费率等信息
+     *
+     * @param Order                 $order                 订单对象
+     * @param PaymentChannelAccount $paymentChannelAccount 支付通道账户
+     * @param Merchant              $merchant              商户对象
+     * @return void
+     */
+    public static function updateOrderChannel(Order $order, PaymentChannelAccount $paymentChannelAccount, Merchant $merchant): void
+    {
+        $paymentChannel = $paymentChannelAccount->paymentChannel;
+
+        // 计算费率和金额
+        [$receiptAmount, $feeAmount, $profitAmount] = self::calculateOrderFees($order->total_amount, $paymentChannelAccount, $merchant);
+
+        // 根据商户设定判断是否由买家承担服务费
+        $buyerPayAmount = $merchant->buyer_pay_fee && bccomp($feeAmount, '0', 2) > 0
+            ? bcadd($order->total_amount, $feeAmount, 2)
+            : $order->total_amount;
+
+        $order->payment_type               = $paymentChannel->payment_type;
+        $order->payment_channel_account_id = $paymentChannelAccount->id;
+        $order->buyer_pay_amount           = $buyerPayAmount;
+        $order->receipt_amount             = $receiptAmount;
+        $order->fee_amount                 = $feeAmount;
+        $order->profit_amount              = $profitAmount;
+        $order->settle_cycle               = $paymentChannel->settle_cycle;
+        $order->save();
     }
 }

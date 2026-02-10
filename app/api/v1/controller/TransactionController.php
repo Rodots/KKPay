@@ -111,10 +111,10 @@ class TransactionController extends ApiBase
                 return $this->pageMsg($validationResult);
             }
 
-            // 创建订单
-            [$order, $paymentChannelAccount, $orderBuyer] = OrderCreationService::createOrder($bizContent, $request->merchant);
+            // 创建订单（页面跳转支付启用收银台回退）
+            [$order, $paymentChannelAccount, $orderBuyer] = OrderCreationService::createOrder($bizContent, $request->merchant, true);
 
-            // 如果没有指定支付方式，跳转到收银台
+            // 如果没有找到可用通道，跳转到收银台选择其他支付方式
             if ($paymentChannelAccount === null) {
                 return redirect("/checkout/$order->trade_no.html");
             }
@@ -253,7 +253,7 @@ class TransactionController extends ApiBase
             return '商品名称(subject)长度不能超过255个字符';
         }
         if (preg_match('/[\/=&]/', $subject)) {
-            return '商品名称(subject)不可包含特殊字符（/、=、&）';
+            return '商品名称(subject)不可包含特殊字符';
         }
         // 检查商品名称是否包含屏蔽关键词
         $blockedKeywords = $paymentConfig['subject_blocked_keywords'] ?? '';
@@ -283,11 +283,8 @@ class TransactionController extends ApiBase
 
         // 验证支付类型
         $paymentType = $this->filterString($bizContent['payment_type'] ?? null);
-        if (empty($paymentType)) {
-            return '支付类型(payment_type)缺失';
-        }
         if (!Order::checkPaymentType($paymentType)) {
-            return '支付类型(payment_type)不被允许';
+            return '支付类型(payment_type)缺失或不被允许';
         }
 
         // 验证附加参数
