@@ -1,0 +1,800 @@
+/* ==================== CSS 变量定义 ==================== */
+:root {
+    /* 动态主题色 - 会被 JavaScript 更新 */
+    --color-primary: #1677FF;
+    --color-primary-rgb: 22, 119, 255;
+    --color-primary-hover: #4096FF;
+    --color-primary-active: #0958D9;
+    --color-primary-light: #F0F5FF;
+
+    /* 其他颜色 */
+    --color-success: #52C41A;
+    --color-warning: #FAAD14;
+    --color-error: #FF4D4F;
+
+    /* 中性色 */
+    --color-text-primary: #262626;
+    --color-text-secondary: #595959;
+    --color-text-tertiary: #8C8C8C;
+    --color-border: #D9D9D9;
+    --color-border-light: #F0F0F0;
+    --color-bg: #F5F5F5;
+    --color-bg-white: #FFFFFF;
+    --color-bg-light: #F6FFED;
+
+    /* 间距 */
+    --spacing-xs: 4px;
+    --spacing-sm: 8px;
+    --spacing-md: 16px;
+    --spacing-lg: 24px;
+    --spacing-xl: 32px;
+
+    /* 圆角 */
+    --radius-sm: 6px;
+    --radius-md: 8px;
+    --radius-lg: 12px;
+    --radius-xl: 16px;
+
+    /* 阴影 */
+    --shadow-sm: 0 2px 8px rgba(0, 0, 0, 0.08);
+    --shadow-md: 0 4px 16px rgba(0, 0, 0, 0.12);
+    --shadow-lg: 0 8px 32px rgba(0, 0, 0, 0.16);
+
+    /* 过渡 - 主题色使用更长的过渡时间 */
+    --transition-fast: 150ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-normal: 250ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-slow: 350ms cubic-bezier(0.4, 0, 0.2, 1);
+    --transition-theme: 400ms cubic-bezier(0.4, 0, 0.2, 1);
+
+    /* Z-index */
+    --z-dropdown: 100;
+    --z-sticky: 200;
+    --z-modal: 300;
+    --z-toast: 400;
+}
+
+/* ==================== 基础重置 ==================== */
+*, *::before, *::after {
+    box-sizing: border-box;
+    margin: 0;
+    padding: 0;
+}
+
+html {
+    font-size: 16px;
+    -webkit-font-smoothing: antialiased;
+    -moz-osx-font-smoothing: grayscale;
+}
+
+body {
+    font-family: -apple-system, BlinkMacSystemFont, "Segoe UI", "PingFang SC", "Hiragino Sans GB", "Microsoft YaHei", sans-serif;
+    background: var(--color-bg);
+    color: var(--color-text-primary);
+    line-height: 1.5715;
+    min-height: 100vh;
+}
+
+img {
+    max-width: 100%;
+    height: auto;
+    display: block;
+}
+
+button {
+    font-family: inherit;
+    cursor: pointer;
+    border: none;
+    background: none;
+}
+
+/* ==================== 容器 ==================== */
+.checkout-container {
+    max-inline-size: 720px;
+    margin-inline: auto;
+    min-block-size: 100vh;
+    background: var(--color-bg-white);
+    display: flex;
+    flex-direction: column;
+}
+
+/* ==================== 订单信息区 ==================== */
+.order-section {
+    padding: var(--spacing-lg);
+    background: linear-gradient(180deg, var(--color-primary-light) 0%, var(--color-bg-white) 100%);
+    border-block-end: 1px solid var(--color-border-light);
+    transition: background var(--transition-theme);
+}
+
+.order-header {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-sm);
+    margin-block-end: var(--spacing-md);
+}
+
+.success-badge {
+    inline-size: 28px;
+    block-size: 28px;
+    flex-shrink: 0;
+}
+
+.success-badge svg {
+    inline-size: 100%;
+    block-size: 100%;
+}
+
+.status-text {
+    font-size: 14px;
+    color: var(--color-text-secondary);
+}
+
+.order-amount {
+    text-align: center;
+    margin-block-end: var(--spacing-lg);
+}
+
+.order-amount .currency {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-inline-end: 2px;
+}
+
+.order-amount .amount {
+    font-size: 40px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    letter-spacing: -0.5px;
+}
+
+.order-details {
+    display: grid;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md);
+    background: var(--color-bg-light);
+    border-radius: var(--radius-md);
+    border: 1px solid #D9F7BE;
+}
+
+.detail-item {
+    display: flex;
+    justify-content: space-between;
+    align-items: center;
+    gap: var(--spacing-md);
+}
+
+.detail-item .label {
+    font-size: 13px;
+    color: var(--color-text-tertiary);
+    flex-shrink: 0;
+}
+
+.detail-item .value {
+    font-size: 13px;
+    color: var(--color-text-secondary);
+    text-align: end;
+    word-break: break-all;
+}
+
+.detail-item .value.danger {
+    color: var(--color-error);
+    font-weight: 500;
+}
+
+.detail-item .value.expired {
+    color: var(--color-error);
+    font-weight: 600;
+    animation: pulse-danger 2s infinite;
+}
+
+@keyframes pulse-danger {
+    0%, 100% { opacity: 1; }
+    50% { opacity: 0.6; }
+}
+
+/* ==================== 支付方式区 ==================== */
+.payment-section {
+    flex: 1;
+    padding: var(--spacing-lg);
+}
+
+.section-title {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+    margin-block-end: var(--spacing-md);
+}
+
+.payment-list {
+    display: grid;
+    grid-template-columns: repeat(1, 1fr);
+    gap: var(--spacing-sm);
+}
+
+@media (min-width: 640px) {
+    .payment-list {
+        grid-template-columns: repeat(2, 1fr);
+    }
+}
+
+/* 支付选项卡片 */
+.payment-option {
+    display: block;
+    cursor: pointer;
+    position: relative;
+}
+
+.payment-option input[type="radio"] {
+    position: absolute;
+    opacity: 0;
+    inline-size: 0;
+    block-size: 0;
+}
+
+.option-card {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-md);
+    padding: var(--spacing-md);
+    background: var(--color-bg-white);
+    border: 2px solid var(--color-border-light);
+    border-radius: var(--radius-md);
+    transition:
+        border-color var(--transition-fast),
+        background-color var(--transition-fast),
+        transform var(--transition-fast),
+        box-shadow var(--transition-fast);
+}
+
+.payment-option:hover .option-card {
+    border-color: var(--color-primary);
+    box-shadow: var(--shadow-sm);
+}
+
+.payment-option:active .option-card {
+    transform: scale(0.995);
+}
+
+.payment-option input[type="radio"]:checked + .option-card {
+    border-color: var(--color-primary);
+    background: var(--color-primary-light);
+    transition:
+        border-color var(--transition-theme),
+        background-color var(--transition-theme),
+        box-shadow var(--transition-theme);
+}
+
+.option-main {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-md);
+    flex: 1;
+    min-width: 0;
+}
+
+.payment-icon {
+    inline-size: 45px;
+    block-size: 45px;
+    overflow: hidden;
+    flex-shrink: 0;
+    transition: transform var(--transition-fast);
+}
+
+.payment-option:hover .payment-icon {
+    transform: scale(1.1);
+}
+
+.payment-icon img {
+    width: 100%;
+    height: 100%;
+    object-fit: contain;
+    display: block;
+}
+
+.payment-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+    min-width: 0;
+}
+
+.payment-name {
+    display: flex;
+    align-items: center;
+    gap: var(--spacing-xs);
+    font-size: 15px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.tag {
+    display: inline-flex;
+    align-items: center;
+    padding: 1px 6px;
+    background: #FFF2F0;
+    color: var(--color-error);
+    font-size: 11px;
+    font-weight: 500;
+    border-radius: var(--radius-sm);
+    border: 1px solid #FFCCC7;
+}
+
+.tag.last-used {
+    background: #E6F7FF;
+    color: #1677FF;
+    border: 1px solid #91D5FF;
+}
+
+.payment-desc {
+    font-size: 12px;
+    color: var(--color-text-tertiary);
+    white-space: nowrap;
+    overflow: hidden;
+    text-overflow: ellipsis;
+}
+
+/* 选中指示器 */
+.check-indicator {
+    inline-size: 24px;
+    block-size: 24px;
+    flex-shrink: 0;
+    color: var(--color-border);
+    transition: color var(--transition-fast);
+}
+
+.check-indicator svg {
+    inline-size: 100%;
+    block-size: 100%;
+}
+
+.check-circle {
+    fill: none;
+    stroke: currentColor;
+    stroke-width: 2;
+    transition: fill var(--transition-fast), stroke var(--transition-fast);
+}
+
+.check-mark {
+    opacity: 0;
+    transform: scale(0);
+    transform-origin: center;
+    transition: opacity var(--transition-normal), transform var(--transition-normal);
+}
+
+/* 选中状态 - 使用更高优先级确保样式应用 */
+.payment-option input[type="radio"]:checked + .option-card .check-indicator {
+    color: var(--color-primary);
+    transition: color var(--transition-theme);
+}
+
+.payment-option input[type="radio"]:checked + .option-card .check-circle {
+    fill: var(--color-primary);
+    stroke: var(--color-primary);
+    transition: fill var(--transition-theme), stroke var(--transition-theme);
+}
+
+.payment-option input[type="radio"]:checked + .option-card .check-mark {
+    opacity: 1 !important;
+    transform: scale(1) !important;
+    stroke: white;
+}
+
+/* ==================== 底部支付栏 ==================== */
+.checkout-footer {
+    position: sticky;
+    inset-block-end: 0;
+    background: var(--color-bg-white);
+    border-block-start: 1px solid var(--color-border-light);
+    padding: var(--spacing-md) var(--spacing-lg);
+    box-shadow: 0 -4px 12px rgba(0, 0, 0, 0.05);
+    z-index: var(--z-sticky);
+}
+
+.footer-content {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    gap: var(--spacing-md);
+}
+
+.footer-info {
+    display: flex;
+    flex-direction: column;
+    gap: 2px;
+}
+
+.footer-label {
+    font-size: 12px;
+    color: var(--color-text-tertiary);
+}
+
+.footer-amount {
+    font-size: 20px;
+    font-weight: 600;
+    color: var(--color-error);
+}
+
+/* ==================== 订单过期提示 ==================== */
+.expired-notice {
+    position: fixed;
+    inset: 0;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    background: var(--color-bg-white);
+    z-index: var(--z-sticky);
+    padding: var(--spacing-lg);
+}
+
+.expired-content {
+    text-align: center;
+    max-width: 400px;
+}
+
+.expired-icon {
+    width: 80px;
+    height: 80px;
+    margin: 0 auto var(--spacing-lg);
+}
+
+.expired-icon svg {
+    width: 100%;
+    height: 100%;
+}
+
+.expired-title {
+    font-size: 24px;
+    font-weight: 600;
+    color: var(--color-error);
+    margin-bottom: var(--spacing-sm);
+}
+
+.expired-desc {
+    font-size: 14px;
+    color: var(--color-text-secondary);
+    line-height: 1.6;
+}
+
+/* 过期状态下的元素隐藏 */
+.checkout-container.is-expired .payment-section,
+.checkout-container.is-expired .checkout-footer {
+    display: none;
+}
+
+.checkout-container.is-expired .order-section {
+    background: linear-gradient(180deg, #FFF2F0 0%, var(--color-bg-white) 100%);
+}
+
+.checkout-container.is-expired .success-badge svg circle {
+    fill: var(--color-error);
+}
+
+.checkout-container.is-expired .status-text {
+    color: var(--color-error);
+}
+
+.pay-button {
+    display: inline-flex;
+    align-items: center;
+    justify-content: center;
+    gap: var(--spacing-xs);
+    padding: 12px 32px;
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-active) 100%);
+    color: white;
+    font-size: 15px;
+    font-weight: 600;
+    border-radius: var(--radius-md);
+    transition:
+        transform var(--transition-fast),
+        box-shadow var(--transition-fast),
+        filter var(--transition-fast),
+        background var(--transition-theme);
+    position: relative;
+    overflow: hidden;
+}
+
+.pay-button::before {
+    content: '';
+    position: absolute;
+    inset: 0;
+    background: linear-gradient(135deg, var(--color-primary-hover) 0%, var(--color-primary) 100%);
+    opacity: 0;
+    transition: opacity var(--transition-fast);
+}
+
+.pay-button:hover {
+    transform: translateY(-2px);
+    box-shadow: 0 8px 20px rgba(var(--color-primary-rgb), 0.35);
+}
+
+.pay-button:hover::before {
+    opacity: 1;
+}
+
+.pay-button:active {
+    transform: translateY(0);
+}
+
+.pay-button .btn-text {
+    position: relative;
+    z-index: 1;
+}
+
+.pay-button:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+    transform: none;
+}
+
+/* ==================== 确认弹窗 ==================== */
+.modal-overlay {
+    position: fixed;
+    inset: 0;
+    background: rgba(0, 0, 0, 0.5);
+    backdrop-filter: blur(4px);
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    padding: var(--spacing-md);
+    z-index: var(--z-modal);
+    opacity: 0;
+    visibility: hidden;
+    transition:
+        opacity var(--transition-normal),
+        visibility var(--transition-normal);
+}
+
+.modal-overlay.active {
+    opacity: 1;
+    visibility: visible;
+}
+
+.modal-overlay .modal-content {
+    background: var(--color-bg-white);
+    border-radius: var(--radius-lg);
+    inline-size: 100%;
+    max-inline-size: 400px;
+    box-shadow: var(--shadow-lg);
+    transform: scale(0.9) translateY(20px);
+    opacity: 0;
+    transition:
+        transform var(--transition-slow),
+        opacity var(--transition-slow);
+}
+
+.modal-overlay.active .modal-content {
+    transform: scale(1) translateY(0);
+    opacity: 1;
+}
+
+.modal-header {
+    display: flex;
+    align-items: center;
+    justify-content: space-between;
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-block-end: 1px solid var(--color-border-light);
+}
+
+.modal-header h3 {
+    font-size: 16px;
+    font-weight: 600;
+    color: var(--color-text-primary);
+}
+
+.modal-close {
+    inline-size: 32px;
+    block-size: 32px;
+    display: flex;
+    align-items: center;
+    justify-content: center;
+    color: var(--color-text-tertiary);
+    border-radius: var(--radius-sm);
+    transition:
+        color var(--transition-fast),
+        background-color var(--transition-fast);
+}
+
+.modal-close:hover {
+    color: var(--color-text-secondary);
+    background: var(--color-bg);
+}
+
+.modal-close svg {
+    inline-size: 20px;
+    block-size: 20px;
+}
+
+.modal-body {
+    padding: var(--spacing-xl) var(--spacing-lg);
+    text-align: center;
+}
+
+.confirm-amount {
+    font-size: 36px;
+    font-weight: 700;
+    color: var(--color-text-primary);
+    margin-block-end: var(--spacing-sm);
+}
+
+.confirm-order {
+    font-size: 14px;
+    color: var(--color-text-secondary);
+    margin-bottom: var(--spacing-xs);
+}
+
+.confirm-order .order-number {
+    color: var(--color-text-primary);
+    font-weight: 600;
+    font-family: monospace;
+}
+
+.confirm-method {
+    font-size: 14px;
+    color: var(--color-text-secondary);
+}
+
+.confirm-method .method-name {
+    color: var(--color-primary);
+    font-weight: 600;
+    transition: color var(--transition-theme);
+}
+
+.modal-actions {
+    display: flex;
+    gap: var(--spacing-sm);
+    padding: var(--spacing-md) var(--spacing-lg);
+    border-block-start: 1px solid var(--color-border-light);
+}
+
+.btn {
+    flex: 1;
+    padding: 12px var(--spacing-md);
+    font-size: 14px;
+    font-weight: 500;
+    border-radius: var(--radius-md);
+    transition: all var(--transition-fast);
+}
+
+.btn-secondary {
+    background: var(--color-bg);
+    color: var(--color-text-secondary);
+    border: 1px solid var(--color-border);
+}
+
+.btn-secondary:hover {
+    background: var(--color-border-light);
+    border-color: var(--color-text-tertiary);
+}
+
+.btn-primary {
+    background: linear-gradient(135deg, var(--color-primary) 0%, var(--color-primary-active) 100%);
+    color: white;
+    border: none;
+    transition:
+        background var(--transition-theme),
+        box-shadow var(--transition-fast);
+}
+
+.btn-primary:hover {
+    background: linear-gradient(135deg, var(--color-primary-hover) 0%, var(--color-primary) 100%);
+    box-shadow: 0 4px 12px rgba(var(--color-primary-rgb), 0.3);
+}
+
+.btn:disabled {
+    opacity: 0.6;
+    cursor: not-allowed;
+}
+
+/* ==================== Toast 提示 ==================== */
+.toast {
+    position: fixed;
+    inset-block-start: 50%;
+    inset-inline-start: 50%;
+    transform: translate(-50%, -50%) scale(0.9);
+    background: rgba(0, 0, 0, 0.85);
+    backdrop-filter: blur(8px);
+    color: white;
+    padding: var(--spacing-md) var(--spacing-xl);
+    border-radius: var(--radius-lg);
+    font-size: 14px;
+    z-index: var(--z-toast);
+    opacity: 0;
+    visibility: hidden;
+    transition:
+        opacity var(--transition-normal),
+        visibility var(--transition-normal),
+        transform var(--transition-normal);
+    pointer-events: none;
+}
+
+.toast.show {
+    opacity: 1;
+    visibility: visible;
+    transform: translate(-50%, -50%) scale(1);
+}
+
+/* ==================== 响应式适配 ==================== */
+@media (min-width: 768px) {
+    body {
+        padding: var(--spacing-xl);
+    }
+
+    .checkout-container {
+        min-block-size: auto;
+        border-radius: var(--radius-lg);
+        box-shadow: var(--shadow-md);
+    }
+
+    .order-section {
+        border-radius: var(--radius-lg) var(--radius-lg) 0 0;
+        padding: var(--spacing-xl);
+    }
+
+    .order-amount .amount {
+        font-size: 48px;
+    }
+
+    .order-details {
+        grid-template-columns: repeat(2, 1fr);
+        gap: var(--spacing-md);
+    }
+
+    .payment-section {
+        padding: var(--spacing-xl);
+    }
+
+    .checkout-footer {
+        border-radius: 0 0 var(--radius-lg) var(--radius-lg);
+        padding: var(--spacing-md) var(--spacing-xl);
+    }
+}
+
+@media (min-width: 1024px) {
+    .checkout-container {
+        max-inline-size: 800px;
+    }
+}
+
+/* Spinner 动画 */
+@keyframes spin {
+    from { transform: rotate(0deg); }
+    to { transform: rotate(360deg); }
+}
+
+/* 减少动画偏好 */
+@media (prefers-reduced-motion: reduce) {
+    *,
+    *::before,
+    *::after {
+        animation-duration: 0.01ms !important;
+        animation-iteration-count: 1 !important;
+        transition-duration: 0.01ms !important;
+    }
+}
+
+/* 暗色模式 */
+@media (prefers-color-scheme: dark) {
+    :root {
+        --color-text-primary: #E6E6E6;
+        --color-text-secondary: #B3B3B3;
+        --color-text-tertiary: #808080;
+        --color-border: #434343;
+        --color-border-light: #2C2C2C;
+        --color-bg: #141414;
+        --color-bg-white: #1F1F1F;
+        --color-bg-light: #162312;
+    }
+
+    .order-section {
+        background: linear-gradient(180deg, rgba(var(--color-primary-rgb), 0.1) 0%, var(--color-bg-white) 100%);
+    }
+
+    .order-details {
+        border-color: #274916;
+    }
+
+    .payment-option input[type="radio"]:checked + .option-card {
+        background: rgba(var(--color-primary-rgb), 0.1);
+    }
+}

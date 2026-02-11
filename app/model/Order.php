@@ -546,7 +546,7 @@ class Order extends Model
     public static function checkPaymentType(?string $payment_type): bool
     {
         if ($payment_type === null) {
-            return true;
+            return false;
         }
 
         return in_array($payment_type, [

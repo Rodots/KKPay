@@ -173,9 +173,9 @@ class OrderCreationService
     /**
      * 创建订单记录（初始化）
      *
-     * @param array                 $bizContent            业务参数
-     * @param Merchant              $merchant              商户对象
-     * @param PaymentChannelAccount $paymentChannelAccount 支付通道账户
+     * @param array                      $bizContent            业务参数
+     * @param Merchant                   $merchant              商户对象
+     * @param PaymentChannelAccount|null $paymentChannelAccount 支付通道账户
      * @return Order
      */
     private static function createOrderRecord(array $bizContent, Merchant $merchant, ?PaymentChannelAccount $paymentChannelAccount): Order

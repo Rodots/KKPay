@@ -1,273 +1,182 @@
 <!DOCTYPE html>
 <html lang="zh-CN">
+
 <head>
     <meta charset="UTF-8">
     <meta name="viewport" content="width=device-width, initial-scale=1.0">
-    <title>收银台 - 选择支付方式</title>
-    <style>
-        * { margin: 0; padding: 0; box-sizing: border-box; }
-        body {
-            font-family: -apple-system, BlinkMacSystemFont, 'Segoe UI', Roboto, sans-serif;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            min-height: 100vh;
-            display: flex;
-            align-items: center;
-            justify-content: center;
-            padding: 20px;
-        }
-        .checkout-container {
-            background: white;
-            border-radius: 12px;
-            box-shadow: 0 20px 40px rgba(0,0,0,0.1);
-            max-width: 480px;
-            width: 100%;
-            overflow: hidden;
-        }
-        .checkout-header {
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            padding: 24px;
-            text-align: center;
-        }
-        .checkout-header h1 { font-size: 24px; margin-bottom: 8px; }
-        .checkout-header p { opacity: 0.9; font-size: 14px; }
-        .order-info {
-            padding: 24px;
-            border-bottom: 1px solid #f0f0f0;
-        }
-        .order-item {
-            display: flex;
-            justify-content: space-between;
-            align-items: center;
-            margin-bottom: 12px;
-        }
-        .order-item:last-child { margin-bottom: 0; }
-        .order-label { color: #666; font-size: 14px; }
-        .order-value { font-weight: 500; }
-        .amount { color: #e74c3c; font-size: 24px; font-weight: bold; }
-        .payment-methods {
-            padding: 24px;
-        }
-        .payment-method {
-            border: 2px solid #f0f0f0;
-            border-radius: 8px;
-            padding: 16px;
-            margin-bottom: 12px;
-            cursor: pointer;
-            transition: all 0.3s ease;
-            display: flex;
-            align-items: center;
-        }
-        .payment-method:hover {
-            border-color: #667eea;
-            background: #f8f9ff;
-        }
-        .payment-method.selected {
-            border-color: #667eea;
-            background: #f8f9ff;
-        }
-        .payment-method input[type="radio"] {
-            margin-right: 12px;
-            transform: scale(1.2);
-        }
-        .payment-method-info {
-            flex: 1;
-        }
-        .payment-method-name {
-            font-weight: 500;
-            margin-bottom: 4px;
-        }
-        .payment-method-desc {
-            color: #666;
-            font-size: 12px;
-        }
-        .checkout-footer {
-            padding: 24px;
-            background: #f8f9fa;
-        }
-        .pay-button {
-            width: 100%;
-            background: linear-gradient(135deg, #667eea 0%, #764ba2 100%);
-            color: white;
-            border: none;
-            border-radius: 8px;
-            padding: 16px;
-            font-size: 16px;
-            font-weight: 500;
-            cursor: pointer;
-            transition: all 0.3s ease;
-        }
-        .pay-button:hover {
-            transform: translateY(-2px);
-            box-shadow: 0 8px 20px rgba(102, 126, 234, 0.4);
-        }
-        .pay-button:disabled {
-            background: #ccc;
-            cursor: not-allowed;
-            transform: none;
-            box-shadow: none;
-        }
-        .loading {
-            display: none;
-            text-align: center;
-            padding: 20px;
-        }
-        .spinner {
-            border: 3px solid #f3f3f3;
-            border-top: 3px solid #667eea;
-            border-radius: 50%;
-            width: 30px;
-            height: 30px;
-            animation: spin 1s linear infinite;
-            margin: 0 auto 10px;
-        }
-        @keyframes spin {
-            0% { transform: rotate(0deg); }
-            100% { transform: rotate(360deg); }
-        }
-    </style>
+    <title>收银台</title>
+    <link rel="stylesheet" href="/assets/checkout/css/style.css">
 </head>
+
 <body>
-<div class="checkout-container">
-    <div class="checkout-header">
-        <h1>收银台</h1>
-        <p>请选择支付方式完成付款</p>
-    </div>
+    <div class="checkout-container">
+        <!-- 订单信息区 -->
+        <div class="order-section">
+            <div class="order-header">
+                <div class="success-badge">
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10" fill="var(--color-primary)" />
+                        <path d="M8 12l3 3 5-6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </div>
+                <div class="order-title">
+                    <span class="status-text" id="orderStatus">订单已创建，等待支付</span>
+                </div>
+            </div>
 
-    <div class="order-info">
-        <div class="order-item">
-            <span class="order-label">订单号</span>
-            <span class="order-value"><?php echo $order['out_trade_no'];?></span>
+            <div class="order-amount">
+                <span class="currency">¥</span>
+                <span class="amount">
+                    <?php echo number_format((float)$order['total_amount'], 2) ?>
+                </span>
+            </div>
+
+            <div class="order-details">
+                <div class="detail-item">
+                    <span class="label">商家订单号</span>
+                    <span class="value" id="orderId">
+                        <?php echo $order['out_trade_no'] ?>
+                    </span>
+                </div>
+                <div class="detail-item">
+                    <span class="label">商品名称</span>
+                    <span class="value" id="productName">
+                        <?php echo $order['subject'] ?>
+                    </span>
+                </div>
+                <div class="detail-item">
+                    <span class="label">创建时间</span>
+                    <span class="value" id="createTime">
+                        <?php echo $order['create_time'] ?>
+                    </span>
+                </div>
+                <div class="detail-item">
+                    <span class="label">过期时间</span>
+                    <span class="value danger" id="expireTime">
+                        <?php echo $order['expire_time'] ?>
+                    </span>
+                </div>
+            </div>
         </div>
-        <div class="order-item">
-            <span class="order-label">商品名称</span>
-            <span class="order-value"><?php echo $order['subject'];?></span>
-        </div>
-        <div class="order-item">
-            <span class="order-label">订单金额</span>
-            <span class="order-value amount">¥<?php echo $order['total_amount'];?></span>
-        </div>
-        <div class="order-item">
-            <span class="order-label">您需支付</span>
-            <span class="order-value amount">¥<?php echo $order['total_amount'];?></span>
-        </div>
-    </div>
 
-    <div class="payment-methods" id="paymentMethods"></div>
+        <!-- 支付方式区 -->
+        <div class="payment-section" id="paymentSection">
+            <h2 class="section-title">选择支付方式</h2>
 
-    <div class="checkout-footer">
-        <button class="pay-button" id="payButton" onclick="submitPayment()" disabled>
-            立即支付 ¥<?php echo $order['buyer_pay_amount'];?>
-        </button>
-    </div>
-
-    <div class="loading" id="loading">
-        <div class="spinner"></div>
-        <p>正在处理支付请求...</p>
-    </div>
-</div>
-
-<script>
-    const paymentTypes = <?php echo $paymentTypesJson;?>;
-    let selectedPaymentType = null;
-    let selectedChannelCode = null;
-
-    // 渲染支付方式
-    function renderPaymentMethods() {
-        const container = document.getElementById('paymentMethods');
-        container.innerHTML = '';
-
-        paymentTypes.forEach((type, index) => {
-            const methodDiv = document.createElement('div');
-            methodDiv.className = 'payment-method';
-            methodDiv.onclick = () => selectPaymentMethod(type.type, type.channels[0]?.code);
-
-            methodDiv.innerHTML = `
-                    <input type="radio" name="payment_type" value="${type.type}" id="payment_${index}">
-                    <div class="payment-method-info">
-                        <div class="payment-method-name">${type.name}</div>
-                        <div class="payment-method-desc">安全快捷的${type.name}支付</div>
+            <div class="payment-list" role="radiogroup" aria-label="支付方式" id="paymentList">
+                <?php foreach ($paymentTypes as $pt): ?>
+                <label class="payment-option" data-method="<?php echo $pt['name'] ?>" data-theme-color="<?php echo $pt['themeColor'] ?>">
+                    <input type="radio" name="payment" value="<?php echo $pt['type'] ?>" <?php echo $isFirst ? 'checked' : ''; ?>>
+                    <div class="option-card">
+                        <div class="option-main">
+                            <div class="payment-icon">
+                                <picture>
+                                    <source srcset="/assets/icon/<?php echo $pt['type'] ?>.svg" type="image/svg+xml">
+                                    <source srcset="/assets/icon/<?php echo $pt['type'] ?>.avif" type="image/avif">
+                                    <img src="/assets/icon/<?php echo $pt['type'] ?>.png" alt="<?php echo $pt['name'] ?>" loading="lazy">
+                                </picture>
+                            </div>
+                            <div class="payment-info">
+                                <div class="payment-name">
+                                    <span>
+                                        <?php echo $pt['name'] ?>
+                                    </span>
+                                    <?php foreach ($pt['tags'] as $tag): ?>
+                                    <span class="tag recommend">
+                                        <?php echo $tag ?>
+                                    </span>
+                                    <?php endforeach; ?>
+                                </div>
+                                <p class="payment-desc">
+                                    <?php echo $pt['desc'] ?>
+                                </p>
+                            </div>
+                        </div>
+                        <div class="check-indicator">
+                            <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                                <circle class="check-circle" cx="12" cy="12" r="10" />
+                                <path class="check-mark" d="M8 12l3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                            </svg>
+                        </div>
                     </div>
-                `;
+                </label>
+                <?php $isFirst = false; ?>
+                <?php endforeach; ?>
+            </div>
+        </div>
 
-            container.appendChild(methodDiv);
-        });
-    }
+        <!-- 底部支付栏 -->
+        <div class="checkout-footer" id="checkoutFooter">
+            <div class="footer-content">
+                <div class="footer-info">
+                    <span class="footer-label">支付金额</span>
+                    <span class="footer-amount">
+                        <?php echo $formattedAmount ?>
+                    </span>
+                </div>
+                <button class="pay-button" id="payBtn">
+                    <span class="btn-text">立即支付</span>
+                </button>
+            </div>
+        </div>
 
-    // 选择支付方式
-    function selectPaymentMethod(paymentType, channelCode) {
-        selectedPaymentType = paymentType;
-        selectedChannelCode = channelCode;
+        <!-- 订单过期提示 -->
+        <div class="expired-notice" id="expiredNotice" style="display: none;">
+            <div class="expired-content">
+                <div class="expired-icon">
+                    <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                        <circle cx="12" cy="12" r="10" fill="#FF4D4F" />
+                        <path d="M12 7v6M12 17h.01" stroke="white" stroke-width="2" stroke-linecap="round" />
+                    </svg>
+                </div>
+                <h3 class="expired-title">订单已过期</h3>
+                <p class="expired-desc">该订单已超过支付截止时间，请重新下单</p>
+            </div>
+        </div>
+    </div>
 
-        // 更新UI
-        document.querySelectorAll('.payment-method').forEach(el => {
-            el.classList.remove('selected');
-        });
-        event.currentTarget.classList.add('selected');
+    <!-- 确认弹窗 -->
+    <div class="modal-overlay" id="modalOverlay">
+        <div class="modal-content">
+            <div class="modal-header">
+                <h3>确认支付</h3>
+                <button class="modal-close" id="modalClose" aria-label="关闭">
+                    <svg viewBox="0 0 24 24" fill="none" stroke="currentColor" stroke-width="2">
+                        <path d="M18 6L6 18M6 6l12 12" stroke-linecap="round" stroke-linejoin="round" />
+                    </svg>
+                </button>
+            </div>
+            <div class="modal-body">
+                <div class="confirm-amount">
+                    <?php echo $formattedAmount ?>
+                </div>
+                <div class="confirm-order">
+                    <span>商家订单号：</span>
+                    <span id="modalOrderId" class="order-number">
+                        <?php echo $order['out_trade_no'] ?>
+                    </span>
+                </div>
+                <div class="confirm-method">
+                    <span>支付方式：</span>
+                    <span id="selectedMethodName" class="method-name"></span>
+                </div>
+            </div>
+            <div class="modal-actions">
+                <button class="btn btn-secondary" id="cancelBtn">取消</button>
+                <button class="btn btn-primary" id="confirmBtn">确认支付</button>
+            </div>
+        </div>
+    </div>
 
-        // 选中对应的radio
-        document.querySelector(`input[value="\${paymentType}"]`).checked = true;
+    <!-- Toast 提示 -->
+    <div class="toast" id="toast" role="status" aria-live="polite">
+        <span class="toast-message"></span>
+    </div>
 
-        // 启用支付按钮
-        document.getElementById('payButton').disabled = false;
-    }
+    <!-- 支付表单容器（用于 HTML 类型支付结果） -->
+    <div id="formContainer" style="display:none;"></div>
 
-    // 提交支付
-    async function submitPayment() {
-        if (!selectedPaymentType) {
-            alert('请选择支付方式');
-            return;
-        }
-
-        const payButton = document.getElementById('payButton');
-        const loading = document.getElementById('loading');
-
-        payButton.style.display = 'none';
-        loading.style.display = 'block';
-
-        try {
-            const response = await fetch('/api/checkout/<?php echo $order["trade_no"];?>/select', {
-                method: 'POST',
-                headers: {
-                    'Content-Type': 'application/x-www-form-urlencoded',
-                },
-                body: `payment_type=\${selectedPaymentType}&payment_channel_code=\${selectedChannelCode || ''}`
-            });
-
-            const result = await response.json();
-
-            if (result.state) {
-                // 支付成功，处理跳转
-                if (result.data.payment_method === 'redirect' && result.data.payment_url) {
-                    window.location.href = result.data.payment_url;
-                } else if (result.data.payment_method === 'qr_code' && result.data.qr_code) {
-                    // 显示二维码
-                    showQRCode(result.data.qr_code);
-                } else {
-                    alert('支付方式暂不支持，请选择其他方式');
-                }
-            } else {
-                alert(result.message || '支付发起失败');
-            }
-        } catch (error) {
-            console.error('支付请求失败:', error);
-            alert('网络错误，请稍后重试');
-        } finally {
-            payButton.style.display = 'block';
-            loading.style.display = 'none';
-        }
-    }
-
-    // 显示二维码
-    function showQRCode(qrCode) {
-        // 这里可以实现二维码显示逻辑
-        alert('请使用手机扫描二维码完成支付\\n' + qrCode);
-    }
-
-    // 初始化
-    document.addEventListener('DOMContentLoaded', function() {
-        renderPaymentMethods();
-    });
-</script>
+    <script src="/assets/checkout/js/script.js"></script>
 </body>
+
 </html>
