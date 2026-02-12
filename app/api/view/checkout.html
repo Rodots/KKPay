@@ -9,6 +9,11 @@
 </head>
 
 <body>
+    <!-- Loading 遮罩 -->
+    <div class="loading-overlay" id="loadingOverlay">
+        <div class="loading-spinner"></div>
+    </div>
+
     <div class="checkout-container">
         <!-- 订单信息区 -->
         <div class="order-section">
@@ -16,7 +21,8 @@
                 <div class="success-badge">
                     <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                         <circle cx="12" cy="12" r="10" fill="var(--color-primary)" />
-                        <path d="M8 12l3 3 5-6" stroke="white" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                        <path d="M8 12l3 3 5-6" stroke="white" stroke-width="2" stroke-linecap="round"
+                            stroke-linejoin="round" />
                     </svg>
                 </div>
                 <div class="order-title">
@@ -31,7 +37,14 @@
                 </span>
             </div>
 
-            <div class="order-details">
+            <button class="details-toggle" id="detailsToggle" type="button" aria-expanded="false" aria-label="订单详情">
+                <svg class="toggle-arrow" viewBox="0 0 24 24" fill="none" aria-hidden="true">
+                    <path d="M6 9l6 6 6-6" stroke="currentColor" stroke-width="2" stroke-linecap="round"
+                        stroke-linejoin="round" />
+                </svg>
+            </button>
+
+            <div class="order-details" id="orderDetails">
                 <div class="detail-item">
                     <span class="label">商家订单号</span>
                     <span class="value" id="orderId">
@@ -65,15 +78,18 @@
 
             <div class="payment-list" role="radiogroup" aria-label="支付方式" id="paymentList">
                 <?php foreach ($paymentTypes as $pt): ?>
-                <label class="payment-option" data-method="<?php echo $pt['name'] ?>" data-theme-color="<?php echo $pt['themeColor'] ?>">
-                    <input type="radio" name="payment" value="<?php echo $pt['type'] ?>" <?php echo $isFirst ? 'checked' : ''; ?>>
+                <label class="payment-option" data-method="<?php echo $pt['name'] ?>"
+                    data-theme-color="<?php echo $pt['themeColor'] ?>">
+                    <input type="radio" name="payment" value="<?php echo $pt['type'] ?>" <?php echo $isFirst ? 'checked'
+                        : '' ; ?>>
                     <div class="option-card">
                         <div class="option-main">
                             <div class="payment-icon">
                                 <picture>
                                     <source srcset="/assets/icon/<?php echo $pt['type'] ?>.svg" type="image/svg+xml">
                                     <source srcset="/assets/icon/<?php echo $pt['type'] ?>.avif" type="image/avif">
-                                    <img src="/assets/icon/<?php echo $pt['type'] ?>.png" alt="<?php echo $pt['name'] ?>" loading="lazy">
+                                    <img src="/assets/icon/<?php echo $pt['type'] ?>.png"
+                                        alt="<?php echo $pt['name'] ?>" loading="lazy">
                                 </picture>
                             </div>
                             <div class="payment-info">
@@ -95,7 +111,8 @@
                         <div class="check-indicator">
                             <svg viewBox="0 0 24 24" fill="none" aria-hidden="true">
                                 <circle class="check-circle" cx="12" cy="12" r="10" />
-                                <path class="check-mark" d="M8 12l3 3 5-6" stroke="currentColor" stroke-width="2" stroke-linecap="round" stroke-linejoin="round" />
+                                <path class="check-mark" d="M8 12l3 3 5-6" stroke="currentColor" stroke-width="2"
+                                    stroke-linecap="round" stroke-linejoin="round" />
                             </svg>
                         </div>
                     </div>
@@ -149,12 +166,6 @@
             <div class="modal-body">
                 <div class="confirm-amount">
                     <?php echo $formattedAmount ?>
-                </div>
-                <div class="confirm-order">
-                    <span>商家订单号：</span>
-                    <span id="modalOrderId" class="order-number">
-                        <?php echo $order['out_trade_no'] ?>
-                    </span>
                 </div>
                 <div class="confirm-method">
                     <span>支付方式：</span>

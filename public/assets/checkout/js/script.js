@@ -1,14 +1,15 @@
 /**
  * 收银台交互模块
- * 支持动态主题色切换、订单过期检查
+ * 支持动态主题色切换、订单过期检查、手风琴展开/收起、加载动画
+ * 基于 ES2020 语言规范
  */
 
 const CheckoutModule = (() => {
     'use strict';
 
-    // DOM 元素缓存
-    const $ = (selector) => document.querySelector(selector);
-    const $$ = (selector) => [...document.querySelectorAll(selector)];
+    // DOM 查询辅助
+    const $ = (sel) => document.querySelector(sel);
+    const $$ = (sel) => [...document.querySelectorAll(sel)];
 
     // SessionStorage Key
     const STORAGE_KEY = 'lastPaymentMethod';
@@ -23,7 +24,7 @@ const CheckoutModule = (() => {
         countdownInterval: null
     };
 
-    // DOM 元素引用
+    // DOM 元素缓存
     const elements = {};
 
     /**
@@ -35,7 +36,70 @@ const CheckoutModule = (() => {
         initTheme();
         initOrderExpiry();
         bindEvents();
+        dismissLoader();
     };
+
+    /**
+     * 缓存 DOM 元素引用
+     */
+    const cacheElements = () => {
+        Object.assign(elements, {
+            root: document.documentElement,
+            container: $('.checkout-container'),
+            payBtn: $('#payBtn'),
+            modalOverlay: $('#modalOverlay'),
+            modalClose: $('#modalClose'),
+            cancelBtn: $('#cancelBtn'),
+            confirmBtn: $('#confirmBtn'),
+            selectedMethodName: $('#selectedMethodName'),
+            toast: $('#toast'),
+            toastMessage: $('.toast-message'),
+            paymentOptions: $$('.payment-option'),
+            expireTimeEl: $('#expireTime'),
+            orderStatus: $('#orderStatus'),
+            paymentSection: $('#paymentSection'),
+            checkoutFooter: $('#checkoutFooter'),
+            expiredNotice: $('#expiredNotice'),
+            formContainer: $('#formContainer'),
+            loadingOverlay: $('#loadingOverlay'),
+            detailsToggle: $('#detailsToggle'),
+            orderDetails: $('#orderDetails')
+        });
+    };
+
+    // ==================== Loading 控制 ====================
+
+    /**
+     * 释放 Loading 遮罩
+     * 使用双 rAF 确保主题色渲染完成后再淡出
+     */
+    const dismissLoader = () => {
+        const loader = elements.loadingOverlay;
+        if (!loader) return;
+
+        requestAnimationFrame(() => {
+            requestAnimationFrame(() => {
+                loader.classList.add('fade-out');
+                loader.addEventListener('transitionend', () => loader.remove(), { once: true });
+            });
+        });
+    };
+
+    // ==================== 手风琴（订单详情折叠） ====================
+
+    /**
+     * 切换订单详情展开/收起
+     */
+    const toggleDetails = () => {
+        const { orderDetails, detailsToggle } = elements;
+        if (!orderDetails || !detailsToggle) return;
+
+        const isExpanded = detailsToggle.getAttribute('aria-expanded') === 'true';
+        detailsToggle.setAttribute('aria-expanded', String(!isExpanded));
+        orderDetails.classList.toggle('expanded');
+    };
+
+    // ==================== SessionStorage 支付方式记忆 ====================
 
     /**
      * 从 sessionStorage 加载上次使用的支付方式
@@ -43,60 +107,47 @@ const CheckoutModule = (() => {
     const loadLastUsedMethod = () => {
         try {
             const lastMethod = sessionStorage.getItem(STORAGE_KEY);
-            if (lastMethod) {
-                // 查找对应的支付方式选项
-                const targetOption = elements.paymentOptions?.find(option =>
-                    option.dataset.method === lastMethod
-                );
-                if (targetOption) {
-                    // 选中该支付方式
-                    const input = targetOption.querySelector('input[type="radio"]');
-                    if (input) {
-                        // 取消其他选中状态
-                        elements.paymentOptions?.forEach(opt => {
-                            opt.querySelector('input[type="radio"]').checked = false;
-                        });
-                        input.checked = true;
+            if (!lastMethod) return;
 
-                        // 更新状态
-                        state.selectedMethod = lastMethod;
-                        state.selectedThemeColor = targetOption.dataset.themeColor;
+            const targetOption = elements.paymentOptions?.find(
+                option => option.dataset.method === lastMethod
+            );
+            const input = targetOption?.querySelector('input[type="radio"]');
+            if (!input) return;
 
-                        // 显示"上次使用"标识
-                        showLastUsedTag(lastMethod);
-                    }
-                }
-            }
-        } catch (e) {
-            console.warn('无法读取 sessionStorage:', e);
+            // 取消所有选中，选中目标
+            elements.paymentOptions?.forEach(opt => {
+                opt.querySelector('input[type="radio"]').checked = false;
+            });
+            input.checked = true;
+
+            state.selectedMethod = lastMethod;
+            state.selectedThemeColor = targetOption.dataset.themeColor ?? '#1677FF';
+            showLastUsedTag(lastMethod);
+        } catch {
+            // sessionStorage 不可用时静默忽略
         }
     };
 
     /**
-     * 显示"上次使用"标识
+     * 显示 "上次使用" 标识
      */
     const showLastUsedTag = (methodName) => {
-        // 先清除所有"上次使用"标识
+        // 清除已有标识
         elements.paymentOptions?.forEach(option => {
-            const nameContainer = option.querySelector('.payment-name');
-            const existingTag = nameContainer?.querySelector('.tag.last-used');
-            if (existingTag) {
-                existingTag.remove();
-            }
+            option.querySelector('.payment-name .tag.last-used')?.remove();
         });
 
-        // 为指定的支付方式添加"上次使用"标识
-        const targetOption = elements.paymentOptions?.find(option =>
-            option.dataset.method === methodName
-        );
-        if (targetOption) {
-            const nameContainer = targetOption.querySelector('.payment-name');
-            if (nameContainer) {
-                const lastUsedTag = document.createElement('span');
-                lastUsedTag.className = 'tag last-used';
-                lastUsedTag.textContent = '上次使用';
-                nameContainer.appendChild(lastUsedTag);
-            }
+        // 为目标支付方式添加标识
+        const nameContainer = elements.paymentOptions
+            ?.find(option => option.dataset.method === methodName)
+            ?.querySelector('.payment-name');
+
+        if (nameContainer) {
+            const tag = document.createElement('span');
+            tag.className = 'tag last-used';
+            tag.textContent = '上次使用';
+            nameContainer.appendChild(tag);
         }
     };
 
@@ -106,31 +157,72 @@ const CheckoutModule = (() => {
     const saveLastUsedMethod = (methodName) => {
         try {
             sessionStorage.setItem(STORAGE_KEY, methodName);
-        } catch (e) {
-            console.warn('无法写入 sessionStorage:', e);
+        } catch {
+            // 静默忽略
         }
     };
 
-    const cacheElements = () => {
-        elements.root = document.documentElement;
-        elements.container = $('.checkout-container');
-        elements.payBtn = $('#payBtn');
-        elements.modalOverlay = $('#modalOverlay');
-        elements.modalClose = $('#modalClose');
-        elements.cancelBtn = $('#cancelBtn');
-        elements.confirmBtn = $('#confirmBtn');
-        elements.selectedMethodName = $('#selectedMethodName');
-        elements.modalOrderId = $('#modalOrderId');
-        elements.toast = $('#toast');
-        elements.toastMessage = $('.toast-message');
-        elements.paymentOptions = $$('.payment-option');
-        elements.expireTimeEl = $('#expireTime');
-        elements.orderStatus = $('#orderStatus');
-        elements.paymentSection = $('#paymentSection');
-        elements.checkoutFooter = $('#checkoutFooter');
-        elements.expiredNotice = $('#expiredNotice');
-        elements.formContainer = $('#formContainer');
+    // ==================== 主题色 ====================
+
+    /**
+     * 初始化主题色（基于当前选中的支付方式）
+     */
+    const initTheme = () => {
+        if (state.isExpired) return;
+
+        const checkedOption = $('.payment-option input[type="radio"]:checked')?.closest('.payment-option');
+        const methodName = checkedOption?.dataset.method;
+        const themeColor = checkedOption?.dataset.themeColor;
+
+        if (methodName && themeColor) {
+            state.selectedMethod = methodName;
+            state.selectedThemeColor = themeColor;
+            applyThemeColor(themeColor);
+            updateSelectedMethod(methodName);
+        }
     };
+
+    /**
+     * 应用主题色到 CSS 变量
+     */
+    const applyThemeColor = (hexColor) => {
+        const { r, g, b } = hexToRgb(hexColor);
+        const style = elements.root.style;
+
+        style.setProperty('--color-primary', hexColor);
+        style.setProperty('--color-primary-rgb', `${r}, ${g}, ${b}`);
+        style.setProperty('--color-primary-hover', adjustBrightness(hexColor, 20));
+        style.setProperty('--color-primary-active', adjustBrightness(hexColor, -20));
+        style.setProperty('--color-primary-light', `rgba(${r}, ${g}, ${b}, 0.06)`);
+    };
+
+    /**
+     * 十六进制转 RGB
+     */
+    const hexToRgb = (hex) => {
+        const n = parseInt(hex.replace('#', ''), 16);
+        return { r: (n >> 16) & 255, g: (n >> 8) & 255, b: n & 255 };
+    };
+
+    /**
+     * 调整颜色亮度
+     */
+    const adjustBrightness = (hex, percent) => {
+        const { r, g, b } = hexToRgb(hex);
+        const clamp = (v) => Math.max(0, Math.min(255, Math.round(v + percent * 2.55)));
+        return `#${((1 << 24) + (clamp(r) << 16) + (clamp(g) << 8) + clamp(b)).toString(16).slice(1)}`;
+    };
+
+    /**
+     * 更新显示的支付方式名称
+     */
+    const updateSelectedMethod = (methodName) => {
+        if (elements.selectedMethodName) {
+            elements.selectedMethodName.textContent = methodName;
+        }
+    };
+
+    // ==================== 订单过期 ====================
 
     /**
      * 初始化订单过期检查
@@ -140,11 +232,8 @@ const CheckoutModule = (() => {
         if (!expireTimeStr) return;
 
         state.expireTime = new Date(expireTimeStr.replace(/-/g, '/'));
-
-        // 立即检查一次
         checkExpiry();
 
-        // 每秒检查一次
         if (!state.isExpired) {
             state.countdownInterval = setInterval(checkExpiry, 1000);
         }
@@ -156,31 +245,22 @@ const CheckoutModule = (() => {
     const checkExpiry = () => {
         if (state.isExpired || !state.expireTime) return;
 
-        const now = new Date();
-        const timeLeft = state.expireTime.getTime() - now.getTime();
-
-        if (timeLeft <= 0) {
-            handleOrderExpired();
-        } else {
-            updateCountdown(timeLeft);
-        }
+        const timeLeft = state.expireTime.getTime() - Date.now();
+        timeLeft <= 0 ? handleOrderExpired() : updateCountdown(timeLeft);
     };
 
     /**
      * 更新倒计时显示
-     * @param {number} timeLeft - 剩余毫秒数
      */
     const updateCountdown = (timeLeft) => {
         const minutes = Math.floor(timeLeft / 60000);
         const seconds = Math.floor((timeLeft % 60000) / 1000);
-        const timeStr = `${minutes}分${seconds.toString().padStart(2, '0')}秒`;
+        const timeStr = `${minutes}分${String(seconds).padStart(2, '0')}秒`;
 
-        // 少于5分钟显示警告
         if (minutes < 5) {
             elements.expireTimeEl?.classList.add('expired');
         }
 
-        // 更新状态文本
         if (elements.orderStatus) {
             elements.orderStatus.textContent = `订单已创建，请在 ${timeStr} 内完成付款。`;
         }
@@ -193,73 +273,41 @@ const CheckoutModule = (() => {
         state.isExpired = true;
         clearInterval(state.countdownInterval);
 
-        // 更新过期时间显示
         if (elements.expireTimeEl) {
             elements.expireTimeEl.textContent = '已过期';
             elements.expireTimeEl.classList.add('expired');
         }
 
-        // 更新状态文本
         if (elements.orderStatus) {
             elements.orderStatus.textContent = '订单已过期';
         }
 
-        // 隐藏支付区域和底部栏
-        if (elements.paymentSection) {
-            elements.paymentSection.style.display = 'none';
-        }
-        if (elements.checkoutFooter) {
-            elements.checkoutFooter.style.display = 'none';
-        }
+        // 隐藏支付区域
+        if (elements.paymentSection) elements.paymentSection.style.display = 'none';
+        if (elements.checkoutFooter) elements.checkoutFooter.style.display = 'none';
+        if (elements.expiredNotice) elements.expiredNotice.style.display = 'flex';
 
-        // 显示过期提示
-        if (elements.expiredNotice) {
-            elements.expiredNotice.style.display = 'flex';
-        }
-
-        // 添加过期样式类
         elements.container?.classList.add('is-expired');
-
-        // 关闭弹窗
         closeModal();
 
-        // 禁用所有支付方式选择
+        // 禁用所有支付方式
         elements.paymentOptions?.forEach(option => {
             const input = option.querySelector('input[type="radio"]');
-            if (input) {
-                input.disabled = true;
-            }
+            if (input) input.disabled = true;
             option.style.pointerEvents = 'none';
             option.style.opacity = '0.5';
         });
     };
 
-    /**
-     * 初始化主题色
-     */
-    const initTheme = () => {
-        if (state.isExpired) return;
-
-        const checkedOption = $('.payment-option input[type="radio"]:checked');
-        if (checkedOption) {
-            const option = checkedOption.closest('.payment-option');
-            const methodName = option?.dataset.method;
-            const themeColor = option?.dataset.themeColor;
-
-            if (methodName && themeColor) {
-                state.selectedMethod = methodName;
-                state.selectedThemeColor = themeColor;
-                applyThemeColor(themeColor);
-                updateSelectedMethod(methodName);
-                updateModalOrderId();
-            }
-        }
-    };
+    // ==================== 事件绑定 ====================
 
     /**
-     * 绑定事件监听
+     * 绑定所有事件监听
      */
     const bindEvents = () => {
+        // 手风琴折叠
+        elements.detailsToggle?.addEventListener('click', toggleDetails);
+
         if (state.isExpired) return;
 
         // 支付方式选择
@@ -267,10 +315,8 @@ const CheckoutModule = (() => {
             option.addEventListener('change', handlePaymentChange);
         });
 
-        // 支付按钮
+        // 支付按钮 & 弹窗控制
         elements.payBtn?.addEventListener('click', showConfirmModal);
-
-        // 弹窗控制
         elements.modalClose?.addEventListener('click', closeModal);
         elements.cancelBtn?.addEventListener('click', closeModal);
         elements.confirmBtn?.addEventListener('click', handleConfirmPayment);
@@ -294,94 +340,24 @@ const CheckoutModule = (() => {
     const handlePaymentChange = (e) => {
         if (state.isExpired) return;
 
-        const option = e.currentTarget;
-        const methodName = option.dataset.method;
-        const themeColor = option.dataset.themeColor;
+        const { method: methodName, themeColor } = e.currentTarget.dataset;
 
         if (methodName && themeColor) {
             state.selectedMethod = methodName;
             state.selectedThemeColor = themeColor;
-
             updateSelectedMethod(methodName);
             applyThemeColor(themeColor);
 
-            // 添加选中动画反馈
-            const card = option.querySelector('.option-card');
-            card?.animate([
+            // 选中动画反馈
+            e.currentTarget.querySelector('.option-card')?.animate([
                 { transform: 'scale(1)' },
                 { transform: 'scale(0.98)' },
                 { transform: 'scale(1)' }
-            ], {
-                duration: 200,
-                easing: 'cubic-bezier(0.4, 0, 0.2, 1)'
-            });
+            ], { duration: 200, easing: 'cubic-bezier(0.4, 0, 0.2, 1)' });
         }
     };
 
-    /**
-     * 应用主题色到 CSS 变量
-     */
-    const applyThemeColor = (hexColor) => {
-        const rgb = hexToRgb(hexColor);
-        const hoverColor = adjustBrightness(hexColor, 20);
-        const activeColor = adjustBrightness(hexColor, -20);
-        const lightColor = `rgba(${rgb.r}, ${rgb.g}, ${rgb.b}, 0.06)`;
-
-        elements.root.style.setProperty('--color-primary', hexColor);
-        elements.root.style.setProperty('--color-primary-rgb', `${rgb.r}, ${rgb.g}, ${rgb.b}`);
-        elements.root.style.setProperty('--color-primary-hover', hoverColor);
-        elements.root.style.setProperty('--color-primary-active', activeColor);
-        elements.root.style.setProperty('--color-primary-light', lightColor);
-    };
-
-    /**
-     * 十六进制转 RGB
-     */
-    const hexToRgb = (hex) => {
-        const cleanHex = hex.replace('#', '');
-        const bigint = parseInt(cleanHex, 16);
-        return {
-            r: (bigint >> 16) & 255,
-            g: (bigint >> 8) & 255,
-            b: bigint & 255
-        };
-    };
-
-    /**
-     * 调整颜色亮度
-     */
-    const adjustBrightness = (hex, percent) => {
-        const rgb = hexToRgb(hex);
-        const adjust = (value) => {
-            const adjusted = value + (percent * 2.55);
-            return Math.max(0, Math.min(255, Math.round(adjusted)));
-        };
-
-        const r = adjust(rgb.r);
-        const g = adjust(rgb.g);
-        const b = adjust(rgb.b);
-
-        return `#${((1 << 24) + (r << 16) + (g << 8) + b).toString(16).slice(1)}`;
-    };
-
-    /**
-     * 更新显示的支付方式名称
-     */
-    const updateSelectedMethod = (methodName) => {
-        if (elements.selectedMethodName) {
-            elements.selectedMethodName.textContent = methodName;
-        }
-    };
-
-    /**
-     * 更新弹窗中的商家订单号
-     */
-    const updateModalOrderId = () => {
-        const orderId = $('#orderId')?.textContent?.trim();
-        if (orderId && elements.modalOrderId) {
-            elements.modalOrderId.textContent = orderId;
-        }
-    };
+    // ==================== 弹窗 & 支付 ====================
 
     /**
      * 显示确认弹窗
@@ -389,7 +365,6 @@ const CheckoutModule = (() => {
     const showConfirmModal = () => {
         if (state.isProcessing || state.isExpired || !elements.modalOverlay) return;
 
-        updateModalOrderId();
         elements.modalOverlay.classList.add('active');
         document.body.style.overflow = 'hidden';
     };
@@ -415,41 +390,33 @@ const CheckoutModule = (() => {
         const originalText = btn?.textContent;
 
         try {
-            // 按钮加载状态
             if (btn) {
                 btn.disabled = true;
-                btn.innerHTML = createSpinnerHTML() + ' 处理中...';
+                btn.innerHTML = '<svg viewBox="0 0 24 24" width="16" height="16" style="display:inline-block;vertical-align:middle;margin-right:0.375rem;animation:spin 1s linear infinite"><circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="60" stroke-dashoffset="20"/></svg>处理中...';
             }
 
-            // 获取选中的支付方式类型
             const checkedRadio = document.querySelector('input[name="payment"]:checked');
             if (!checkedRadio) {
                 showToast('请选择支付方式');
                 return;
             }
-            const paymentType = checkedRadio.value;
 
-            // 从 URL 提取平台订单号
             const tradeNo = window.location.pathname.match(/\/checkout\/([^/]+)\.html/)?.[1];
             if (!tradeNo) {
                 showToast('订单信息异常');
                 return;
             }
 
-            // 发起支付请求
             const resp = await fetch(`/checkout/${tradeNo}/pay`, {
                 method: 'POST',
                 headers: { 'Content-Type': 'application/x-www-form-urlencoded' },
-                body: `payment_type=${encodeURIComponent(paymentType)}`
+                body: `payment_type=${encodeURIComponent(checkedRadio.value)}`
             });
             const result = await resp.json();
 
             if (result.state && result.data) {
-                // 保存支付方式到 sessionStorage
                 saveLastUsedMethod(state.selectedMethod);
-                // 关闭弹窗
                 closeModal();
-                // 处理支付结果
                 handlePaymentResult(result.data);
             } else {
                 showToast(result.message || '支付失败');
@@ -458,7 +425,6 @@ const CheckoutModule = (() => {
             showToast('网络错误，请重试');
             console.error('Payment error:', error);
         } finally {
-            // 恢复按钮状态
             if (btn) {
                 btn.disabled = false;
                 btn.textContent = originalText;
@@ -469,31 +435,21 @@ const CheckoutModule = (() => {
 
     /**
      * 处理支付结果
-     * @param {Object} data - 支付结果数据
      */
     const handlePaymentResult = (data) => {
-        if (data.pay_type === 'redirect' || data.pay_type === 'qrcode') {
-            window.location.href = data.pay_info;
-        } else if (data.pay_type === 'html') {
+        const { pay_type, pay_info } = data;
+
+        if (pay_type === 'redirect' || pay_type === 'qrcode') {
+            window.location.href = pay_info;
+        } else if (pay_type === 'html') {
             const fc = elements.formContainer;
             if (fc) {
-                fc.innerHTML = data.pay_info;
+                fc.innerHTML = pay_info;
                 fc.querySelector('form')?.submit();
             }
         } else {
             showToast('请完成支付');
         }
-    };
-
-    /**
-     * 创建 Spinner SVG HTML
-     */
-    const createSpinnerHTML = () => {
-        return `
-            <svg class="spinner" viewBox="0 0 24 24" width="16" height="16" style="display: inline-block; vertical-align: middle; margin-right: 6px; animation: spin 1s linear infinite;">
-                <circle cx="12" cy="12" r="10" fill="none" stroke="currentColor" stroke-width="3" stroke-linecap="round" stroke-dasharray="60" stroke-dashoffset="20"/>
-            </svg>
-        `;
     };
 
     /**
@@ -505,21 +461,17 @@ const CheckoutModule = (() => {
         elements.toastMessage.textContent = message;
         elements.toast.classList.add('show');
 
-        // 自动隐藏
         setTimeout(() => {
             elements.toast.classList.remove('show');
         }, duration);
     };
 
-    // 公开 API
     return { init };
 })();
 
 // DOM 就绪后初始化
 if (document.readyState === 'loading') {
-    document.addEventListener('DOMContentLoaded', () => {
-        CheckoutModule.init();
-    });
+    document.addEventListener('DOMContentLoaded', () => CheckoutModule.init());
 } else {
     CheckoutModule.init();
 }
