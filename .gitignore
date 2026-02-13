@@ -5,7 +5,6 @@
 /config/plugin/webman/log
 /.idea
 /.vscode
-/.agent
 /.lingma
 /.qoder
 *.log
