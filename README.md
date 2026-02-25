@@ -1,10 +1,10 @@
 # 卡卡聚合支付系统 - KKPay
 
-> 程序基于Webman v2.1开发，推荐使用`PHP8.5`及以上版本，最低支持`PHP8.5`。
+> 程序基于`Webman v2.2`开发，推荐使用`PHP8.5`及以上版本，最低支持`PHP8.5`。
 >
 > 程序采用MySQL数据库进行数据存储，推荐使用`MySQL8.4`及以上版本，最低支持`MySQL8.0`。
 >
-> 程序采用Redis数据库进行缓存、队列等任务，越新越好，无最低要求，推荐使用`Redis8.4`及以上版本。
+> 程序采用Redis数据库进行缓存、队列等任务，越新越好，无最低要求，推荐使用`Redis8.6`及以上版本。
 >
 > 程序需搭配Nginx服务器以实现静态资源缓存以及HTTPS协议，越新越好，无最低要求，推荐使用`Nginx1.29.4`及以上版本。
 
@@ -13,7 +13,7 @@
 > 请提前确保PHP运行环境禁用函数`disable_functions`中不包含`putenv`,`pcntl_signal_dispatch`,`pcntl_signal`,`pcntl_alarm`,`pcntl_fork`,`pcntl_wait`,`proc_open`,`shell_exec`,`exec`。
 
 ```ini
-// 【一键】找到php.ini文件，将disable_functions中的内容修改为以下内容
+【一键解除禁用函数】找到php.ini文件，将disable_functions中的内容修改为以下内容
 disable_functions = passthru,system,chroot,chgrp,chown,popen,pcntl_exec,ini_alter,ini_restore,dl,openlog,syslog,readlink,symlink,popepassthru,pcntl_waitpid,pcntl_wifexited,pcntl_wifstopped,pcntl_wifsignaled,pcntl_wifcontinued,pcntl_wexitstatus,pcntl_wtermsig,pcntl_wstopsig,pcntl_get_last_error,pcntl_strerror,pcntl_sigprocmask,pcntl_sigwaitinfo,pcntl_sigtimedwait,pcntl_exec,pcntl_getpriority,pcntl_setpriority,imap_open,apache_setenv
 ```
 
@@ -27,6 +27,15 @@ disable_functions = passthru,system,chroot,chgrp,chown,popen,pcntl_exec,ini_alte
 6. 终端执行命令 `php ./scripts/initialization.php --reinstall` 对系统进行一键初始化（自动导入数据库、创建管理员）
    > 可选参数 `--admin=your_name` 自定义管理员账号（不传默认为 admin）
 7. 终端执行命令 `php ./start.php start -d` 启动程序
+
+## 更新与维护
+
+随着系统不断的完善与更新，为了方便快速同步新的数据表结构字段等变动：
+
+1. 获取最新的程序代码后，覆盖替换至您的网站根目录
+2. 打开终端，使用 `cd` 命令进入网站根目录
+3. 执行命令 `php ./scripts/update.php` ，系统将自动判断版本并执行相应的新版本数据库升级补丁
+4. **补充说明：由于Webman为常驻内存框架，代码更新后需要重启进程才能生效**。如果有业务代码的变动，更新后请务必执行命令 `php ./start.php reload` 或者 `php ./start.php restart -d` 进行重启。
 
 ### Nginx配置反向代理（含跨域解决方案）
 
@@ -55,7 +64,7 @@ location @backend {
         set $real_ip $1;
     }
     proxy_set_header X-Real-IP $real_ip;
-    
+
     # 智能获取 X-Forwarded-Proto
     # 优先使用 CDN 传递的协议，否则使用直接连接的协议
     set $forwarded_proto $scheme;
@@ -65,15 +74,15 @@ location @backend {
     proxy_set_header X-Forwarded-Proto $forwarded_proto;
 
     # --- CORS 配置开始 ---
-    
+
     # 处理 OPTIONS 预检请求 (浏览器询问服务器是否允许跨域)
     if ($request_method = 'OPTIONS') {
         add_header 'Access-Control-Allow-Origin' '*' always;
         add_header 'Access-Control-Allow-Methods' 'GET, POST, OPTIONS' always;
-        
+
         # 必须允许前端发送的 Header，比如 Content-Type, Authorization
         add_header 'Access-Control-Allow-Headers' 'DNT,Keep-Alive,User-Agent,X-Requested-With,If-Modified-Since,Cache-Control,Content-Type,Authorization' always;
-        
+
         add_header 'Access-Control-Max-Age' 1728000 always;
         add_header 'Content-Type' 'text/plain; charset=utf-8';
         add_header 'Content-Length' 0;
