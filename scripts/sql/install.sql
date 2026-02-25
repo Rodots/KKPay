@@ -82,6 +82,7 @@ DROP TABLE IF EXISTS `kkpay_merchant`;
 CREATE TABLE `kkpay_merchant`  (
   `id` int UNSIGNED NOT NULL AUTO_INCREMENT,
   `merchant_number` char(16) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '商户编号',
+  `nickname` varchar(10) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '商户昵称',
   `email` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '邮箱',
   `mobile` char(11) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '手机号码',
   `remark` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT '' COMMENT '备注',

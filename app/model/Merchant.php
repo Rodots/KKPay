@@ -141,6 +141,7 @@ class Merchant extends Model
         try {
             // 创建商户
             $merchantRow                    = new self();
+            $merchantRow->nickname          = empty($data['nickname']) ? null : trim($data['nickname']);
             $merchantRow->email             = empty($data['email']) ? null : trim($data['email']);
             $merchantRow->mobile            = empty($data['mobile']) ? null : trim($data['mobile']);
             $merchantRow->remark            = empty($data['remark']) ? null : trim($data['remark']);
@@ -203,6 +204,7 @@ class Merchant extends Model
             }
 
             // 更新商户基本信息
+            $merchant->nickname          = isset($data['nickname']) ? (empty($data['nickname']) ? null : trim($data['nickname'])) : $merchant->nickname;
             $merchant->email             = isset($data['email']) ? (empty($data['email']) ? null : trim($data['email'])) : $merchant->email;
             $merchant->mobile            = isset($data['mobile']) ? (empty($data['mobile']) ? null : trim($data['mobile'])) : $merchant->mobile;
             $merchant->remark            = empty($data['remark']) ? null : trim($data['remark']);

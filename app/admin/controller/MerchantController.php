@@ -31,11 +31,12 @@ class MerchantController extends AdminBase
     {
         $from   = $request->get('from', 0);
         $limit  = $request->get('limit', 20);
-        $params = $request->only(['merchant_number', 'email', 'mobile', 'remark', 'status', 'risk_status', 'created_at']);
+        $params = $request->only(['merchant_number', 'nickname', 'email', 'mobile', 'remark', 'status', 'risk_status', 'created_at']);
 
         try {
             validate([
                 'merchant_number' => ['startWith:M', 'alphaNum', 'length:16'],
+                'nickname'        => ['max:10'],
                 'email'           => ['max:64'],
                 'mobile'          => ['number', 'max:11'],
                 'created_at'      => ['array']
@@ -43,6 +44,7 @@ class MerchantController extends AdminBase
                 'merchant_number.startWith' => '商户编号格式不正确（以M开头的16位字母数字组合）',
                 'merchant_number.alphaNum'  => '商户编号格式不正确（以M开头的16位字母数字组合）',
                 'merchant_number.length'    => '商户编号格式不正确（以M开头的16位字母数字组合）',
+                'nickname.max'              => '商户昵称不能超过10个字符',
                 'email.max'                 => '邮箱不能超过64个字符',
                 'mobile.number'             => '手机号码只能包含数字',
                 'mobile.max'                => '手机号码不能超过11位',
@@ -53,7 +55,7 @@ class MerchantController extends AdminBase
         }
 
         // 构建查询
-        $query = Merchant::with('wallet:merchant_id,available_balance,unavailable_balance,margin,prepaid')->select(['id', 'merchant_number', 'email', 'mobile', 'remark', 'status', 'risk_status', 'created_at'])->when($params, function ($q) use ($params) {
+        $query = Merchant::with('wallet:merchant_id,available_balance,unavailable_balance,margin,prepaid')->select(['id', 'merchant_number', 'nickname', 'email', 'mobile', 'remark', 'status', 'risk_status', 'created_at'])->when($params, function ($q) use ($params) {
             foreach ($params as $key => $value) {
                 if ($value === '' || $value === null) {
                     continue;
@@ -61,6 +63,9 @@ class MerchantController extends AdminBase
                 switch ($key) {
                     case 'merchant_number':
                         $q->where('merchant_number', trim($value));
+                        break;
+                    case 'nickname':
+                        $q->where('nickname', 'like', "%$value%");
                         break;
                     case 'email':
                         $q->where('email', 'like', "%$value%");
@@ -105,7 +110,7 @@ class MerchantController extends AdminBase
     {
         $id = $request->get('id');
 
-        $query = Merchant::find($id, ['id', 'merchant_number', 'email', 'mobile', 'remark', 'diy_order_subject', 'status', 'risk_status', 'competence'])->append(['margin']);
+        $query = Merchant::find($id, ['id', 'merchant_number', 'nickname', 'email', 'mobile', 'remark', 'diy_order_subject', 'status', 'risk_status', 'competence'])->append(['margin']);
         return $this->success(data: $query->toArray());
     }
 
@@ -125,11 +130,13 @@ class MerchantController extends AdminBase
 
         try {
             validate([
+                'nickname' => ['max:10'],
                 'margin'   => ['require', 'float'],
                 'email'    => ['email', 'max:64'],
                 'mobile'   => ['mobile'],
                 'password' => ['require', 'min:6']
             ], [
+                'nickname.max'     => '商户昵称不能超过10个字符',
                 'margin.require'   => '请输入保证金',
                 'margin.float'     => '保证金必须为数字',
                 'email.email'      => '邮箱格式不正确',
@@ -173,10 +180,12 @@ class MerchantController extends AdminBase
         try {
             // 验证数据
             validate([
-                'margin' => ['require', 'float'],
-                'email'  => ['email', 'max:64'],
-                'mobile' => ['mobile'],
+                'nickname' => ['max:10'],
+                'margin'   => ['require', 'float'],
+                'email'    => ['email', 'max:64'],
+                'mobile'   => ['mobile'],
             ], [
+                'nickname.max'   => '商户昵称不能超过10个字符',
                 'margin.require' => '请输入保证金',
                 'margin.float'   => '保证金必须为数字',
                 'email.email'    => '邮箱格式不正确',
