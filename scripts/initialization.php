@@ -46,12 +46,12 @@ try {
             if (Db::table('admin')->exists() && Db::table('admin')->where('id', 1)->exists()) {
                 echo 'Warning: 您已初始化过了！' . PHP_EOL . PHP_EOL;
                 echo '============祝您使用愉快============' . PHP_EOL;
-                return 'Warning: 您已初始化过了！';
+                return;
             }
         } catch (Throwable $e) {
             // 如果表不存在，且未指定重装，提示用户
             if (str_contains($e->getMessage(), 'exist')) {
-                echo 'Error: 数据库表尚未安装。请使用 --reinstall 参数进行首次安装。' . PHP_EOL;
+                echo 'Error: 数据库表尚未安装。请使用 --reinstall 参数对数据表进行初始化操作。' . PHP_EOL;
                 return 'Error: Database not installed.';
             }
             throw $e;
@@ -63,11 +63,13 @@ try {
     // 再次确认是否已存在管理员 (防止重装模式下的并发或其他异常，虽然重装会清空)
     // 如果是重装，这里肯定是空的。如果是非重装且通过了上面的检查，这里也是空的(或者表刚建好)
     if (Db::table('admin')->where('id', 1)->exists()) {
-        // 理论上不会走到这里，除非并发
         Db::rollBack();
         echo 'Warning: 初始化已被抢占！' . PHP_EOL;
         return;
     }
+
+    // 标记数据表版本为当前时间
+    Db::table('config')->where(['g' => 'common', 'k' => 'version'])->update(['v' => date('ymdHi')]);
 
     $login_salt             = random(4);
     $fund_salt              = random(4);
@@ -152,11 +154,11 @@ EOF;
 } catch (PDOException $e) {
     Db::rollBack();
     echo 'Error: 初始化失败（数据库错误）' . $e->getMessage() . PHP_EOL;
-    return 'Error: 初始化失败' . $e->getMessage();
+    return;
 } catch (Throwable $e) {
     Db::rollBack();
     echo 'Error: 初始化失败' . $e->getMessage() . PHP_EOL;
-    return 'Error: 初始化失败' . $e->getMessage();
+    return;
 }
 
 echo <<<EOF
@@ -178,4 +180,4 @@ Success: 初始化成功！
 
 EOF;
 
-return 'Success: 初始化成功！';
+return;
