@@ -4,10 +4,14 @@ declare(strict_types=1);
 
 namespace app\admin\controller;
 
+use app\model\Merchant;
+use app\model\Order;
+use app\model\OrderBuyer;
 use app\model\PaymentChannel;
 use app\model\PaymentChannelAccount;
 use Core\baseController\AdminBase;
 use support\Db;
+use support\Log;
 use support\Request;
 use support\Response;
 use Throwable;
@@ -249,6 +253,103 @@ class PaymentChannelAccountController extends AdminBase
         }
 
         return $this->success('修改成功');
+    }
+
+    /**
+     * 支付测试
+     *
+     * @param Request $request 请求对象，需传入 id（子账户ID）、amount（支付金额）、subject（商品名称）
+     * @return Response JSON响应，成功时返回支付链接信息
+     */
+    public function paymentTest(Request $request): Response
+    {
+        $id      = $request->post('id');
+        $amount  = $request->post('amount');
+        $subject = $request->post('subject');
+
+        // 参数校验
+        if (empty($id)) {
+            return $this->fail('必要参数缺失');
+        }
+        if (empty($amount) || !is_numeric($amount) || bccomp((string)$amount, '0.01', 2) < 0 || bccomp((string)$amount, '100000000', 2) > 0) {
+            return $this->fail('支付金额不正确，金额范围为0.01~100000000');
+        }
+        if (empty($subject) || mb_strlen((string)$subject, 'UTF-8') > 255) {
+            return $this->fail('商品名称不正确，不能为空且不能超过255个字符');
+        }
+
+        // 获取测试商户编号
+        $testMerchantNumber = sys_config('system', 'test_merchant_number');
+        if (empty($testMerchantNumber)) {
+            return $this->fail('请先前往「站点设置 → 系统」中配置「测试商户编号」后再进行支付测试');
+        }
+
+        // 查找测试商户
+        $merchant = Merchant::where('merchant_number', $testMerchantNumber)->first();
+        if (!$merchant) {
+            return $this->fail("测试商户（{$testMerchantNumber}）不存在，请检查「站点设置 → 系统」中的配置");
+        }
+        if (!$merchant->status) {
+            return $this->fail("测试商户（{$testMerchantNumber}）已被禁用");
+        }
+
+        // 查找并校验子账户
+        $paymentChannelAccount = PaymentChannelAccount::find((int)$id);
+        if (!$paymentChannelAccount) {
+            return $this->fail('该支付通道子账户不存在');
+        }
+
+        // 获取关联的支付通道
+        $paymentChannel = $paymentChannelAccount->paymentChannel;
+        if (!$paymentChannel) {
+            return $this->fail('该子账户关联的支付通道不存在');
+        }
+
+        try {
+            $totalAmount = bcround((string)$amount, 2);
+
+            // 构建订单数据并创建（在事务中完成）
+            Db::beginTransaction();
+
+            $order = Order::createOrderRecord([
+                'out_trade_no'               => 'TEST' . time(),
+                'merchant_id'                => $merchant->id,
+                'subject'                    => filter((string)$subject),
+                'total_amount'               => $totalAmount,
+                'buyer_pay_amount'           => $totalAmount,
+                'receipt_amount'             => $totalAmount,
+                'fee_amount'                 => '0',
+                'profit_amount'              => '0',
+                'notify_url'                 => site_url('test/notify.html'),
+                'return_url'                 => site_url('test/return.html'),
+                'attach'                     => null,
+                'sign_type'                  => 'xxh',
+                'expire_time'                => time() + 300,
+                'payment_type'               => $paymentChannel->payment_type,
+                'payment_channel_account_id' => $paymentChannelAccount->id,
+                'settle_cycle'               => -1,
+            ]);
+
+            // 创建买家信息记录
+            $orderBuyer = OrderBuyer::create([
+                'trade_no'   => $order->trade_no,
+                'ip'         => get_client_ip(),
+                'user_agent' => $request->header('user-agent', 'KKPay-Admin-Test'),
+            ]);
+
+            Db::commit();
+
+            $this->adminLog("支付测试：子账户ID={$id}，订单号={$order->trade_no}，金额={$totalAmount}");
+
+            // redirect 模式：直接返回支付页面链接，由页面完成网关调用
+            return $this->success('测试订单创建成功', data: [
+                'payment_url' => site_url(config('kkpay.payment_ext_path', 'cart') . "/page/{$order->trade_no}.html"),
+            ]);
+        } catch (Throwable $e) {
+            Db::rollBack();
+            Log::error('[支付测试]异常:' . $e->getMessage());
+            return $this->fail('支付测试失败：' . $e->getMessage());
+        }
     }
 
     /**

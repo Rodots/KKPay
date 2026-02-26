@@ -398,7 +398,7 @@ class Order extends Model
                 $successRate = $totalOrders > 0 ? bcmul(bcdiv((string)$paidOrders, (string)$totalOrders, 4), '100', 2) . '%' : '0.00%';
 
                 // 4. 拼接统计文案
-                $message = ($isBlacklist ? '黑名单用户，' : '') . "累计下单 $totalOrders 笔，成功支付 $paidOrders 笔，成功率 $successRate";
+                $message = ($isBlacklist ? '黑名单用户，' : '') . "累计下单 $totalOrders 笔，成功支付 $paidOrders 笔，付款成功率 $successRate";
 
                 return [
                     'is_blacklist' => $isBlacklist,
