@@ -109,7 +109,7 @@ readonly class ConfigManager
     /**
      * @throws Exception
      */
-    public function signV1(array $params): string
+    public function signV2(array $params): string
     {
         return $this->signatureManager->signParams($params);
     }
@@ -157,23 +157,24 @@ readonly class ConfigManager
      * @return array
      * @throws Exception 当验签失败或公钥证书不可用时抛出
      */
-    public function verifyResponseV1(string $responseBody, string $methodName): array
+    public function verifyResponseV2(string $responseBody, string $methodName): array
     {
         if (!json_validate($responseBody)) {
             throw new Exception('支付宝返回数据格式错误');
         }
 
         $responseArr = json_decode($responseBody, true);
-        $results     = $responseArr[str_replace('.', '_', $methodName) . '_response'];
-        $signature   = $responseArr['sign'];
+        $results = $responseArr[str_replace('.', '_', $methodName) . '_response'];
 
-        $publicKey = $this->getPublicKeyForVerification($responseArr['alipay_cert_sn']);
-        if (!$publicKey && $this->config->hasPrivateKey()) {
-            throw new Exception('支付宝RSA公钥错误。请检查公钥文件格式是否正确');
-        }
+        if (isset($responseArr['sign'])) {
+            $publicKey = $this->getPublicKeyForVerification($responseArr['alipay_cert_sn']);
+            if (!$publicKey && $this->config->hasPrivateKey()) {
+                throw new Exception('支付宝RSA公钥错误。请检查公钥文件格式是否正确');
+            }
 
-        if (!$this->signatureManager->verify(json_encode($results), $signature, $publicKey)) {
-            throw new Exception("签名验证失败: [content=$responseBody]");
+            if (!$this->signatureManager->verify(json_encode($results), $responseArr['sign'], $publicKey)) {
+                throw new Exception("签名验证失败: [content=$responseBody]");
+            }
         }
 
         return $results;
@@ -289,7 +290,7 @@ readonly class ConfigManager
             $commonParams['alipay_root_cert_sn'] = $this->certificateManager->getRootCertSerialNumber();
         }
 
-        $commonParams['sign'] = $this->signV1($commonParams);
+        $commonParams['sign'] = $this->signV2($commonParams);
 
         return $commonParams;
     }

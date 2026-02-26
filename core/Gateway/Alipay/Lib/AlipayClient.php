@@ -119,7 +119,7 @@ readonly class AlipayClient
             'form_params' => $this->configManager->buildRequestParams($params, $methodName, $returnUrl, $notifyUrl),
         ]);
 
-        $result = $this->configManager->verifyResponseV1($response->getBody()->getContents(), $methodName);
+        $result = $this->configManager->verifyResponseV2($response->getBody()->getContents(), $methodName);
 
         // 业务接口返回 code=10000 均视为成功
         if (($result['code'] ?? '') === '10000') {
