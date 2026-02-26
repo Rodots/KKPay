@@ -123,16 +123,12 @@ class EpayCore
      */
     public function execute(string $path, array $params): array
     {
-        $path     = ltrim($path, '/');
-        $requrl   = $this->api_url . $path;
-        $param    = $this->buildRequestParam($params);
-        $response = $this->getHttpResponse($requrl, http_build_query($param));
-        $arr      = json_decode($response, true);
-        if ($arr && $arr['code'] === 0) {
-            return $arr;
-        } else {
-            throw new Exception($arr ? $arr['msg'] : '请求失败');
-        }
+        $response = $this->getHttpResponse($this->api_url . ltrim($path, '/'), http_build_query($this->buildRequestParam($params)));
+        if (!is_string($response) || $response === '') throw new Exception('网关请求失败：无响应内容');
+        if (!json_validate($response)) throw new Exception('网关响应数据解析异常');
+
+        $result = json_decode($response, true);
+        return ($result['code'] ?? -1) === 0 ? $result : throw new Exception((string)($result['msg'] ?? '网关业务处理失败'));
     }
 
     /**
@@ -146,7 +142,6 @@ class EpayCore
     public function verify(array $arr): bool
     {
         if (empty($arr) || empty($arr['sign']) || empty($arr['sign_type'])) return false;
-
         if (empty($arr['timestamp']) || abs(time() - $arr['timestamp']) > 300) return false;
 
         $sign     = $arr['sign'];
