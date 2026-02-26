@@ -14,7 +14,7 @@ use support\Log;
 use support\Request;
 use support\Response;
 use Throwable;
-use Webman\RateLimiter\Annotation\RateLimiter;
+use support\limiter\annotation\Limit;
 
 /**
  * 商户控制器
@@ -32,7 +32,7 @@ class MerchantController extends ApiBase
      * @param Request $request 请求对象
      * @return Response JSON响应
      */
-    #[RateLimiter(limit: 1, ttl: 30, message: '查询频率过快，别急')]
+    #[Limit(limit: 1, ttl: 30, message: '查询频率过快，别急')]
     public function info(Request $request): Response
     {
         try {
@@ -72,7 +72,7 @@ class MerchantController extends ApiBase
      * @param Request $request 请求对象
      * @return Response JSON响应
      */
-    #[RateLimiter(limit: 1, ttl: 5, message: '查询频率过快，别急')]
+    #[Limit(limit: 1, ttl: 5, message: '查询频率过快，别急')]
     public function balance(Request $request): Response
     {
         try {

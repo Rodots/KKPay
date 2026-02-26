@@ -10,7 +10,7 @@ use Exception;
 use support\Db;
 use support\Request;
 use support\Response;
-use Webman\RateLimiter\Annotation\RateLimiter;
+use support\limiter\annotation\Limit;
 
 /**
  * 标准控制器
@@ -25,7 +25,7 @@ class StandardController
      * @param Request $request 请求对象
      * @return Response JSON响应
      */
-    #[RateLimiter(limit: 2, ttl: 5, key: RateLimiter::SID, message: '状态查询频率过快，别急')]
+    #[Limit(limit: 15, ttl: 30, key: 'sid', message: '状态查询频率过快，别急')]
     public function queryQRStatus(Request $request): Response
     {
         $trade_no = $request->get('trade_no');
