@@ -329,7 +329,7 @@ CREATE TABLE `kkpay_order_buyer`  (
   `real_name` varchar(255) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '真实姓名',
   `cert_no` varchar(64) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '证件号码',
   `cert_type` enum('IDENTITY_CARD','PASSPORT','OFFICER_CARD','SOLDIER_CARD','HOKOU','PERMANENT_RESIDENCE_FOREIGNER') CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '证件类型',
-  `min_age` tinyint NOT NULL DEFAULT 0 COMMENT '最小年龄',
+  `min_age` tinyint UNSIGNED NOT NULL DEFAULT 1 COMMENT '最小年龄',
   `mobile` char(11) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '手机号码',
   `created_at` timestamp NULL DEFAULT NULL COMMENT '创建时间',
   `updated_at` timestamp NULL DEFAULT NULL COMMENT '更新时间',

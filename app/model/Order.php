@@ -144,13 +144,7 @@ class Order extends Model
         parent::boot();
 
         static::creating(function ($row) {
-            // 生成一个24位的时间序列号作为订单号，并确保不重复
-            $now     = microtime(true);
-            $seconds = (int)$now;
-            $micros  = (int)(($now - $seconds) * 1000000); // 取微秒级后6位
-            // 组合：业务类型(1) + 时间(12) + 微秒(6) + 随机英文字母(5) = 24位
-            $row->trade_no    = 'P' . date('ymdHis', $seconds) . str_pad((string)$micros, 6, '0', STR_PAD_LEFT) . random(5, 'upper');
-            $row->create_time = Carbon::now();
+            $row->trade_no = self::generateTradeNo();
         });
     }
 
@@ -538,6 +532,19 @@ class Order extends Model
     public function notifications(): HasMany
     {
         return $this->hasMany(OrderNotification::class, 'trade_no', 'trade_no');
+    }
+
+    /**
+     * 生成订单号
+     * @return string
+     */
+    public static function generateTradeNo(): string
+    {
+        $now     = microtime(true);
+        $seconds = (int)$now;
+        $micros  = (int)(($now - $seconds) * 1000000); // 取微秒级后6位
+        // 组合：业务类型(1) + 时间(12) + 微秒(6) + 随机英文字母(5) = 24位
+        return 'P' . date('ymdHis', $seconds) . str_pad((string)$micros, 6, '0', STR_PAD_LEFT) . random(5, 'upper');
     }
 
     /**

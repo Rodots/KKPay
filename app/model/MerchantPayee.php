@@ -63,11 +63,11 @@ class MerchantPayee extends Model
         parent::boot();
 
         // 创建时自动将新收款人设为默认，并将该商户其他收款人置为非默认
-        static::creating(function ($payee) {
+        static::creating(function ($row) {
             // 将该商户下所有现有收款人设为非默认
-            self::where('merchant_id', $payee->merchant_id)->update(['is_default' => false]);
+            self::where('merchant_id', $row->merchant_id)->update(['is_default' => false]);
             // 新增的收款人设为默认
-            $payee->is_default = true;
+            $row->is_default = true;
         });
     }
 

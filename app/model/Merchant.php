@@ -63,11 +63,8 @@ class Merchant extends Model
     {
         parent::boot();
 
-        static::creating(function ($merchant) {
-            // 生成一个24位的随机字符串作为商户编号，并确保不重复
-            do {
-                $merchant->merchant_number = 'M' . date('Y') . random(11, 'upper_and_num');
-            } while (self::where('merchant_number', $merchant->merchant_number)->exists());
+        static::creating(function ($row) {
+            $row->merchant_number = 'M' . date('Y') . random(11, 'upper_and_num');
         });
     }
 
