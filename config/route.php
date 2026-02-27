@@ -15,5 +15,4 @@ Route::post('/checkout/{orderNo}/pay', [\app\api\controller\CheckoutController::
 Route::any('/' . config('kkpay.payment_ext_path', 'cart') . '/{method}/{orderNo}.html', [\app\api\v1\controller\PaymentExtensionController::class, 'handle']);
 
 // 测试
-Route::any('/test/notify.html', fn() => 'success');
-Route::any('/test/return.html', fn() => '付款完毕，请返回后台查看订单状态');
+Route::any('/api/test-notify', fn() => 'success');

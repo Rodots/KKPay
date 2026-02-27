@@ -281,7 +281,7 @@ class PaymentChannelAccountController extends AdminBase
         // 获取测试商户编号
         $testMerchantNumber = sys_config('system', 'test_merchant_number');
         if (empty($testMerchantNumber)) {
-            return $this->fail('请先前往「站点设置 → 系统」中配置「测试商户编号」后再进行支付测试');
+            return $this->fail('请先前往「站点设置 → 基础配置」中配置「平台测试专用商户编号」后再进行支付测试');
         }
 
         // 查找测试商户
@@ -320,8 +320,8 @@ class PaymentChannelAccountController extends AdminBase
                 'receipt_amount'             => $totalAmount,
                 'fee_amount'                 => '0',
                 'profit_amount'              => '0',
-                'notify_url'                 => site_url('test/notify.html'),
-                'return_url'                 => site_url('test/return.html'),
+                'notify_url'                 => site_url('api/test-notify'),
+                'return_url'                 => site_url('payok.html'),
                 'attach'                     => null,
                 'sign_type'                  => 'xxh',
                 'expire_time'                => time() + 300,
