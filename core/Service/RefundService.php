@@ -102,7 +102,7 @@ class RefundService
                 $gatewayReturn = PaymentGatewayUtil::loadGatewayWithSpread($gateway, 'refund', [
                     'order'         => $order->toArray(),
                     'channel'       => $paymentChannelAccount->config,
-                    'refund_record' => $orderRefund->toArray(),
+                    'refund_record' => $orderRefund->attributesToArray(),
                 ]);
 
                 if (!$gatewayReturn['state'] || empty($gatewayReturn['api_refund_no'])) {
@@ -112,7 +112,7 @@ class RefundService
             }
 
             Db::commit();
-            return ['state' => true, 'refund_record' => $orderRefund->toArray(), 'gateway_return' => $gatewayReturn];
+            return ['state' => true, 'refund_record' => $orderRefund->attributesToArray(), 'gateway_return' => $gatewayReturn];
         } catch (Throwable $e) {
             Db::rollBack();
             return ['state' => false, 'msg' => $e->getMessage()];

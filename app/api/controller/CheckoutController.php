@@ -74,7 +74,7 @@ class CheckoutController
 
             // 渲染收银台页面
             return raw_view('/app/api/view/checkout', [
-                'order'           => $order->toArray(),
+                'order'           => $order->attributesToArray(),
                 'paymentTypes'    => $paymentTypes,
                 'formattedAmount' => '¥' . number_format((float)$order['total_amount'], 2),
                 'isFirst'         => true

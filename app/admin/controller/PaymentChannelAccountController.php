@@ -331,7 +331,7 @@ class PaymentChannelAccountController extends AdminBase
             ]);
 
             // 创建买家信息记录
-            $orderBuyer = OrderBuyer::create([
+            OrderBuyer::create([
                 'trade_no'   => $order->trade_no,
                 'ip'         => get_client_ip(),
                 'user_agent' => $request->header('user-agent', 'KKPay-Admin-Test'),
@@ -339,11 +339,11 @@ class PaymentChannelAccountController extends AdminBase
 
             Db::commit();
 
-            $this->adminLog("支付测试：子账户ID={$id}，订单号={$order->trade_no}，金额={$totalAmount}");
+            $this->adminLog("支付测试：子账户ID={$id}，订单号={$order->trade_no}，金额=$totalAmount");
 
             // redirect 模式：直接返回支付页面链接，由页面完成网关调用
             return $this->success('测试订单创建成功', data: [
-                'payment_url' => site_url(config('kkpay.payment_ext_path', 'cart') . "/page/{$order->trade_no}.html"),
+                'payment_url' => site_url(config('kkpay.payment_ext_path', 'cart') . "/page/$order->trade_no.html"),
             ]);
         } catch (Throwable $e) {
             Db::rollBack();
