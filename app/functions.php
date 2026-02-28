@@ -94,6 +94,33 @@ function clear_sys_config_cache(?string $group = 'all'): bool
 }
 
 /**
+ * 缓存查询
+ *
+ * 优先从缓存中读取数据，未命中时执行查询闭包并将结果写入缓存。
+ *
+ * @param string   $key      缓存键名
+ * @param callable $callback 缓存未命中时执行的查询回调，返回值将被缓存
+ * @param int      $ttl      缓存有效期（秒），默认60秒
+ * @return mixed 缓存命中返回缓存值，否则返回回调执行结果
+ */
+function query_cache(string $key, callable $callback, int $ttl = 60): mixed
+{
+    try {
+        $cached = Cache::get($key);
+        if ($cached !== null) {
+            return $cached;
+        }
+        $result = $callback();
+        Cache::set($key, $result, $ttl);
+        return $result;
+    } catch (Throwable $e) {
+        Log::error('查询缓存异常[' . $key . ']: ' . $e->getMessage());
+        // 缓存异常时直接执行回调，保证业务不受影响
+        return $callback();
+    }
+}
+
+/**
  * 生成指定长度和模式的随机字符串
  *
  * @param int    $length 要生成的字符串长度，默认为8
