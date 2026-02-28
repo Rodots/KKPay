@@ -417,7 +417,7 @@ class Order extends Model
                 return false;
             }
             $entityHash = hash('sha3-224', $entityType . $entityValue);
-            return Blacklist::where('entity_hash', $entityHash)->where(fn($q) => $q->whereNull('expired_at')->orWhere('expired_at', '>', $now))->exists();
+            return query_cache('checkBlacklist_' . $entityHash, fn() => Blacklist::where('entity_hash', $entityHash)->where(fn($q) => $q->whereNull('expired_at')->orWhere('expired_at', '>', $now))->exists(), 5);
         };
 
         // 检查 IP 地址
