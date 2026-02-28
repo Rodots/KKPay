@@ -9,7 +9,6 @@ use Core\baseController\AdminBase;
 use SodiumException;
 use support\Cache;
 use support\Log;
-use support\Redis;
 use support\Request;
 use support\Response;
 use support\Rodots\Crypto\XChaCha20;
@@ -239,7 +238,7 @@ class AccountController extends AdminBase
             $ga     = new GoogleAuthenticator();
             $secret = $ga->createSecret();
 
-            Redis::setex('TOTP:Verify:admin:' . $adminId, 300, $secret);
+            Cache::set('totp_verify_admin_' . $adminId, $secret, 300);
 
             return $this->success('生成TOTP密钥成功，请在5分钟内完成绑定', [
                 'secret'  => $secret,
@@ -265,8 +264,8 @@ class AccountController extends AdminBase
         }
 
         $adminId  = $request->AdminInfo['id'];
-        $redisKey = 'TOTP:Verify:admin:' . $adminId;
-        $secret   = Redis::get($redisKey);
+        $cacheKey = 'totp_verify_admin_' . $adminId;
+        $secret   = Cache::get($cacheKey);
 
         if (!$secret) {
             return $this->fail('TOTP密钥已过期，请重新生成');
@@ -276,7 +275,7 @@ class AccountController extends AdminBase
             return $this->fail('TOTP一次性密码不正确，请重新输入');
         }
 
-        Redis::del($redisKey);
+        Cache::delete($cacheKey);
 
         try {
             $admin              = Admin::find($adminId);
