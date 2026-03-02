@@ -121,6 +121,11 @@ final class SignatureUtil
         try {
             $signString = self::buildSignString($params);
 
+            // 是否记录商户对接签名字符串到日志中
+            if (sys_config('system', 'log_sign_string', 'off') === 'on') {
+                Log::channel('sign_string')->info($signString);
+            }
+
             return match ($signType) {
                 'xxh' => self::verifyxxHash128Signature($signString, $params['sign'], $merchantEncryption['hash_key']),
                 'sha3' => self::verifySha3Signature($signString, $params['sign'], $merchantEncryption['hash_key']),
