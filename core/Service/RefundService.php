@@ -7,6 +7,7 @@ namespace Core\Service;
 use app\model\MerchantWalletRecord;
 use app\model\Order;
 use app\model\OrderRefund;
+use app\model\PaymentGatewayLog;
 use Core\Utils\PaymentGatewayUtil;
 use Exception;
 use support\Db;
@@ -106,6 +107,7 @@ class RefundService
                 ]);
 
                 if (!$gatewayReturn['state'] || empty($gatewayReturn['api_refund_no'])) {
+                    PaymentGatewayLog::record($gateway, 'refund', $gatewayReturn['message'] ?? '网关退款失败', $trade_no);
                     throw new Exception($gatewayReturn['message'] ?? '网关退款失败');
                 }
                 OrderRefund::where('id', $orderRefund->id)->update(['api_refund_no' => $gatewayReturn['api_refund_no']]);

@@ -9,6 +9,7 @@ use app\model\MerchantEncryption;
 use app\model\MerchantWalletRecord;
 use app\model\Order;
 use app\model\OrderBuyer;
+use app\model\PaymentGatewayLog;
 use Carbon\Carbon;
 use Core\Utils\PaymentGatewayUtil;
 use Core\Utils\SignatureUtil;
@@ -472,6 +473,7 @@ class OrderService
                     // 网关关闭失败不阻断本地关闭流程，仅记录日志
                     if (!($gatewayReturn['state'] ?? false)) {
                         Log::warning("订单网关关闭失败：{$tradeNo}", ['gateway_return' => $gatewayReturn]);
+                        PaymentGatewayLog::record($gateway, 'close', $gatewayReturn['message'] ?? '网关关闭失败', $tradeNo);
                     }
                 }
             }

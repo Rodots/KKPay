@@ -8,6 +8,7 @@ use app\model\Merchant;
 use app\model\OrderBuyer;
 use app\model\PaymentChannel;
 use app\model\PaymentChannelAccount;
+use app\model\PaymentGatewayLog;
 use Core\Exception\PaymentException;
 use Core\Utils\PaymentGatewayUtil;
 use support\Log;
@@ -98,6 +99,8 @@ class PaymentService
                 'error'       => $e->getMessage(),
                 'error_trace' => $e->getTraceAsString()
             ]);
+
+            PaymentGatewayLog::record($paymentChannel->gateway ?? 'unknown', $mode, $e->getMessage(), $order['trade_no'] ?? null);
 
             throw new PaymentException('支付发起失败');
         }

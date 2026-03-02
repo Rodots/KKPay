@@ -7,6 +7,7 @@ namespace app\api\v1\controller;
 use app\model\Merchant;
 use app\model\Order;
 use app\model\OrderBuyer;
+use app\model\PaymentGatewayLog;
 use Core\Service\PaymentService;
 use Core\Traits\ApiResponse;
 use Core\Utils\PaymentGatewayUtil;
@@ -114,6 +115,8 @@ class PaymentExtensionController
                 'error'    => $e->getMessage(),
                 'trace'    => $e->getTraceAsString(),
             ]);
+
+            PaymentGatewayLog::record($gateway ?? 'unknown', $method ?? 'unknown', $e->getMessage(), $orderNo);
 
             return $this->$echoMethod('系统异常，请稍后重试');
         }
