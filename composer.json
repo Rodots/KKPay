@@ -1,49 +1,49 @@
 {
-  "license": "proprietary",
-  "require": {
-    "php": ">=8.5",
-    "workerman/webman-framework": "^2.2",
-    "workerman/crontab": "^1.0",
-    "webman/cache": "^2.1",
-    "webman/database": "^2.1",
-    "webman/limiter": "^2.2",
-    "webman/redis": "^2.1",
-    "webman/redis-queue": "^2.1",
-    "firebase/php-jwt": "^7.0",
-    "illuminate/events": "^12.53",
-    "topthink/think-validate": "^3.0",
-    "monolog/monolog": "^3.10",
-    "vectorface/googleauthenticator": "^3.4",
-    "phpmailer/phpmailer": "^7.0",
-    "ext-bcmath": "*",
-    "ext-curl": "*",
-    "ext-event": "*",
-    "ext-openssl": "*",
-    "ext-pdo": "*",
-    "ext-redis": "*",
-    "ext-sodium": "*"
-  },
-  "require-dev": {
-    "webman/log": "^2"
-  },
-  "autoload": {
-    "psr-4": {
-      "app\\": "app/",
-      "Core\\": "core/",
-      "support\\": "support/"
-    }
-  },
-  "scripts": {
-    "post-package-install": [
-      "support\\Plugin::install"
-    ],
-    "post-package-update": [
-      "support\\Plugin::install"
-    ],
-    "pre-package-uninstall": [
-      "support\\Plugin::uninstall"
-    ]
-  },
-  "minimum-stability": "dev",
-  "prefer-stable": true
+    "license": "proprietary",
+    "require": {
+        "php": ">=8.5",
+        "workerman/webman-framework": "^2.2",
+        "workerman/crontab": "^1.0",
+        "webman/cache": "^2.1",
+        "webman/database": "^2.1",
+        "webman/limiter": "^2.2",
+        "webman/redis": "^2.1",
+        "webman/redis-queue": "^2.1",
+        "firebase/php-jwt": "^7.0",
+        "illuminate/events": "^12",
+        "topthink/think-validate": "^3.0",
+        "monolog/monolog": "^3.10",
+        "vectorface/googleauthenticator": "^3.4",
+        "phpmailer/phpmailer": "^7.0",
+        "ext-bcmath": "*",
+        "ext-curl": "*",
+        "ext-event": "*",
+        "ext-openssl": "*",
+        "ext-pdo": "*",
+        "ext-redis": "*",
+        "ext-sodium": "*"
+    },
+    "require-dev": {
+        "webman/log": "^2"
+    },
+    "autoload": {
+        "psr-4": {
+            "app\\": "app/",
+            "Core\\": "core/",
+            "support\\": "support/"
+        }
+    },
+    "scripts": {
+        "post-package-install": [
+            "support\\Plugin::install"
+        ],
+        "post-package-update": [
+            "support\\Plugin::install"
+        ],
+        "pre-package-uninstall": [
+            "support\\Plugin::uninstall"
+        ]
+    },
+    "minimum-stability": "dev",
+    "prefer-stable": true
 }
