@@ -4,18 +4,18 @@ declare(strict_types=1);
 
 namespace Core\Gateway\BaiExcellent;
 
-use Core\Gateway\AbstractGateway;
+use Core\Abstract\GatewayAbstract;
 use Core\Gateway\Alipay\Lib\Trait\AlipayOauthTrait;
 use Core\Gateway\BaiExcellent\Lib\Aes;
 use Exception;
+use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use Throwable;
-use GuzzleHttp\Client;
 
 /**
  * 百优支付网关
  */
-class BaiExcellent extends AbstractGateway
+class Gateway extends GatewayAbstract
 {
     use AlipayOauthTrait;
 

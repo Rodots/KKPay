@@ -10,6 +10,7 @@ namespace Core\Gateway\Alipay\Lib;
 readonly class AlipayConfig
 {
     public const int KEY_MODE  = 0;
+
     public const int CERT_MODE = 1;
 
     public function __construct(

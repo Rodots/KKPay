@@ -4,13 +4,13 @@ declare(strict_types=1);
 
 namespace Core\Gateway\Alipay\Lib;
 
-use Exception;
 use Core\Gateway\Alipay\Lib\Util\ConfigManager;
+use Exception;
 use GuzzleHttp\Client;
 use GuzzleHttp\Exception\GuzzleException;
 use Psr\Http\Message\ResponseInterface;
 
-/**
+/**F
  * 支付宝开放平台 API 客户端，用于发起服务端 API 调用（如支付、查询等）以及生成前端跳转表单。
  */
 readonly class AlipayClient

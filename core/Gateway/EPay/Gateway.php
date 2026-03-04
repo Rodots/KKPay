@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace Core\Gateway\EPay;
 
-use Core\Gateway\AbstractGateway;
+use Core\Abstract\GatewayAbstract;
 use Core\Gateway\Alipay\Lib\Trait\AlipayOauthTrait;
 use Core\Gateway\EPay\Lib\EpayCore;
 use Exception;
@@ -13,7 +13,7 @@ use Throwable;
 /**
  * 彩虹易支付支付网关
  */
-class EPay extends AbstractGateway
+class Gateway extends GatewayAbstract
 {
     use AlipayOauthTrait;
 

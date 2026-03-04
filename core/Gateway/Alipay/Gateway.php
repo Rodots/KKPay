@@ -4,17 +4,16 @@ declare(strict_types=1);
 
 namespace Core\Gateway\Alipay;
 
-use Core\Gateway\AbstractGateway;
+use Core\Abstract\GatewayAbstract;
 use Core\Gateway\Alipay\Lib\Factory;
 use Core\Gateway\Alipay\Lib\Trait\AlipayOauthTrait;
 use Exception;
-use GuzzleHttp\Exception\GuzzleException;
 use Throwable;
 
 /**
  * 支付宝支付网关
  */
-class Alipay extends AbstractGateway
+class Gateway extends GatewayAbstract
 {
     use AlipayOauthTrait;
 

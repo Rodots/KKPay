@@ -4,9 +4,9 @@ declare(strict_types=1);
 
 namespace Core\Gateway\Alipay\Lib\Util;
 
-use Exception;
 use Core\Gateway\Alipay\Lib\AlipayConfig;
 use Core\Gateway\Alipay\Lib\Trait\HeaderUtilTrait;
+use Exception;
 use Random\RandomException;
 
 /**
@@ -22,8 +22,10 @@ readonly class ConfigManager
 {
     use HeaderUtilTrait;
 
-    private SignatureManager   $signatureManager;
-    private EncryptionManager  $encryptionManager;
+    private SignatureManager $signatureManager;
+
+    private EncryptionManager $encryptionManager;
+
     private CertificateManager $certificateManager;
 
     public function __construct(
@@ -164,7 +166,7 @@ readonly class ConfigManager
         }
 
         $responseArr = json_decode($responseBody, true);
-        $results = $responseArr[str_replace('.', '_', $methodName) . '_response'];
+        $results     = $responseArr[str_replace('.', '_', $methodName) . '_response'];
 
         if (isset($responseArr['sign'])) {
             $publicKey = $this->getPublicKeyForVerification($responseArr['alipay_cert_sn']);

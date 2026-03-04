@@ -4,10 +4,9 @@ declare(strict_types=1);
 
 namespace Core\Gateway\Alipay\Lib\Util;
 
-use Exception;
 use Core\Gateway\Alipay\Lib\AlipayConfig;
-
 use Core\Gateway\Alipay\Lib\Trait\CryptoUtilTrait;
+use Exception;
 use Throwable;
 
 /**
@@ -26,6 +25,7 @@ readonly class EncryptionManager
     use CryptoUtilTrait;
 
     private const string ALGORITHM = 'aes-128-cbc';
+
     private const int    IV_LENGTH = 16;
 
     public function __construct(

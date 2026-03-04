@@ -10,9 +10,11 @@ use RuntimeException;
 class Aes
 {
     private const string METHOD     = 'AES-192-CBC';
+
     private const int    BLOCK_SIZE = 16;
 
     private string $key;
+
     private string $iv;
 
     /**

@@ -2,18 +2,17 @@
 
 declare(strict_types=1);
 
-namespace Core\Gateway;
+namespace Core\Abstract;
 
 use Core\Service\OrderService;
 use Exception;
 use support\Db;
-use Throwable;
 
 /**
  * 抽象网关基类
  * 提供静态方法架构和扩展支持
  */
-abstract class AbstractGateway
+abstract class GatewayAbstract
 {
     /**
      * 网关信息

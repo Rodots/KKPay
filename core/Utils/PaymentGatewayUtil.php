@@ -32,7 +32,7 @@ final class PaymentGatewayUtil
      */
     private static function buildFqcn(string $gateway): string
     {
-        return "\\Core\\Gateway\\$gateway\\$gateway";
+        return "\\Core\\Gateway\\$gateway\\Gateway";
     }
 
     /**
