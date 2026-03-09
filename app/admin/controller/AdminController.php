@@ -350,4 +350,18 @@ class AdminController extends AdminBase
             'total' => $total,
         ]);
     }
+
+    /**
+     * 清空管理员操作日志
+     */
+    public function clearLog(): Response
+    {
+        try {
+            AdminLog::truncate();
+            $this->adminLog('清空管理员操作日志');
+        } catch (Throwable $e) {
+            return $this->fail($e->getMessage());
+        }
+        return $this->success('清空成功');
+    }
 }
