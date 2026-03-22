@@ -4,7 +4,6 @@ declare(strict_types=1);
 
 namespace app\model;
 
-use Carbon\Carbon;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use support\Model;
@@ -70,31 +69,16 @@ class OrderBuyer extends Model
 
     // 证件类型枚举
     const string CERT_TYPE_IDENTITY_CARD       = 'IDENTITY_CARD'; // 居民身份证
+
     const string CERT_TYPE_PASSPORT            = 'PASSPORT'; // 护照
+
     const string CERT_TYPE_OFFICER_CARD        = 'OFFICER_CARD'; // 军官证
+
     const string CERT_TYPE_SOLDIER_CARD        = 'SOLDIER_CARD'; // 士兵证
+
     const string CERT_TYPE_HOKOU               = 'HOKOU'; // 户口簿
+
     const string CERT_TYPE_PERMANENT_RESIDENCE = 'PERMANENT_RESIDENCE_FOREIGNER'; // 外国人永久居留身份证
-
-    /**
-     * 访问器：创建时间
-     */
-    protected function createdAt(): Attribute
-    {
-        return Attribute::make(
-            get: fn(?string $value) => $value ? Carbon::parse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
-        );
-    }
-
-    /**
-     * 访问器：更新时间
-     */
-    protected function updatedAt(): Attribute
-    {
-        return Attribute::make(
-            get: fn(?string $value) => $value ? Carbon::parse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
-        );
-    }
 
     /***
      * 访问器：证件类型文本

@@ -49,6 +49,13 @@ class MerchantWallet extends Model
     }
 
     /**
+     * 序列化时应隐藏的属性。
+     *
+     * @var array<string>
+     */
+    protected $hidden = ['created_at', 'updated_at'];
+
+    /**
      * 该钱包属于这个商户
      *
      * @return BelongsTo

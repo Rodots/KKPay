@@ -1,9 +1,10 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace app\model;
 
+use DateTimeInterface;
 use support\Model;
 
 /**
@@ -27,7 +28,15 @@ class MerchantEmailLog extends Model
     {
         return [
             'merchant_id' => 'integer',
-            'send_time'   => 'timestamp'
+            'send_time'   => 'datetime'
         ];
+    }
+
+    /**
+     * 为数组 / JSON 序列化准备日期。
+     */
+    protected function serializeDate(DateTimeInterface $date): string
+    {
+        return $date->format('Y-m-d H:i:s');
     }
 }

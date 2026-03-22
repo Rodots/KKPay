@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace app\model;
 
-use Carbon\Carbon;
+use DateTimeInterface;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use support\Model;
@@ -54,6 +54,14 @@ class MerchantWithdrawalRecord extends Model
     }
 
     /**
+     * 为数组 / JSON 序列化准备日期。
+     */
+    protected function serializeDate(DateTimeInterface $date): string
+    {
+        return $date->format('Y-m-d H:i:s');
+    }
+
+    /**
      * 可批量赋值的属性。
      *
      * @var array
@@ -72,10 +80,15 @@ class MerchantWithdrawalRecord extends Model
 
     // 提款状态枚举
     const string STATUS_PENDING    = 'PENDING';
+
     const string STATUS_PROCESSING = 'PROCESSING';
+
     const string STATUS_COMPLETED  = 'COMPLETED';
+
     const string STATUS_FAILED     = 'FAILED';
+
     const string STATUS_REJECTED   = 'REJECTED';
+
     const string STATUS_CANCELED   = 'CANCELED';
 
     /**
@@ -91,30 +104,6 @@ class MerchantWithdrawalRecord extends Model
             // 组合：业务类型(1) + 年份(2) + uniqid(13) = 16位
             $row->id = strtoupper(uniqid('W' . date('y')));
         });
-    }
-
-    /**
-     * 访问器：创建时间
-     *
-     * @return Attribute
-     */
-    protected function createdAt(): Attribute
-    {
-        return Attribute::make(
-            get: fn(?string $value) => $value ? Carbon::parse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
-        );
-    }
-
-    /**
-     * 访问器：更新时间
-     *
-     * @return Attribute
-     */
-    protected function updatedAt(): Attribute
-    {
-        return Attribute::make(
-            get: fn(?string $value) => $value ? Carbon::parse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
-        );
     }
 
     /***

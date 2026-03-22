@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace app\model;
 
-use Carbon\Carbon;
-use Illuminate\Database\Eloquent\Casts\Attribute;
+use DateTimeInterface;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use support\Model;
 
@@ -43,6 +42,14 @@ class MerchantPayee extends Model
     }
 
     /**
+     * 为数组 / JSON 序列化准备日期。
+     */
+    protected function serializeDate(DateTimeInterface $date): string
+    {
+        return $date->format('Y-m-d H:i:s');
+    }
+
+    /**
      * 可批量赋值的属性。
      *
      * @var array
@@ -69,18 +76,6 @@ class MerchantPayee extends Model
             // 新增的收款人设为默认
             $row->is_default = true;
         });
-    }
-
-    /**
-     * 访问器：创建时间
-     *
-     * @return Attribute
-     */
-    protected function createdAt(): Attribute
-    {
-        return Attribute::make(
-            get: fn(?string $value) => $value ? Carbon::parse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
-        );
     }
 
     /**

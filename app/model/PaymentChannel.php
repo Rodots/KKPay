@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace app\model;
 
-use Carbon\Carbon;
+use DateTimeInterface;
 use Exception;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -54,6 +54,14 @@ class PaymentChannel extends Model
     }
 
     /**
+     * 为数组 / JSON 序列化准备日期。
+     */
+    protected function serializeDate(DateTimeInterface $date): string
+    {
+        return $date->format('Y-m-d H:i:s');
+    }
+
+    /**
      * 可批量赋值的属性。
      *
      * @var array
@@ -64,17 +72,26 @@ class PaymentChannel extends Model
 
     // 支付方式枚举
     const string PAYMENT_TYPE_ALIPAY    = 'Alipay';
+
     const string PAYMENT_TYPE_WECHATPAY = 'WechatPay';
+
     const string PAYMENT_TYPE_BANK      = 'Bank';
+
     const string PAYMENT_TYPE_UNIONPAY  = 'UnionPay';
+
     const string PAYMENT_TYPE_QQWALLET  = 'QQWallet';
+
     const string PAYMENT_TYPE_JDPAY     = 'JDPay';
+
     const string PAYMENT_TYPE_PAYPAL    = 'PayPal';
 
     // 轮询模式枚举
     const int ROLL_MODE_ORDER  = 0;  // 按顺序依次轮询
+
     const int ROLL_MODE_RANDOM = 1;  // 随机轮询
+
     const int ROLL_MODE_WEIGHT = 2;  // 按权重随机轮询
+
     const int ROLL_MODE_FIRST  = 3;  // 仅使用第一个可用账户
 
     /***
@@ -117,26 +134,6 @@ class PaymentChannel extends Model
                 ];
                 return $enum[$this->getOriginal('roll_mode')] ?? '未知';
             }
-        );
-    }
-
-    /**
-     * 访问器：创建时间
-     */
-    protected function createdAt(): Attribute
-    {
-        return Attribute::make(
-            get: fn(?string $value) => $value ? Carbon::parse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
-        );
-    }
-
-    /**
-     * 访问器：更新时间
-     */
-    protected function updatedAt(): Attribute
-    {
-        return Attribute::make(
-            get: fn(?string $value) => $value ? Carbon::parse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
         );
     }
 

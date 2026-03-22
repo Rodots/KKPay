@@ -4,7 +4,7 @@ declare(strict_types=1);
 
 namespace app\model;
 
-use Carbon\Carbon;
+use DateTimeInterface;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use support\Model;
@@ -41,6 +41,14 @@ class RiskLog extends Model
     }
 
     /**
+     * 为数组 / JSON 序列化准备日期。
+     */
+    protected function serializeDate(DateTimeInterface $date): string
+    {
+        return $date->format('Y-m-d H:i:s');
+    }
+
+    /**
      * 可批量赋值的属性。
      *
      * @var array
@@ -52,7 +60,9 @@ class RiskLog extends Model
     ];
 
     const int TYPE_BLACKLIST          = 0; // 命中黑名单
+
     const int TYPE_SUBJECT_KEYWORD    = 1; // 命中禁售商品关键词
+
     const int TYPE_ORDER_SUCCESS_RATE = 2; // 订单成功率过低
 
     /***
@@ -71,16 +81,6 @@ class RiskLog extends Model
                 ];
                 return $enum[$this->getOriginal('type')] ?? '未知';
             }
-        );
-    }
-
-    /**
-     * 获取创建时间
-     */
-    protected function createdAt(): Attribute
-    {
-        return Attribute::make(
-            get: fn(?string $value) => $value ? Carbon::parse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
         );
     }
 

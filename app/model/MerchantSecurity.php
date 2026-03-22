@@ -1,9 +1,10 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace app\model;
 
+use DateTimeInterface;
 use support\Model;
 
 /**
@@ -40,7 +41,22 @@ class MerchantSecurity extends Model
     protected function casts(): array
     {
         return [
-            'last_login_time' => 'timestamp'
+            'last_login_time' => 'datetime'
         ];
     }
+
+    /**
+     * 为数组 / JSON 序列化准备日期。
+     */
+    protected function serializeDate(DateTimeInterface $date): string
+    {
+        return $date->format('Y-m-d H:i:s');
+    }
+
+    /**
+     * 序列化时应隐藏的属性。
+     *
+     * @var array<string>
+     */
+    protected $hidden = ['created_at', 'updated_at'];
 }

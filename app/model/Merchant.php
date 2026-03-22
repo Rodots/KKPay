@@ -4,14 +4,14 @@ declare(strict_types=1);
 
 namespace app\model;
 
-use Carbon\Carbon;
+use DateTimeInterface;
 use Exception;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\HasOne;
 use Illuminate\Database\Eloquent\SoftDeletes;
+use support\Db;
 use support\Log;
 use support\Model;
-use support\Db;
 use Throwable;
 
 /**
@@ -46,6 +46,14 @@ class Merchant extends Model
     }
 
     /**
+     * 为数组 / JSON 序列化准备日期。
+     */
+    protected function serializeDate(DateTimeInterface $date): string
+    {
+        return $date->format('Y-m-d H:i:s');
+    }
+
+    /**
      * 可批量赋值的属性。
      *
      * @var array
@@ -66,36 +74,6 @@ class Merchant extends Model
         static::creating(function ($row) {
             $row->merchant_number = 'M' . date('Y') . random(11, 'upper_and_num');
         });
-    }
-
-    /**
-     * 访问器：创建时间
-     */
-    protected function createdAt(): Attribute
-    {
-        return Attribute::make(
-            get: fn(?string $value) => $value ? Carbon::parse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
-        );
-    }
-
-    /**
-     * 访问器：更新时间
-     */
-    protected function updatedAt(): Attribute
-    {
-        return Attribute::make(
-            get: fn(?string $value) => $value ? Carbon::parse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
-        );
-    }
-
-    /**
-     * 访问器：删除时间
-     */
-    protected function deletedAt(): Attribute
-    {
-        return Attribute::make(
-            get: fn(?string $value) => $value ? Carbon::parse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
-        );
     }
 
     /**

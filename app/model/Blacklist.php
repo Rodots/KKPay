@@ -1,10 +1,10 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace app\model;
 
-use Carbon\Carbon;
+use DateTimeInterface;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use support\Model;
 
@@ -38,18 +38,26 @@ class Blacklist extends Model
      * 实体类型常量枚举
      */
     public const string ENTITY_TYPE_USER_ID            = 'USER_ID';
+
     public const string ENTITY_TYPE_BANK_CARD          = 'BANK_CARD';
+
     public const string ENTITY_TYPE_ID_CARD            = 'ID_CARD';
+
     public const string ENTITY_TYPE_MOBILE             = 'MOBILE';
+
     public const string ENTITY_TYPE_IP_ADDRESS         = 'IP_ADDRESS';
+
     public const string ENTITY_TYPE_DEVICE_FINGERPRINT = 'DEVICE_FINGERPRINT';
 
     /**
      * 黑名单来源常量
      */
     public const string ORIGIN_MANUAL_REVIEW   = 'MANUAL_REVIEW';
+
     public const string ORIGIN_AUTO_DETECTION  = 'AUTO_DETECTION';
+
     public const string ORIGIN_THIRD_PARTY     = 'THIRD_PARTY';
+
     public const string ORIGIN_MERCHANT_REPORT = 'MERCHANT_REPORT';
 
     /**
@@ -81,34 +89,23 @@ class Blacklist extends Model
     }
 
     /**
-     * 访问器：过期时间
+     * 获取应该转换的属性。
+     *
+     * @return array
      */
-    protected function expiredAtText(): Attribute
+    protected function casts(): array
     {
-        $value = $this->getOriginal('expired_at');
-        return Attribute::make(
-            get: fn() => $value ? Carbon::parse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : '永久封禁',
-        );
+        return [
+            'expired_at' => 'datetime'
+        ];
     }
 
     /**
-     * 访问器：创建时间
+     * 为数组 / JSON 序列化准备日期。
      */
-    protected function createdAt(): Attribute
+    protected function serializeDate(DateTimeInterface $date): string
     {
-        return Attribute::make(
-            get: fn(?string $value) => $value ? Carbon::parse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
-        );
-    }
-
-    /**
-     * 访问器：更新时间
-     */
-    protected function updatedAt(): Attribute
-    {
-        return Attribute::make(
-            get: fn(?string $value) => $value ? Carbon::parse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
-        );
+        return $date->format('Y-m-d H:i:s');
     }
 
     /***

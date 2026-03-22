@@ -4,8 +4,7 @@ declare(strict_types=1);
 
 namespace app\model;
 
-use Carbon\Carbon;
-use Illuminate\Database\Eloquent\Casts\Attribute;
+use DateTimeInterface;
 use support\Model;
 
 /**
@@ -28,13 +27,11 @@ class PaymentGatewayLog extends Model
     const null UPDATED_AT = null;
 
     /**
-     * 获取触发时间
+     * 为数组 / JSON 序列化准备日期。
      */
-    protected function createdAt(): Attribute
+    protected function serializeDate(DateTimeInterface $date): string
     {
-        return Attribute::make(
-            get: fn(?string $value) => $value ? Carbon::parse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
-        );
+        return $date->format('Y-m-d H:i:s');
     }
 
     /**

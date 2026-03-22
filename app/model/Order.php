@@ -5,6 +5,7 @@ declare(strict_types=1);
 namespace app\model;
 
 use Carbon\Carbon;
+use DateTimeInterface;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use Illuminate\Database\Eloquent\Relations\HasMany;
@@ -63,7 +64,19 @@ class Order extends Model
             'settle_cycle'               => 'integer',
             'notify_retry_count'         => 'integer',
             'notify_next_retry_time'     => 'integer',
+            'create_time'                => 'immutable_datetime',
+            'payment_time'               => 'immutable_datetime',
+            'expire_time'                => 'immutable_datetime',
+            'update_time'                => 'immutable_datetime',
         ];
+    }
+
+    /**
+     * 为数组 / JSON 序列化准备日期。
+     */
+    protected function serializeDate(DateTimeInterface $date): string
+    {
+        return $date->format('Y-m-d H:i:s');
     }
 
     /**
@@ -92,16 +105,24 @@ class Order extends Model
 
     // 时间字段配置
     const string CREATED_AT = 'create_time';
+
     const string UPDATED_AT = 'update_time';
 
     // 支付方式枚举
     const string PAYMENT_TYPE_NONE      = 'None';
+
     const string PAYMENT_TYPE_ALIPAY    = 'Alipay';
+
     const string PAYMENT_TYPE_WECHATPAY = 'WechatPay';
+
     const string PAYMENT_TYPE_BANK      = 'Bank';
+
     const string PAYMENT_TYPE_UNIONPAY  = 'UnionPay';
+
     const string PAYMENT_TYPE_QQWALLET  = 'QQWallet';
+
     const string PAYMENT_TYPE_JDPAY     = 'JDPay';
+
     const string PAYMENT_TYPE_PAYPAL    = 'PayPal';
 
     // 支付方式枚举值与中文名称映射
@@ -116,22 +137,38 @@ class Order extends Model
     ];
 
     // 交易状态枚举
-    const string TRADE_STATE_WAIT_PAY = 'WAIT_PAY'; // 交易创建，等待买家付款。
-    const string TRADE_STATE_CLOSED   = 'TRADE_CLOSED'; // 未付款交易超时关闭。
-    const string TRADE_STATE_SUCCESS  = 'TRADE_SUCCESS'; // 交易支付成功。
-    const string TRADE_STATE_REFUND   = 'TRADE_REFUND'; // 交易部分退款（仍可继续退款）。
-    const string TRADE_STATE_FINISHED = 'TRADE_FINISHED'; // 全额退款（不支持退款、已超过可退款期限，已全额退款）。
-    const string TRADE_STATE_FROZEN   = 'TRADE_FROZEN'; // 交易冻结（暂停结算、退款等操作）。
+    // 交易创建，等待买家付款
+    const string TRADE_STATE_WAIT_PAY = 'WAIT_PAY';
+
+    // 未付款交易超时关闭
+    const string TRADE_STATE_CLOSED = 'TRADE_CLOSED';
+
+    // 交易支付成功
+    const string TRADE_STATE_SUCCESS = 'TRADE_SUCCESS';
+
+    // 交易部分退款（仍可继续退款）
+    const string TRADE_STATE_REFUND = 'TRADE_REFUND';
+
+    // 全额退款（不支持退款、已超过可退款期限，已全额退款）
+    const string TRADE_STATE_FINISHED = 'TRADE_FINISHED';
+
+    // 交易冻结（暂停结算、退款等操作）
+    const string TRADE_STATE_FROZEN = 'TRADE_FROZEN';
 
     // 结算状态枚举
     const string SETTLE_STATE_PENDING    = 'PENDING';
+
     const string SETTLE_STATE_PROCESSING = 'PROCESSING';
+
     const string SETTLE_STATE_COMPLETED  = 'COMPLETED';
+
     const string SETTLE_STATE_FAILED     = 'FAILED';
 
     // 通知状态枚举
     const string NOTIFY_STATE_WAITING = 'WAITING';
+
     const string NOTIFY_STATE_SUCCESS = 'SUCCESS';
+
     const string NOTIFY_STATE_FAILED  = 'FAILED';
 
     /**
@@ -149,66 +186,22 @@ class Order extends Model
     }
 
     /**
-     * 访问器：交易创建时间
+     * 访问器：交易创建时间（遵循RFC3339标准格式: yyyy-MM-DDTHH:mm:ss+TIMEZONE）
      */
-    protected function createTime(): Attribute
+    protected function createTimeRfc3339(): Attribute
     {
         return Attribute::make(
-            get: fn(?string $value) => $value ? Carbon::rawParse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
+            get: fn() => $this->create_time ? $this->create_time->format('Y-m-d\TH:i:sP') : null,
         );
     }
 
     /**
-     * 访问器：交易创建时间（含时区）
+     * 访问器：交易付款时间（遵循RFC3339标准格式: yyyy-MM-DDTHH:mm:ss+TIMEZONE）
      */
-    protected function createTimeWithZone(): Attribute
-    {
-        // 遵循rfc3339标准格式: yyyy-MM-DDTHH:mm:ss+TIMEZONE
-        return Attribute::make(
-            get: fn(?string $value, array $attributes) => $attributes['create_time'] ? Carbon::rawParse($attributes['create_time'])->timezone(config('app.default_timezone'))->format('Y-m-d\TH:i:sP') : null,
-        );
-    }
-
-    /**
-     * 访问器/修改器：交易付款时间
-     */
-    protected function paymentTime(): Attribute
+    protected function paymentTimeRfc3339(): Attribute
     {
         return Attribute::make(
-            get: fn(?string $value) => $value ? Carbon::rawParse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
-            set: fn(string|int|null $value) => $value ? Carbon::parse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
-        );
-    }
-
-    /**
-     * 访问器：交易付款时间（含时区）
-     */
-    protected function paymentTimeWithZone(): Attribute
-    {
-        // 遵循rfc3339标准格式: yyyy-MM-DDTHH:mm:ss+TIMEZONE
-        return Attribute::make(
-            get: fn(?string $value, array $attributes) => $attributes['payment_time'] ? Carbon::rawParse($attributes['payment_time'])->timezone(config('app.default_timezone'))->format('Y-m-d\TH:i:sP') : null,
-        );
-    }
-
-    /**
-     * 访问/修改器：交易结束/过期时间
-     */
-    protected function expireTime(): Attribute
-    {
-        return Attribute::make(
-            get: fn(?string $value) => $value ? Carbon::rawParse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
-            set: fn(string|int|null $value) => $value ? Carbon::parse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
-        );
-    }
-
-    /**
-     * 访问器：订单最后更新时间
-     */
-    protected function updateTime(): Attribute
-    {
-        return Attribute::make(
-            get: fn(?string $value) => $value ? Carbon::rawParse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
+            get: fn() => $this->payment_time ? $this->payment_time->format('Y-m-d\TH:i:sP') : null,
         );
     }
 
@@ -220,10 +213,8 @@ class Order extends Model
         return Attribute::make(get: fn() => self::PAYMENT_TYPE_MAP[$this->getOriginal('payment_type')] ?? ($this->getOriginal('payment_type') === self::PAYMENT_TYPE_NONE ? '未选择' : '未知'));
     }
 
-    /***
+    /**
      * 访问器：交易状态文本
-     *
-     * @return Attribute
      */
     protected function tradeStateText(): Attribute
     {
@@ -244,8 +235,6 @@ class Order extends Model
 
     /**
      * 访问器：结算状态文本
-     *
-     * @return Attribute
      */
     protected function settleStateText(): Attribute
     {
@@ -264,8 +253,6 @@ class Order extends Model
 
     /**
      * 访问器：通知状态文本
-     *
-     * @return Attribute
      */
     protected function notifyStateText(): Attribute
     {
@@ -283,30 +270,31 @@ class Order extends Model
 
     /**
      * 访问器：付款耗时
-     *
-     * @return Attribute
      */
     protected function paymentDuration(): Attribute
     {
         return Attribute::make(
-            get: function (?string $value, array $attributes) {
-                if (!$attributes['payment_time']) {
+            get: function () {
+                if (!$this->payment_time) {
                     return '0秒';
                 }
-                $create       = Carbon::parse($attributes['create_time']);
-                $payment      = Carbon::parse($attributes['payment_time']);
+
+                $create  = $this->create_time;
+                $payment = $this->payment_time;
+
+                // 防御性检查：如果由于某种原因 cast 失败或为 null
+                if (!$create) {
+                    return '0秒';
+                }
+
                 $totalSeconds = $create->diffInSeconds($payment);
-                // 格式化时间
-                return $this->formatPaymentDuration($totalSeconds);
+                return $this->formatPaymentDuration((float)$totalSeconds);
             }
         );
     }
 
     /**
      * 将秒数格式化为易读的时间格式
-     *
-     * @param float $seconds
-     * @return string
      */
     private function formatPaymentDuration(float $seconds): string
     {
@@ -330,7 +318,7 @@ class Order extends Model
         if ($minutes > 0) {
             $parts[] = $minutes . '分';
         }
-        if ($secs > 0 || empty($parts)) { // 如果没有其他单位，秒数必须显示
+        if ($secs > 0 || empty($parts)) {
             $parts[] = $secs . '秒';
         }
 
@@ -339,8 +327,6 @@ class Order extends Model
 
     /**
      * 访问器：是否为黑名单订单
-     *
-     * @return Attribute
      */
     protected function isBlacklist(): Attribute
     {
@@ -357,8 +343,6 @@ class Order extends Model
 
     /**
      * 访问器：用户行为摘要
-     *
-     * @return Attribute
      */
     protected function userBehaviorSummary(): Attribute
     {
@@ -442,8 +426,6 @@ class Order extends Model
 
     /**
      * 统计用户历史订单数
-     *
-     * @return array [总订单数, 成功付款订单数]
      */
     private function countUserOrders(?string $ip, ?string $userId, ?string $buyerOpenId, ?string $mobile): array
     {
@@ -479,9 +461,7 @@ class Order extends Model
         }
 
         // 统计成功付款的订单
-        $paidOrders = Order::whereIn('trade_no', $tradeNos)
-            ->whereIn('trade_state', [self::TRADE_STATE_SUCCESS, self::TRADE_STATE_REFUND, self::TRADE_STATE_FINISHED, self::TRADE_STATE_FROZEN])
-            ->count();
+        $paidOrders = Order::whereIn('trade_no', $tradeNos)->whereIn('trade_state', [self::TRADE_STATE_SUCCESS, self::TRADE_STATE_REFUND, self::TRADE_STATE_FINISHED, self::TRADE_STATE_FROZEN])->count();
 
         return [$totalOrders, $paidOrders];
     }
@@ -536,7 +516,6 @@ class Order extends Model
 
     /**
      * 生成订单号
-     * @return string
      */
     public static function generateTradeNo(): string
     {

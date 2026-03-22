@@ -5,8 +5,7 @@ declare(strict_types=1);
 namespace app\model;
 
 use app\model\casts\BinaryUuidCast;
-use Carbon\Carbon;
-use Illuminate\Database\Eloquent\Casts\Attribute;
+use DateTimeInterface;
 use support\Model;
 
 /**
@@ -57,19 +56,18 @@ class OrderNotification extends Model
     }
 
     /**
+     * 为数组 / JSON 序列化准备日期。
+     */
+    protected function serializeDate(DateTimeInterface $date): string
+    {
+        return $date->format('Y-m-d H:i:s');
+    }
+
+    /**
      * 序列化时应隐藏的属性。
      *
      * @var array<string>
      */
     protected $hidden = ['trade_no'];
 
-    /**
-     * 访问器：通知时间
-     */
-    protected function createdAt(): Attribute
-    {
-        return Attribute::make(
-            get: fn(?string $value) => $value ? Carbon::rawParse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
-        );
-    }
 }

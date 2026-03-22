@@ -14,8 +14,8 @@ use Carbon\Carbon;
 use Core\Utils\PaymentGatewayUtil;
 use Core\Utils\SignatureUtil;
 use Exception;
-use support\Log;
 use support\Db;
+use support\Log;
 use Throwable;
 use Webman\RedisQueue\Redis as SyncQueue;
 
@@ -207,8 +207,8 @@ class OrderService
             'receipt_amount'   => $order->receipt_amount,
             'attach'           => $order->attach,
             'trade_state'      => $order->trade_state,
-            'create_time'      => $order->create_time_with_zone,
-            'payment_time'     => $order->payment_time_with_zone,
+            'create_time'      => $order->create_time_rfc3339,
+            'payment_time'     => $order->payment_time_rfc3339,
             'sign_type'        => $order->sign_type,
             'buyer'            => $order->buyer()->first(['ip', 'user_agent', 'user_id', 'buyer_open_id', 'real_name', 'cert_no', 'cert_type', 'mobile'])->attributesToArray()
         ];

@@ -1,10 +1,10 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 namespace app\model;
 
-use Carbon\Carbon;
+use DateTimeInterface;
 use Illuminate\Database\Eloquent\Casts\Attribute;
 use Illuminate\Database\Eloquent\Relations\BelongsTo;
 use support\Model;
@@ -58,10 +58,21 @@ class OrderRefund extends Model
         ];
     }
 
+    /**
+     * 为数组 / JSON 序列化准备日期。
+     */
+    protected function serializeDate(DateTimeInterface $date): string
+    {
+        return $date->format('Y-m-d H:i:s');
+    }
+
     // 发起类型枚举
     const string INITIATE_TYPE_ADMIN    = 'admin';
+
     const string INITIATE_TYPE_API      = 'api';
+
     const string INITIATE_TYPE_MERCHANT = 'merchant';
+
     const string INITIATE_TYPE_SYSTEM   = 'system';
 
     /**
@@ -77,16 +88,6 @@ class OrderRefund extends Model
             // 组合：业务类型(1) + 年份(2) + uniqid(13) = 16位
             $row->id = strtoupper(uniqid('R' . date('y')));
         });
-    }
-
-    /**
-     * 访问器：操作时间
-     */
-    protected function createdAt(): Attribute
-    {
-        return Attribute::make(
-            get: fn(?string $value) => $value ? Carbon::rawParse($value)->timezone(config('app.default_timezone'))->format('Y-m-d H:i:s') : null,
-        );
     }
 
     /***
