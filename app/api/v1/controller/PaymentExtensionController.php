@@ -43,7 +43,8 @@ class PaymentExtensionController
         }
 
         if ($method === 'notify') {
-            Log::channel('pay_notify')->info('orderNo: ' . $orderNo, [
+            Log::channel('pay_notify')->info("【{$orderNo}】", [
+                'URL'    => $request->url(),
                 'Method' => $request->method(),
                 'Header' => $request->header(),
                 'Body'   => $request->all()
@@ -65,7 +66,7 @@ class PaymentExtensionController
             }
 
             // 检查订单是否可以支付
-            if ($order->trade_state !== Order::TRADE_STATE_WAIT_PAY || $order->trade_state === Order::TRADE_STATE_CLOSED) {
+            if ($method !== 'notify' && ($order->trade_state !== Order::TRADE_STATE_WAIT_PAY || $order->trade_state === Order::TRADE_STATE_CLOSED)) {
                 return $this->$echoMethod('当前订单已交易结束');
             }
 

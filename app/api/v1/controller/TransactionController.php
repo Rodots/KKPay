@@ -11,8 +11,8 @@ use app\model\RiskLog;
 use Carbon\Carbon;
 use Core\baseController\ApiBase;
 use Core\Exception\PaymentException;
-use Core\Service\PaymentService;
 use Core\Service\OrderCreationService;
+use Core\Service\PaymentService;
 use Core\Service\RiskService;
 use support\annotation\Middleware;
 use support\Log;
@@ -157,6 +157,8 @@ class TransactionController extends ApiBase
             $sysExpireTime = sys_config('payment', 'order_expire_time');
             if (is_numeric($sysExpireTime)) {
                 $expireTime = time() + (int)$sysExpireTime;
+            } else {
+                $expireTime = time() + 86400;
             }
         }
 
@@ -329,35 +331,33 @@ class TransactionController extends ApiBase
         }
 
         // 校验订单过期时间
-        if (!empty($bizContent['expire_time'])) {
-            try {
-                $timezone = config('app.default_timezone');
-                $now      = Carbon::now()->timezone($timezone)->setMicrosecond(0);
+        try {
+            $timezone = config('app.default_timezone');
+            $now      = Carbon::now()->timezone($timezone)->setMicrosecond(0);
 
-                // 解析过期时间
-                $expireTimeInput = $bizContent['expire_time'];
-                if (is_numeric($expireTimeInput)) {
-                    $expireTime = Carbon::createFromTimestamp((int)$expireTimeInput)->timezone($timezone);
-                } else {
-                    $expireTime = Carbon::parse($expireTimeInput)->timezone($timezone);
-                }
-
-                // 定义有效时间窗口：[当前时间 + 1 分钟, 当前时间 + 24 小时]
-                $earliestexpireTime = $now->copy()->addMinute();
-                $latestexpireTime   = $now->copy()->addDay();
-
-                // 校验：不能早于当前时间 + 1 分钟
-                if ($expireTime->lt($earliestexpireTime)) {
-                    return "订单过期时间(expire_time)过早，最早可设置为 {$earliestexpireTime->format('Y-m-d H:i:s')}（当前时间+1分钟）";
-                }
-
-                // 校验：不能晚于当前时间 + 24 小时
-                if ($expireTime->gt($latestexpireTime)) {
-                    return "订单过期时间(expire_time)过晚，最晚可设置为 {$latestexpireTime->format('Y-m-d H:i:s')}（当前时间+24小时）";
-                }
-            } catch (Throwable) {
-                return '订单过期时间(expire_time)格式无效，请使用有效的时间戳或标准时间格式（如 "2026-01-01 01:01:01"）';
+            // 解析过期时间
+            $expireTimeInput = $bizContent['expire_time'];
+            if (is_numeric($expireTimeInput)) {
+                $expireTime = Carbon::createFromTimestamp((int)$expireTimeInput)->timezone($timezone);
+            } else {
+                $expireTime = Carbon::parse($expireTimeInput)->timezone($timezone);
             }
+
+            // 定义有效时间窗口：[当前时间 + 1 分钟, 当前时间 + 24 小时]
+            $earliestexpireTime = $now->copy()->addMinute();
+            $latestexpireTime   = $now->copy()->addDay();
+
+            // 校验：不能早于当前时间 + 1 分钟
+            if ($expireTime->lt($earliestexpireTime)) {
+                return "订单过期时间(expire_time)过早，最早可设置为 {$earliestexpireTime->format('Y-m-d H:i:s')}（当前时间+1分钟）";
+            }
+
+            // 校验：不能晚于当前时间 + 24 小时
+            if ($expireTime->gt($latestexpireTime)) {
+                return "订单过期时间(expire_time)过晚，最晚可设置为 {$latestexpireTime->format('Y-m-d H:i:s')}（当前时间+24小时）";
+            }
+        } catch (Throwable) {
+            return '订单过期时间(expire_time)格式无效，请使用有效的时间戳或标准时间格式（如 "2026-01-01 01:01:01"）';
         }
 
         return true;

@@ -185,7 +185,7 @@ class OrderService
             Db::commit();
         } catch (Throwable $e) {
             Db::rollBack();
-            Log::error("订单处理交易成功时出现异常：" . $e->getMessage(), ['trade_no' => $trade_no]);
+            Log::error("订单处理交易成功时出现异常：{$e->getMessage()}({$e->getLine()})", ['trade_no' => $trade_no]);
             throw new Exception($e->getMessage());
         }
     }

@@ -15,4 +15,4 @@ Route::post('/checkout/{orderNo}/pay', [\app\api\controller\CheckoutController::
 Route::any('/' . config('kkpay.payment_ext_path', 'cart') . '/{method}/{orderNo}.html', [\app\api\v1\controller\PaymentExtensionController::class, 'handle']);
 
 // 测试
-Route::any('/api/test-notify', fn() => 'success');
+Route::any('/orderNotifyTest', fn() => 'success');

@@ -201,7 +201,7 @@ class CheckoutController
     /**
      * 计算订单剩余有效时间（秒）
      *
-     * 优先使用订单的 expire_time 字段，若未设置则默认创建后 30 分钟过期
+     * 优先使用订单的 expire_time 字段，若未设置则默认创建后 24 小时过期
      *
      * @param Order $order 订单对象
      * @return int 剩余秒数，已过期返回 0
@@ -213,8 +213,8 @@ class CheckoutController
         if (!empty($expireTime)) {
             $expireTimestamp = strtotime($expireTime);
         } else {
-            // 默认创建后 30 分钟过期
-            $expireTimestamp = strtotime($order->getAttributeValue('create_time')) + 1800;
+            // 默认创建后 24 小时过期
+            $expireTimestamp = strtotime($order->getAttributeValue('create_time')) + 86400;
         }
 
         return max(0, $expireTimestamp - time());
