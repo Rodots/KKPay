@@ -147,8 +147,7 @@ class OrderService
             } else {
                 // 默认为已结算（适用于测试订单 settle_cycle < 0）
                 $order->settle_state = Order::SETTLE_STATE_COMPLETED;
-
-                // 如果该订单的结算周期为0则意味着是实时结算
+                // 如果该订单的结算周期为0则意味着是实时结算并需要验证结算权限
                 if ($order->settle_cycle === 0) {
                     // 检查商户是否拥有结算权限
                     if (Merchant::where('id', $order->merchant_id)->whereJsonContains('competence', 'orderSettle')->exists()) {
@@ -164,29 +163,28 @@ class OrderService
             }
             $order->save();
 
-            // 同步通知下游
-            $shouldNotify = true;
-
-            // 当 ip、user_id、buyer_open_id 任一项存在时，检查是否需要进行黑名单校验
-            if (!empty($buyer['ip']) || !empty($buyer['user_id']) || !empty($buyer['buyer_open_id'])) {
-                // 判断系统配置是否启用黑名单风控
-                if (sys_config('payment', 'blacklist_order_action') === '1') {
-                    // 检查买家是否命中黑名单
-                    if (RiskService::PaymentedCheck($order->merchant_id, $trade_no, $buyer['ip'], $buyer['user_id'], $buyer['buyer_open_id'])) {
-                        $shouldNotify = false;
-                    }
-                }
-            }
-
-            if ($shouldNotify) {
-                self::sendAsyncNotification($trade_no, $order);
-            }
-
             Db::commit();
         } catch (Throwable $e) {
             Db::rollBack();
             Log::error("订单处理交易成功时出现异常：{$e->getMessage()}({$e->getLine()})", ['trade_no' => $trade_no]);
-            throw new Exception($e->getMessage());
+            throw new Exception($e->getMessage(), $e->getCode(), $e);
+        }
+
+        // 同步通知下游
+        $shouldNotify = true;
+        // 当 ip、user_id、buyer_open_id 任一项存在时，检查是否需要进行黑名单校验
+        if (!empty($buyer['ip']) || !empty($buyer['user_id']) || !empty($buyer['buyer_open_id'])) {
+            // 判断系统配置是否启用黑名单风控
+            if (sys_config('payment', 'blacklist_order_action') === '1') {
+                // 检查买家是否命中黑名单
+                if (RiskService::PaymentedCheck($order->merchant_id, $trade_no, $buyer['ip'] ?? null, $buyer['user_id'] ?? null, $buyer['buyer_open_id'] ?? null)) {
+                    $shouldNotify = false;
+                }
+            }
+        }
+
+        if ($shouldNotify) {
+            self::sendAsyncNotification($trade_no, $order);
         }
     }
 
