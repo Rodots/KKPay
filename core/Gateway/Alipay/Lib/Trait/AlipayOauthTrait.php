@@ -119,7 +119,7 @@ trait AlipayOauthTrait
 
             // 校验 state（CSRF 防护）
             $stateParts = explode('.', $request->get('state', '0.'), 2);
-            if (count($stateParts) !== 2 || $stateParts[1] !== substr(hash('xxh128', $secret . $stateParts[0]), 12, 8) || time() - (int)$stateParts[0] > 600) {
+            if (count($stateParts) !== 2 || $stateParts[1] !== substr(hash('xxh128', $secret . $stateParts[0]), 12, 8) || time() - (int)$stateParts[0] > ($paymentConfig['order_expire_time'] ?? 1800)) {
                 return ['mode' => 'return', 'data' => ['type' => 'error', 'message' => '授权请求已过期或无效，请重新发起支付']];
             }
 
