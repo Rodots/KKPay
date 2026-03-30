@@ -107,7 +107,6 @@ class Gateway extends GatewayAbstract
         $res = self::lockPaymentExt($items['order']['trade_no'], function () use ($items) {
             return self::apiExecute('api/commonpay/pay', self::buildPaymentParams($items), $items['channel']);
         });
-        var_dump($res);
 
         return ['type' => 'page', 'page' => 'alipay_qrcode', 'data' => ['url' => $res['data']]];
     }

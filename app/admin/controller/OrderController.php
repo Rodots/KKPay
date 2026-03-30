@@ -303,7 +303,7 @@ class OrderController extends AdminBase
         // 剩余可退款金额 = 实付金额 - 已退款金额
         $remaining_amount = bcsub($order->buyer_pay_amount, $refunded_amount, 2);
         // 是否允许自动退款
-        $allow_auto_refund = PaymentGatewayUtil::existMethod($order->paymentChannelAccount->paymentChannel->gateway, 'refund');
+        $allow_auto_refund = PaymentGatewayUtil::methodExists($order->paymentChannelAccount->paymentChannel->gateway, 'refund');
         $data              = array_merge($order->attributesToArray(), [
             'allow_auto_refund' => $allow_auto_refund,
             'refunded_amount'   => $refunded_amount,

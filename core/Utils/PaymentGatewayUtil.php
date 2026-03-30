@@ -17,7 +17,9 @@ final class PaymentGatewayUtil
     /** @var array<string, array> 缓存存储，避免重复读取反射 */
     private static array $infoCache = [];
 
-    private function __construct() { }
+    private function __construct()
+    {
+    }
 
     /**
      * 清空缓存
@@ -125,12 +127,12 @@ final class PaymentGatewayUtil
      *
      * @param string $gateway 网关名称
      * @param string $method  方法名称
-     * @return bool 当网关类和方法都存在时返回 false，否则返回 true
+     * @return bool
      */
-    public static function existMethod(string $gateway, string $method): bool
+    public static function methodExists(string $gateway, string $method): bool
     {
         $fqcn = self::buildFqcn($gateway);
-        return !(class_exists($fqcn, false) && method_exists($fqcn, $method));
+        return class_exists($fqcn) && method_exists($fqcn, $method);
     }
 
     /**
@@ -138,9 +140,7 @@ final class PaymentGatewayUtil
      */
     private static function getFromCache(string $gateway, string $key): array|string|null
     {
-        return $key !== '' && array_key_exists($key, self::$infoCache[$gateway])
-            ? self::$infoCache[$gateway][$key]
-            : self::$infoCache[$gateway];
+        return $key !== '' && array_key_exists($key, self::$infoCache[$gateway]) ? self::$infoCache[$gateway][$key] : self::$infoCache[$gateway];
     }
 
     /**
