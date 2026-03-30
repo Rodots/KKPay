@@ -73,7 +73,7 @@ CREATE TABLE `kkpay_config`  (
 -- ----------------------------
 -- Records of kkpay_config
 -- ----------------------------
-INSERT INTO `kkpay_config` VALUES ('common', 'version', '0');
+INSERT INTO `kkpay_config` VALUES ('common', 'version', '1');
 
 -- ----------------------------
 -- Table structure for kkpay_merchant
