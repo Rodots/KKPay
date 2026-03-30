@@ -527,7 +527,7 @@ class OrderController extends AdminBase
 
         foreach ($ids as $trade_no) {
             try {
-                $order = Order::where('trade_no', $trade_no)->first(['trade_no', 'merchant_id', 'trade_state']);
+                $order = Order::where('trade_no', $trade_no)->first(['trade_no', 'out_trade_no', 'merchant_id', 'bill_trade_no', 'total_amount', 'buyer_pay_amount', 'receipt_amount', 'attach', 'trade_state', 'create_time', 'payment_time', 'sign_type', 'notify_url', 'return_url']);
 
                 if (!$order) {
                     $failed[$trade_no] = '订单不存在';

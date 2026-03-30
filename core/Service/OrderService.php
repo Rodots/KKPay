@@ -470,7 +470,7 @@ class OrderService
 
                     // 网关关闭失败不阻断本地关闭流程，仅记录日志
                     if (!($gatewayReturn['state'] ?? false)) {
-                        Log::warning("订单网关关闭失败：{$tradeNo}", ['gateway_return' => $gatewayReturn]);
+                        Log::warning("订单网关关闭失败：$tradeNo", ['gateway_return' => $gatewayReturn]);
                         PaymentGatewayLog::record($gateway, 'close', $gatewayReturn['message'] ?? '网关关闭失败', $tradeNo);
                     }
                 }
@@ -478,7 +478,7 @@ class OrderService
 
             // 更新订单状态
             $order->trade_state = Order::TRADE_STATE_CLOSED;
-            $order->expire_time = Carbon::now();
+            $order->expire_time = time();
             $order->save();
 
             Db::commit();
