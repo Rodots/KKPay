@@ -29,7 +29,7 @@ class OrderController extends AdminBase
     {
         $from   = $request->get('from', 0);
         $limit  = $request->get('limit', 20);
-        $params = $request->only(['fuzzy_trade_no', 'trade_no', 'out_trade_no', 'api_trade_no', 'bill_trade_no', 'mch_trade_no', 'merchant_number', 'payment_type', 'payment_channel_code', 'payment_channel_account_id', 'subject', 'total_amount', 'buyer_pay_amount', 'receipt_amount', 'create_time', 'payment_time', 'trade_state', 'settle_state', 'notify_state']);
+        $params = $request->only(['fuzzy_trade_no', 'trade_no', 'out_trade_no', 'api_trade_no', 'bill_trade_no', 'mch_trade_no', 'merchant_number', 'payment_type', 'payment_channel_code', 'payment_channel_account_id', 'subject', 'total_amount', 'buyer_pay_amount', 'receipt_amount', 'create_time', 'payment_time', 'trade_state', 'settle_state', 'notify_state', 'ip', 'user_id', 'buyer_open_id']);
 
         try {
             validate([
@@ -47,7 +47,10 @@ class OrderController extends AdminBase
                 'buyer_pay_amount'           => ['float'],
                 'receipt_amount'             => ['float'],
                 'create_time'                => ['array'],
-                'payment_time'               => ['array']
+                'payment_time'               => ['array'],
+                'ip'                         => ['max:45'],
+                'user_id'                    => ['max:255'],
+                'buyer_open_id'              => ['max:128']
             ], [
                 'fuzzy_trade_no.max'                => '搜索单号不能超过256个字符',
                 'fuzzy_trade_no.alphaDash'          => '搜索单号只能包含字母、数字、下划线和破折号',
@@ -72,7 +75,10 @@ class OrderController extends AdminBase
                 'buyer_pay_amount.float'            => '付款金额必须为数字',
                 'receipt_amount.float'              => '实收金额必须为数字',
                 'create_time.array'                 => '创建时间范围格式不正确',
-                'payment_time.array'                => '支付时间范围格式不正确'
+                'payment_time.array'                => '支付时间范围格式不正确',
+                'ip.max'                            => '买家IP不能超过45个字符',
+                'user_id.max'                       => '买家用户ID不能超过255个字符',
+                'buyer_open_id.max'                 => '买家OpenID不能超过128个字符'
             ])->check($params);
         } catch (Throwable $e) {
             return $this->fail($e->getMessage());
@@ -85,68 +91,32 @@ class OrderController extends AdminBase
                 if ($value === '' || $value === null) {
                     continue;
                 }
-                switch ($key) {
-                    case 'fuzzy_trade_no':
-                        $q->where(function ($query) use ($value) {
-                            $value = trim($value);
-                            $query->orWhere('trade_no', $value)->orWhere('out_trade_no', $value)->orWhere('api_trade_no', $value)->orWhere('bill_trade_no', $value)->orWhere('mch_trade_no', $value);
-                        });
-                        break;
-                    case 'trade_no':
-                        $q->where('trade_no', 'like', "%$value%");
-                        break;
-                    case 'out_trade_no':
-                        $q->where('out_trade_no', 'like', "%$value%");
-                        break;
-                    case 'api_trade_no':
-                        $q->where('api_trade_no', 'like', "%$value%");
-                        break;
-                    case 'bill_trade_no':
-                        $q->where('bill_trade_no', 'like', "%$value%");
-                        break;
-                    case 'mch_trade_no':
-                        $q->where('mch_trade_no', 'like', "%$value%");
-                        break;
-                    case 'merchant_number':
-                        $q->where('merchant_id', Merchant::where('merchant_number', $value)->value('id'));
-                        break;
-                    case 'payment_type':
-                        $q->where('payment_type', $value);
-                        break;
-                    case 'payment_channel_code':
-                        $q->whereIn('payment_channel_account_id', PaymentChannelAccount::where('payment_channel_id', PaymentChannel::where('code', $value)->value('id'))->pluck('id'));
-                        break;
-                    case 'payment_channel_account_id':
-                        $q->where('payment_channel_account_id', $value);
-                        break;
-                    case 'subject':
-                        $q->where('subject', 'like', "%$value%");
-                        break;
-                    case 'total_amount':
-                        $q->where('total_amount', (float)$value);
-                        break;
-                    case 'receipt_amount':
-                        $q->where('receipt_amount', (float)$value);
-                        break;
-                    case 'buyer_pay_amount':
-                        $q->where('buyer_pay_amount', (float)$value);
-                        break;
-                    case 'create_time':
-                        $q->whereBetween('create_time', [$value[0], $value[1]]);
-                        break;
-                    case 'payment_time':
-                        $q->whereBetween('payment_time', [$value[0], $value[1]]);
-                        break;
-                    case 'trade_state':
-                        $q->where('trade_state', $value);
-                        break;
-                    case 'settle_state':
-                        $q->where('settle_state', $value);
-                        break;
-                    case 'notify_state':
-                        $q->where('notify_state', $value);
-                        break;
-                }
+                $value = is_string($value) ? trim($value) : $value;
+                match ($key) {
+                    'fuzzy_trade_no' => $q->where(fn($query) => $query->orWhere('trade_no', $value)->orWhere('out_trade_no', $value)->orWhere('api_trade_no', $value)->orWhere('bill_trade_no', $value)->orWhere('mch_trade_no', $value)),
+                    'trade_no' => $q->where('trade_no', 'like', "%$value%"),
+                    'out_trade_no' => $q->where('out_trade_no', 'like', "%$value%"),
+                    'api_trade_no' => $q->where('api_trade_no', 'like', "%$value%"),
+                    'bill_trade_no' => $q->where('bill_trade_no', 'like', "%$value%"),
+                    'mch_trade_no' => $q->where('mch_trade_no', 'like', "%$value%"),
+                    'merchant_number' => $q->where('merchant_id', Merchant::where('merchant_number', $value)->value('id')),
+                    'payment_type' => $q->where('payment_type', $value),
+                    'payment_channel_code' => $q->whereIn('payment_channel_account_id', PaymentChannelAccount::where('payment_channel_id', PaymentChannel::where('code', $value)->value('id'))->pluck('id')),
+                    'payment_channel_account_id' => $q->where('payment_channel_account_id', $value),
+                    'subject' => $q->where('subject', 'like', "%$value%"),
+                    'total_amount' => $q->where('total_amount', (float)$value),
+                    'receipt_amount' => $q->where('receipt_amount', (float)$value),
+                    'buyer_pay_amount' => $q->where('buyer_pay_amount', (float)$value),
+                    'create_time' => $q->whereBetween('create_time', [$value[0], $value[1]]),
+                    'payment_time' => $q->whereBetween('payment_time', [$value[0], $value[1]]),
+                    'trade_state' => $q->where('trade_state', $value),
+                    'settle_state' => $q->where('settle_state', $value),
+                    'notify_state' => $q->where('notify_state', $value),
+                    'ip' => $q->whereHas('buyer', fn($query) => $query->where('ip', $value)),
+                    'user_id' => $q->whereHas('buyer', fn($query) => $query->where('user_id', $value)),
+                    'buyer_open_id' => $q->whereHas('buyer', fn($query) => $query->where('buyer_open_id', $value)),
+                    default => null,
+                };
             }
             return $q;
         });
