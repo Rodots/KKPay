@@ -1,16 +1,21 @@
 <?php
 
-declare(strict_types = 1);
+declare(strict_types=1);
 
 return [
     // 全局中间件
-    '' => [
+    ''         => [
         // 添加跟踪ID中间件
         app\middleware\TraceID::class,
     ],
     // 管理端中间件
-    'admin' => [
+    'admin'    => [
         // 身份验证中间件
         app\middleware\AuthCheckAdmin::class,
+    ],
+    // 商户端中间件
+    'merchant' => [
+        // 商户身份验证中间件
+        app\middleware\AuthCheckMerchant::class,
     ],
 ];

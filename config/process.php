@@ -2,9 +2,9 @@
 
 declare(strict_types=1);
 
+use app\process\Http;
 use support\Log;
 use support\Request;
-use app\process\Http;
 
 global $argv;
 
@@ -48,7 +48,7 @@ return [
     'OrderSettle'    => [
         'handler' => app\process\OrderSettle::class
     ],
-    'autoWithdraw'   => [
+    'AutoWithdraw'   => [
         'handler' => app\process\MerchantAutoWithdraw::class
     ],
     'OrderAutoClose' => [
