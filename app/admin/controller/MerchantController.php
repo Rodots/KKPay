@@ -451,7 +451,7 @@ class MerchantController extends AdminBase
     {
         $from   = $request->get('from', 0);
         $limit  = $request->get('limit', 20);
-        $sort   = $request->get('sort', 'id');
+        $sort   = $request->get('sort', 'created_at');
         $order  = $request->get('order', 'desc');
         $params = $request->only(['merchant_number', 'content', 'ip', 'created_at']);
 
@@ -474,7 +474,7 @@ class MerchantController extends AdminBase
         }
 
         // 检测要排序的字段是否在允许的字段列表中并检测排序顺序是否正确
-        if (!in_array($sort, ['id', 'ip']) || !in_array($order, ['asc', 'desc'])) {
+        if (!in_array($sort, ['ip', 'created_at']) || !in_array($order, ['asc', 'desc'])) {
             return $this->fail('排序失败，请刷新后重试');
         }
 
