@@ -53,5 +53,8 @@ return [
     ],
     'OrderAutoClose' => [
         'handler' => app\process\OrderAutoClose::class
+    ],
+    'AutoComplaint'  => [
+        'handler' => app\process\ComplaintAutoFetch::class
     ]
 ];

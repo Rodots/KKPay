@@ -132,7 +132,7 @@ declare(strict_types=1);
  * 配置项介绍
  * payment_ext_path: 支付扩展模块路由路径
  * jwt_expire_time: JWT过期时间（后台登录过期时间）[秒]
- * api_crypto_key: 后台敏感接口传输密钥（32位字符串）
+ * api_crypto_key: 敏感接口传输加密密钥（32位字符串）
  * totp_crypto_key: TOTP存储加密密钥（32位字符串）
  * payment_rsa2_public_key: 【关键】平台商户对接使用RSA2算法验签时需用到的公钥（可使用支付宝开发平台密钥工具生成）
  * payment_rsa2_private_key: 【关键】平台商户对接使用RSA2算法加签时需用到的私钥（可使用支付宝开发平台密钥工具生成）
@@ -172,7 +172,7 @@ Success: 初始化成功！
 
 请将该密钥配置提供给前端技术人员到前端源码中编译！
 ------------------------
-后台敏感接口传输密钥：$api_crypto_key
+敏感接口传输加密密钥：$api_crypto_key
 
 ------------------------
 

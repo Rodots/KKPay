@@ -341,6 +341,39 @@ CREATE TABLE `kkpay_order_buyer`  (
 ) ENGINE = InnoDB CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '订单买家表' ROW_FORMAT = DYNAMIC;
 
 -- ----------------------------
+-- Table structure for kkpay_order_complaint
+-- ----------------------------
+DROP TABLE IF EXISTS `kkpay_order_complaint`;
+CREATE TABLE `kkpay_order_complaint`  (
+  `id` int UNSIGNED NOT NULL AUTO_INCREMENT,
+  `complaint_id` varchar(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '上游投诉单号',
+  `source_api` varchar(64) CHARACTER SET ascii COLLATE ascii_bin NOT NULL COMMENT '来源接口标识',
+  `trade_no` char(24) CHARACTER SET ascii COLLATE ascii_bin NULL DEFAULT NULL COMMENT '关联平台订单号',
+  `payment_channel_account_id` int UNSIGNED NOT NULL COMMENT '支付通道子账户ID',
+  `merchant_id` int UNSIGNED NULL DEFAULT NULL COMMENT '关联商户ID',
+  `complaint_reason` varchar(512) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '投诉原因',
+  `complaint_type` varchar(64) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NOT NULL COMMENT '投诉类型',
+  `status` enum('PENDING','MERCHANT_PROCESSING','MERCHANT_FEEDBACKED','FINISHED','CANCELLED','CLOSED','UPGRADED') CHARACTER SET ascii COLLATE ascii_bin NOT NULL DEFAULT 'PENDING' COMMENT '投诉状态',
+  `content` varchar(2048) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '投诉内容',
+  `images` json NULL COMMENT '投诉图片URL列表',
+  `reply_content` varchar(2048) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '商户回复内容',
+  `reply_images` json NULL COMMENT '回复图片URL列表',
+  `negotiate_records` json NULL COMMENT '协商记录（用户与商家双方对话记录）',
+  `upgrade_content` varchar(2048) CHARACTER SET utf8mb4 COLLATE utf8mb4_0900_ai_ci NULL DEFAULT NULL COMMENT '升级投诉内容',
+  `upgrade_time` timestamp NULL DEFAULT NULL COMMENT '升级投诉时间',
+  `complaint_time` timestamp NULL DEFAULT NULL COMMENT '投诉发起时间',
+  `created_at` timestamp NULL DEFAULT NULL COMMENT '创建时间',
+  `updated_at` timestamp NULL DEFAULT NULL COMMENT '更新时间',
+  PRIMARY KEY (`id`) USING BTREE,
+  UNIQUE INDEX `uk_complaint_source`(`complaint_id` ASC, `source_api` ASC) USING BTREE COMMENT '投诉单号+来源接口联合唯一',
+  INDEX `idx_trade_no`(`trade_no` ASC) USING BTREE,
+  INDEX `idx_payment_channel_account_id`(`payment_channel_account_id` ASC) USING BTREE,
+  INDEX `idx_merchant_id`(`merchant_id` ASC) USING BTREE,
+  INDEX `idx_status`(`status` ASC) USING BTREE,
+  INDEX `idx_complaint_time`(`complaint_time` ASC) USING BTREE
+) ENGINE = InnoDB AUTO_INCREMENT = 1 CHARACTER SET = utf8mb4 COLLATE = utf8mb4_0900_ai_ci COMMENT = '订单投诉表' ROW_FORMAT = DYNAMIC;
+
+-- ----------------------------
 -- Table structure for kkpay_order_notification
 -- ----------------------------
 DROP TABLE IF EXISTS `kkpay_order_notification`;
