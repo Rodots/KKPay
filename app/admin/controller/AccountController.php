@@ -41,48 +41,47 @@ class AccountController extends AdminBase
             return $this->fail('请先填写账号/密码');
         }
 
-        $admin = Admin::where('account', trim($params['account']))->first();
-        if (empty($admin)) {
+        $row = Admin::where('account', trim($params['account']))->first();
+        if (empty($row)) {
             return $this->fail('账号或密码不正确');
         }
 
         // 验证登录密码
-        $hashedPassword = 'login' . $admin->login_salt . hash('xxh128', $params['password']) . 'kkpay';
-        if (!password_verify($hashedPassword, $admin->login_password)) {
-            $this->adminLog("管理员【{$admin->account}】登录失败", $admin->id);
+        $hashedPassword = 'login' . $row->login_salt . hash('xxh128', $params['password']) . 'kkpay';
+        if (!password_verify($hashedPassword, $row->login_password)) {
+            $this->adminLog("管理员【{$row->account}】登录失败", $row->id);
             return $this->fail('账号或密码不正确');
         }
 
         // 验证TOTP双重验证代码（如果启用）
-        if (!empty($admin->totp_secret) && !$this->verifyTotpCode($admin->totp_secret, $params['totp_code'] ?? '')) {
+        if (!empty($row->totp_secret) && !$this->verifyTotpCode($row->totp_secret, $params['totp_code'] ?? '')) {
             return $this->fail('TOTP一次性密码不正确，请重新输入');
         }
 
         // 检查密码是否需要重新哈希
-        if (password_needs_rehash($admin->login_password, PASSWORD_BCRYPT)) {
-            $admin->login_password = password_hash($hashedPassword, PASSWORD_BCRYPT);
-            $admin->save();
+        if (password_needs_rehash($row->login_password, PASSWORD_BCRYPT)) {
+            $row->login_password = password_hash($hashedPassword, PASSWORD_BCRYPT);
+            $row->save();
         }
 
         try {
-            Cache::set('admin_login_ip_' . $admin->id, get_client_ip(), 86400);
+            Cache::set('admin_login_ip_' . $row->id, get_client_ip(), 86400);
             $token = JwtToken::getInstance()
                 ->expire(config('kkpay.jwt_expire_time', 900))
-                ->generate(['admin_id' => $admin->id]);
+                ->generate(['admin_id' => $row->id]);
         } catch (Throwable $e) {
             Log::error('管理端登录失败: ' . $e->getMessage());
             return $this->error('登录失败，请稍后再试');
         }
 
-        $this->adminLog("管理员【{$admin->account}】登录成功", $admin->id);
+        $this->adminLog("管理员【{$row->account}】登录成功", $row->id);
 
         return $this->success('登录成功', [
-            'account'   => $admin->account,
-            'nickname'  => $admin->nickname,
-            'token'     => $token,
-            'avatar'    => 'https://weavatar.com/avatar/' . hash('sha256', $admin->email ?: '2854203763@qq.com') . '?d=mp',
-            'email'     => $admin->email,
-            'role_name' => $admin->role_name
+            'account'  => $row->account,
+            'nickname' => $row->nickname,
+            'token'    => $token,
+            'avatar'   => 'https://weavatar.com/avatar/' . hash('sha256', $row->email ?: '2854203763@qq.com') . '?d=mp',
+            'email'    => $row->email
         ]);
     }
 
@@ -212,7 +211,8 @@ class AccountController extends AdminBase
     }
 
     /**
-     * 生成TOTP双重验证密钥
+     * 生成并验证绑定TOTP双重验证密钥
+     * （未传code参数：生成密钥；传入code参数：验证并绑定）
      *
      * @param Request $request HTTP请求对象
      * @return Response 响应对象
@@ -221,25 +221,48 @@ class AccountController extends AdminBase
     {
         $adminId = $request->AdminInfo['id'];
         $admin   = Admin::find($adminId);
+        $code    = $request->post('code', '');
 
-        $code = $request->post('code');
-        if ($code !== null) {
-            if (empty($code)) {
-                return $this->fail('请输入TOTP验证码');
+        // 如果传入了code，执行验证绑定逻辑
+        if ($code !== '') {
+            if (!empty($admin->totp_secret)) {
+                return $this->fail('您已启用并绑定了TOTP，请勿重复操作');
             }
-            if (!$this->verifyTotpCode($admin->totp_secret, $code)) {
-                return $this->fail('TOTP验证码错误');
+
+            $cacheKey = 'totp_verify_admin_' . $adminId;
+            $secret   = Cache::get($cacheKey);
+            if (!$secret) {
+                return $this->fail('TOTP密钥已过期，请重新生成');
             }
-        } elseif (!empty($admin->totp_secret)) {
-            return $this->fail('您已启用并绑定了TOTP，请勿重复操作');
+
+            if (!new GoogleAuthenticator()->verifyCode($secret, $code)) {
+                return $this->fail('TOTP一次性密码不正确，请重新输入');
+            }
+
+            Cache::delete($cacheKey);
+
+            try {
+                $admin->totp_secret = new XChaCha20(config('kkpay.totp_crypto_key', ''))->encrypt($secret);
+                if (!$admin->save()) {
+                    return $this->fail('绑定失败，请稍后重试');
+                }
+                $this->adminLog("管理员【{$admin->account}】启用TOTP双重验证", $adminId);
+                return $this->success('启用成功');
+            } catch (Throwable $e) {
+                Log::error('TOTP绑定失败: ' . $e->getMessage());
+                return $this->fail('绑定失败，请稍后重试');
+            }
+        }
+
+        // 如果未传入code，执行生成密钥逻辑
+        if (!empty($admin->totp_secret)) {
+            return $this->fail('您已启用并绑定了TOTP，请先解绑');
         }
 
         try {
             $ga     = new GoogleAuthenticator();
             $secret = $ga->createSecret();
-
             Cache::set('totp_verify_admin_' . $adminId, $secret, 300);
-
             return $this->success('生成TOTP密钥成功，请在5分钟内完成绑定', [
                 'secret'  => $secret,
                 'qr_code' => $ga->getQRCodeUrl($admin->account, $secret, sys_config('system', 'site_name', '卡卡聚合支付'))
@@ -251,49 +274,6 @@ class AccountController extends AdminBase
     }
 
     /**
-     * 验证并绑定TOTP密钥
-     *
-     * @param Request $request HTTP请求对象
-     * @return Response 响应对象
-     */
-    public function totpVerify(Request $request): Response
-    {
-        $code = $request->post('code');
-        if (empty($code)) {
-            return $this->fail('请输入TOTP验证码');
-        }
-
-        $adminId  = $request->AdminInfo['id'];
-        $cacheKey = 'totp_verify_admin_' . $adminId;
-        $secret   = Cache::get($cacheKey);
-
-        if (!$secret) {
-            return $this->fail('TOTP密钥已过期，请重新生成');
-        }
-
-        if (!new GoogleAuthenticator()->verifyCode($secret, $code)) {
-            return $this->fail('TOTP一次性密码不正确，请重新输入');
-        }
-
-        Cache::delete($cacheKey);
-
-        try {
-            $admin              = Admin::find($adminId);
-            $admin->totp_secret = new XChaCha20(config('kkpay.totp_crypto_key', ''))->encrypt($secret);
-
-            if (!$admin->save()) {
-                return $this->fail('绑定失败，请稍后重试');
-            }
-
-            $this->adminLog("管理员【{$admin->account}】启用TOTP双重验证", $adminId);
-            return $this->success('启用成功');
-        } catch (Throwable $e) {
-            Log::error('TOTP绑定失败: ' . $e->getMessage());
-            return $this->fail('绑定失败，请稍后重试');
-        }
-    }
-
-    /**
      * 禁用TOTP双重验证
      *
      * @param Request $request HTTP请求对象
@@ -301,8 +281,8 @@ class AccountController extends AdminBase
      */
     public function totpDisable(Request $request): Response
     {
-        $code = $request->post('code');
-        if (empty($code)) {
+        $code = $request->post('code', '');
+        if ($code === '') {
             return $this->fail('请输入TOTP验证码');
         }
 
@@ -318,7 +298,6 @@ class AccountController extends AdminBase
         }
 
         $admin->totp_secret = null;
-
         if (!$admin->save()) {
             return $this->fail('禁用失败，请稍后重试');
         }
@@ -330,19 +309,20 @@ class AccountController extends AdminBase
     /**
      * 验证TOTP代码
      *
-     * @param string $totpSecret TOTP密钥（加密存储）
-     * @param string $totpCode   用户输入的TOTP验证码
+     * @param string|null $totpSecret TOTP密钥（加密存储）
+     * @param string      $totpCode   用户输入的TOTP验证码
      * @return bool 验证是否成功
      */
-    private function verifyTotpCode(string $totpSecret, string $totpCode): bool
+    private function verifyTotpCode(?string $totpSecret, string $totpCode): bool
     {
-        if (empty($totpCode) || strlen($totpCode) !== 6 || !ctype_digit($totpCode)) {
+        // 统一前置校验：密钥为空或验证码格式非法直接拦截
+        if (empty($totpSecret) || strlen($totpCode) !== 6 || !ctype_digit($totpCode)) {
             return false;
         }
 
         try {
             $decryptedSecret = new XChaCha20(config('kkpay.totp_crypto_key', ''))->decrypt($totpSecret);
-            return new GoogleAuthenticator()->verifyCode($decryptedSecret, $totpCode);
+            return new GoogleAuthenticator()->verifyCode($decryptedSecret, $totpCode, 0);
         } catch (Throwable $e) {
             Log::error('TOTP验证异常: ' . $e->getMessage());
             return false;
