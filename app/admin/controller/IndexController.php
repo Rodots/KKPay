@@ -1,5 +1,4 @@
 <?php
-
 declare(strict_types=1);
 
 namespace app\admin\controller;
@@ -23,10 +22,15 @@ class IndexController extends AdminBase
         $weekStart  = $today->copy()->subDays(6)->format('Y-m-d 00:00:00');
 
         // 商户钱包汇总
-        $walletStats = Db::table('merchant_wallet')->selectRaw('SUM(available_balance) as available_balance_sum, SUM(unavailable_balance) as unavailable_balance_sum, SUM(margin) as margin_sum, SUM(prepaid) as prepaid_sum')->first();
+        $walletStats = Db::table('merchant_wallet')
+            ->selectRaw('SUM(available_balance) as available_balance_sum, SUM(unavailable_balance) as unavailable_balance_sum, SUM(margin) as margin_sum, SUM(prepaid) as prepaid_sum')
+            ->first();
 
         // 今日订单统计
-        $todayOrderStats = Db::table('order')->selectRaw('COUNT(*) as total_count, SUM(CASE WHEN trade_state = ? THEN 1 ELSE 0 END) as success_count, SUM(CASE WHEN trade_state = ? THEN profit_amount ELSE 0 END) as profit_sum', [Order::TRADE_STATE_SUCCESS, Order::TRADE_STATE_SUCCESS])->whereBetween('create_time', [$todayStart, $todayEnd])->first();
+        $todayOrderStats = Db::table('order')
+            ->selectRaw('COUNT(*) as total_count, SUM(CASE WHEN trade_state = ? THEN 1 ELSE 0 END) as success_count, SUM(CASE WHEN trade_state = ? THEN profit_amount ELSE 0 END) as profit_sum', [Order::TRADE_STATE_SUCCESS, Order::TRADE_STATE_SUCCESS])
+            ->whereBetween('create_time', [$todayStart, $todayEnd])
+            ->first();
 
         $todaySuccessRate = $todayOrderStats->total_count > 0 ? round($todayOrderStats->success_count / $todayOrderStats->total_count * 100, 2) : 0;
 
@@ -43,128 +47,128 @@ class IndexController extends AdminBase
             'today_success_rate'        => $todaySuccessRate,
             'today_profit_sum'          => $todayOrderStats->profit_sum ?? '0.00',
             'today_risk_count'          => Db::table('risk_log')->whereBetween('created_at', [$todayStart, $todayEnd])->count(),
-        ];
-
-        $data['charts'] = [
-            'weekly_transaction' => $this->getWeeklyTransactionChart($weekStart, $todayEnd),
-            'weekly_order'       => $this->getWeeklyOrderChart($weekStart, $todayEnd),
+            'charts'                    => [
+                'weekly_transaction' => $this->getWeeklyTransactionChart($weekStart, $todayEnd),
+                'weekly_order'       => $this->getWeeklyOrderChart($weekStart, $todayEnd),
+            ],
         ];
 
         return $this->success('获取成功', $data);
     }
 
     /**
-     * 获取近七日交易额图表数据（按支付方式+汇总）包含退款金额和利润
+     * 获取近七日交易额图表数据（ECharts Dataset 格式）
      */
     private function getWeeklyTransactionChart(string $startDate, string $endDate): array
     {
-        $today = Carbon::today();
-        $dates = [];
-        for ($i = 6; $i >= 0; $i--) {
-            $dates[] = $today->copy()->subDays($i)->format('Y-m-d');
-        }
+        $dates = $this->getLast7Dates();
+        $data  = $this->initChartData($dates, ['total_amount', 'refund_amount', 'profit_amount'], 0.0);
 
-        // 初始化数据结构
-        $aggregatedData = [];
-        foreach ($dates as $date) {
-            foreach (array_keys(Order::PAYMENT_TYPE_MAP) as $type) {
-                $aggregatedData[$date . '_' . $type] = ['total_amount' => '0.00', 'profit_amount' => '0.00', 'refund_amount' => '0.00'];
-            }
-        }
+        // 统计成功订单
+        Db::table('order')
+            ->select(['create_time', 'payment_type', 'total_amount', 'profit_amount'])
+            ->where('trade_state', Order::TRADE_STATE_SUCCESS)
+            ->whereBetween('create_time', [$startDate, $endDate])
+            ->get()
+            ->each(function ($order) use (&$data) {
+                $date = Carbon::parse($order->create_time)->format('Y-m-d');
+                $type = $order->payment_type;
+                if (isset($data[$type]['total_amount'][$date])) {
+                    $data[$type]['total_amount'][$date]  += (float)$order->total_amount;
+                    $data[$type]['profit_amount'][$date] += (float)($order->profit_amount ?? 0);
+                }
+            });
 
-        // 统计成功订单的交易额和利润
-        $orders = Db::table('order')->select(['create_time', 'payment_type', 'total_amount', 'profit_amount'])->where('trade_state', Order::TRADE_STATE_SUCCESS)->whereBetween('create_time', [$startDate, $endDate])->get();
-        foreach ($orders as $order) {
-            $key = Carbon::parse($order->create_time)->format('Y-m-d') . '_' . $order->payment_type;
-            if (isset($aggregatedData[$key])) {
-                $aggregatedData[$key]['total_amount']  = bcadd($aggregatedData[$key]['total_amount'], (string)$order->total_amount, 2);
-                $aggregatedData[$key]['profit_amount'] = bcadd($aggregatedData[$key]['profit_amount'], (string)($order->profit_amount ?? 0), 2);
-            }
-        }
+        // 统计退款
+        Db::table('order_refund')
+            ->join('order', 'order_refund.trade_no', '=', 'order.trade_no')
+            ->select(['order_refund.created_at', 'order.payment_type', 'order_refund.amount'])
+            ->whereBetween('order_refund.created_at', [$startDate, $endDate])
+            ->get()
+            ->each(function ($refund) use (&$data) {
+                $date = Carbon::parse($refund->created_at)->format('Y-m-d');
+                $type = $refund->payment_type;
+                if (isset($data[$type]['refund_amount'][$date])) {
+                    $data[$type]['refund_amount'][$date] += (float)$refund->amount;
+                }
+            });
 
-        // 统计退款金额
-        $refunds = Db::table('order_refund')->join('order', 'order_refund.trade_no', '=', 'order.trade_no')->select(['order_refund.created_at', 'order.payment_type', 'order_refund.amount'])->whereBetween('order_refund.created_at', [$startDate, $endDate])->get();
-        foreach ($refunds as $refund) {
-            $key = Carbon::parse($refund->created_at)->format('Y-m-d') . '_' . $refund->payment_type;
-            if (isset($aggregatedData[$key])) {
-                $aggregatedData[$key]['refund_amount'] = bcadd($aggregatedData[$key]['refund_amount'], (string)$refund->amount, 2);
-            }
-        }
-
-        // 统计每个支付方式是否有数据
-        $paymentTypeHasData = [];
-        foreach (array_keys(Order::PAYMENT_TYPE_MAP) as $type) {
-            $paymentTypeHasData[$type] = false;
-        }
-        foreach ($aggregatedData as $key => $data) {
-            $type = substr($key, 11); // 日期长度为10，加上下划线共11
-            if ($data['total_amount'] !== '0.00' || $data['profit_amount'] !== '0.00' || $data['refund_amount'] !== '0.00') {
-                $paymentTypeHasData[$type] = true;
-            }
-        }
-
-        // 组装输出数据，过滤无数据的支付方式
-        $values = [];
-        foreach ($dates as $date) {
-            foreach (Order::PAYMENT_TYPE_MAP as $type => $typeName) {
-                if (!$paymentTypeHasData[$type]) continue;
-                $data     = $aggregatedData[$date . '_' . $type];
-                $values[] = [$date, $typeName, $data['total_amount'], $data['refund_amount'], $data['profit_amount']];
-            }
-        }
-
-        return ['type' => 'bar', 'data' => ['fields' => ['日期', '支付方式', '交易额', '退款金额', '利润'], 'values' => $values]];
+        return $this->formatToEchartsDataset($data, ['total_amount' => '交易额', 'refund_amount' => '退款金额', 'profit_amount' => '利润'], $dates, true);
     }
 
     /**
-     * 获取近七日订单数图表数据（按支付方式统计，总订单数+交易成功）
+     * 获取近七日订单数图表数据（ECharts Dataset 格式）
      */
     private function getWeeklyOrderChart(string $startDate, string $endDate): array
+    {
+        $dates = $this->getLast7Dates();
+        $data  = $this->initChartData($dates, ['total_count', 'success_count'], 0);
+
+        Db::table('order')
+            ->select(['create_time', 'payment_type', 'trade_state'])
+            ->whereBetween('create_time', [$startDate, $endDate])
+            ->get()
+            ->each(function ($order) use (&$data) {
+                $date = Carbon::parse($order->create_time)->format('Y-m-d');
+                $type = $order->payment_type;
+                if (isset($data[$type]['total_count'][$date])) {
+                    $data[$type]['total_count'][$date]++;
+                    if ($order->trade_state === Order::TRADE_STATE_SUCCESS) {
+                        $data[$type]['success_count'][$date]++;
+                    }
+                }
+            });
+
+        return $this->formatToEchartsDataset($data, ['total_count' => '总订单数', 'success_count' => '交易成功数'], $dates, false);
+    }
+
+    /**
+     * 生成近7天日期数组
+     */
+    private function getLast7Dates(): array
     {
         $today = Carbon::today();
         $dates = [];
         for ($i = 6; $i >= 0; $i--) {
             $dates[] = $today->copy()->subDays($i)->format('Y-m-d');
         }
+        return $dates;
+    }
 
-        // 初始化数据结构
-        $aggregatedData = [];
-        foreach ($dates as $date) {
-            foreach (array_keys(Order::PAYMENT_TYPE_MAP) as $type) {
-                $aggregatedData[$date . '_' . $type] = ['total_count' => 0, 'success_count' => 0];
+    /**
+     * 初始化图表数据结构
+     */
+    private function initChartData(array $dates, array $metrics, $default): array
+    {
+        $data = [];
+        foreach (Order::PAYMENT_TYPE_MAP as $type => $_) {
+            foreach ($metrics as $metric) {
+                $data[$type][$metric] = array_fill_keys($dates, $default);
+            }
+        }
+        return $data;
+    }
+
+    /**
+     * 格式化为 ECharts Dataset 二维数组规范
+     */
+    private function formatToEchartsDataset(array $data, array $metricNames, array $dates, bool $isFloat = false): array
+    {
+        // 首行：表头
+        $result = [array_merge(['指标'], $dates)];
+
+        foreach (Order::PAYMENT_TYPE_MAP as $type => $typeName) {
+            foreach ($metricNames as $metricKey => $metricLabel) {
+                $values = array_values($data[$type][$metricKey]);
+
+                // 过滤全为 0 的系列，避免前端渲染空白图例
+                if (array_sum($values) > 0) {
+                    $formatted = $isFloat ? array_map(fn($v) => round((float)$v, 2), $values) : $values;
+                    $result[]  = array_merge(["{$typeName}-{$metricLabel}"], $formatted);
+                }
             }
         }
 
-        // 统计订单数据
-        $orders = Db::table('order')->select(['create_time', 'payment_type', 'trade_state'])->whereBetween('create_time', [$startDate, $endDate])->get();
-        foreach ($orders as $order) {
-            $key = Carbon::parse($order->create_time)->format('Y-m-d') . '_' . $order->payment_type;
-            if (isset($aggregatedData[$key])) {
-                $aggregatedData[$key]['total_count']++;
-                if ($order->trade_state === Order::TRADE_STATE_SUCCESS) $aggregatedData[$key]['success_count']++;
-            }
-        }
-
-        // 统计每个支付方式是否有数据
-        $paymentTypeHasData = [];
-        foreach (array_keys(Order::PAYMENT_TYPE_MAP) as $type) {
-            $paymentTypeHasData[$type] = false;
-        }
-        foreach ($aggregatedData as $key => $data) {
-            $type = substr($key, 11);
-            if ($data['total_count'] > 0) $paymentTypeHasData[$type] = true;
-        }
-
-        // 组装输出数据，过滤无数据的支付方式
-        $values = [];
-        foreach ($dates as $date) {
-            foreach (Order::PAYMENT_TYPE_MAP as $type => $typeName) {
-                if (!$paymentTypeHasData[$type]) continue;
-                $data     = $aggregatedData[$date . '_' . $type];
-                $values[] = [$date, $typeName, $data['total_count'], $data['success_count']];
-            }
-        }
-
-        return ['type' => 'bar', 'data' => ['fields' => ['日期', '支付方式', '总订单数', '交易成功数'], 'values' => $values]];
+        return $result;
     }
 }
