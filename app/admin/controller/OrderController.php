@@ -86,7 +86,7 @@ class OrderController extends AdminBase
 
         // 构建查询
         $select_fields = ['trade_no', 'out_trade_no', 'merchant_id', 'payment_type', 'payment_channel_account_id', 'subject', 'total_amount', 'buyer_pay_amount', 'create_time', 'payment_time', 'trade_state', 'settle_state', 'notify_state'];
-        $query         = Order::with(['merchant:id,merchant_number', 'paymentChannelAccount:id,name,payment_channel_id', 'paymentChannelAccount.paymentChannel:id,code', 'buyer:trade_no,ip,user_id,buyer_open_id,mobile'])->when($params, function ($q) use ($params) {
+        $query         = Order::with(['merchant:id,merchant_number,nickname', 'paymentChannelAccount:id,name,payment_channel_id', 'paymentChannelAccount.paymentChannel:id,code', 'buyer:trade_no,ip,user_id,buyer_open_id,mobile'])->when($params, function ($q) use ($params) {
             foreach ($params as $key => $value) {
                 if ($value === '' || $value === null) {
                     continue;
@@ -113,8 +113,7 @@ class OrderController extends AdminBase
                     'settle_state' => $q->where('settle_state', $value),
                     'notify_state' => $q->where('notify_state', $value),
                     'ip' => $q->whereHas('buyer', fn($query) => $query->where('ip', $value)),
-                    'user_id' => $q->whereHas('buyer', fn($query) => $query->where('user_id', $value)),
-                    'buyer_open_id' => $q->whereHas('buyer', fn($query) => $query->where('buyer_open_id', $value)),
+                    'user_id' => $q->whereHas('buyer', fn($query) => $query->where('user_id', $value)->orWhere('buyer_open_id', $value)),
                     default => null,
                 };
             }
