@@ -6,6 +6,7 @@ namespace app\admin\controller;
 
 use app\model\PaymentGatewayLog;
 use Core\baseController\AdminBase;
+use Core\Utils\PaymentGatewayUtil;
 use support\Request;
 use support\Response;
 use Throwable;
@@ -84,5 +85,50 @@ class PaymentController extends AdminBase
             'list'  => $list,
             'total' => $total,
         ]);
+    }
+
+    /**
+     * 支付网关列表
+     *
+     * 扫描系统所有支付网关目录，通过反射读取各网关的描述信息
+     * PaymentGatewayUtil内部自带反射缓存，常驻内存下不会重复反射
+     * 通过refresh参数可强制清除内部缓存并重新读取
+     *
+     * @param Request $request 请求对象
+     * @return Response JSON响应
+     */
+    public function gatewayList(Request $request): Response
+    {
+        $refresh = (bool)$request->get('refresh', false);
+
+        // 强制刷新时清除PaymentGatewayUtil内部反射缓存
+        if ($refresh) {
+            PaymentGatewayUtil::clearCache();
+        }
+
+        $gateway_dir = base_path() . '/core/Gateway';
+        $list = [];
+
+        foreach (scandir($gateway_dir) as $dir) {
+            if ($dir === '.' || $dir === '..' || !is_dir($gateway_dir . '/' . $dir)) {
+                continue;
+            }
+
+            $info = PaymentGatewayUtil::getInfo($dir, force: $refresh);
+            if ($info === null) {
+                continue;
+            }
+
+            $list[] = [
+                'gateway'     => $dir,
+                'title'       => $info['title'] ?? '',
+                'author'      => $info['author'] ?? '',
+                'url'         => $info['url'] ?? '',
+                'description' => $info['description'] ?? '',
+                'version'     => $info['version'] ?? '',
+            ];
+        }
+
+        return $this->success(data: $list);
     }
 }

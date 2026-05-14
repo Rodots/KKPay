@@ -24,7 +24,7 @@ class Gateway extends GatewayAbstract
         'title'       => '彩虹易支付',
         'author'      => 'KKPay',
         'url'         => 'https://pay.v8jisu.cn/doc/index.html',
-        'description' => '彩虹易支付系统是一款专业的聚合支付系统，支持支付宝，微信，QQ钱包等多种支付方式，提供安全，高效，简单的支付服务。',
+        'description' => '彩虹易支付系统是一款专业的聚合支付系统，提供安全，高效，简单的支付服务。',
         'version'     => '1.0.0',
         'notes'       => '',
         'config'      => [
